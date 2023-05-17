@@ -1,0 +1,19 @@
+{
+  "GOOS": [
+    "linux",
+    "darwin",
+    "windows"
+  ],
+  "GOARCH": [
+    "amd64",
+    "arm64"
+  ],
+  "GoVersion": [
+    "go1.20",
+    "go1.20.1",
+    "go1.20.2",
+    "go1.20.3",
+    "go1.20.4"
+  ],
+  "Programs": []
+}
