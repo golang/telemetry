@@ -5,7 +5,7 @@
 steps:
   # Build the container image
   - name: "gcr.io/cloud-builders/docker"
-    dir: 'godev'
+    dir: "godev"
     args:
       - "build"
       - "-t"
