@@ -1,0 +1,18 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Page Title</title>
+</head>
+<body>
+  <main>
+  <h1 id="this-is-a-heading">This is a heading</h1>
+<h2 id="this-is-a-subheading">This is a subheading</h2>
+<p><a href="https://go.dev">link</a></p>
+
+  </main>
+</body>
+</html>
+
