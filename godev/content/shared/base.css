@@ -1,0 +1,24 @@
+/*!
+ * Copyright 2023 The Go Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ */
+
+@import url("./normalize.css");
+@import url("./color.css");
+@import url("./typography.css");
+
+:root {
+  --border: 0.0625rem solid var(--color-border);
+  --border-radius: 0.25rem;
+}
+
+.Container {
+  margin: 2rem 0 5rem;
+}
+
+.Content {
+  margin: 0 auto;
+  max-width: 50rem;
+  padding: 0 1rem;
+}
