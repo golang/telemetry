@@ -27,3 +27,13 @@ submitting a change. However, it is not a strict requirement enforced by CI.
 ### Run ESLint, Stylelint, & Prettier
 
     ./npm run all
+
+## Third Party
+
+The `third_party` directory was generated with `go run ./devtools/cmd/npmdeps`.
+It contains JS  packages that are served by the web site. To add or upgrade a
+new dependency use the necessary `./npm` command then run
+`go run ./devtools/cmd/npmdeps`. Remove unnecessary files from the copy result
+where appropriate. For example, `content/localserver/index.html` only depends
+on files from `third_party/d3@7.8.4/dist/` so the directory
+`third_party/d3@7.8.4/src` can be deleted.
