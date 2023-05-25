@@ -50,15 +50,16 @@ import (
 type contentServer struct {
 	fsys     fs.FS
 	fserv    http.Handler
-	handlers map[string]handlerFunc
+	handlers map[string]HandlerFunc
 }
 
-type handler struct {
-	path string
-	fn   handlerFunc
-}
+type HandlerFunc func(http.ResponseWriter, *http.Request) error
 
-type handlerFunc func(http.ResponseWriter, *http.Request, fs.FS) error
+func (f HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if err := f(w, r); err != nil {
+		handleErr(w, r, err, http.StatusInternalServerError)
+	}
+}
 
 // Server returns a handler that serves HTTP requests with the contents
 // of the file system rooted at fsys. For requests to a path without an
@@ -72,10 +73,11 @@ type handlerFunc func(http.ResponseWriter, *http.Request, fs.FS) error
 // For example, a server can be constructed for a file system with a single
 // template, “index.html“, in a directory, “content“, and a handler:
 //
-//	 s := content.Server(os.DirFS("content"),
-//		 content.Handler("/", func(w http.ReponseWriter, _ *http.Request, fsys fs.FS) error {
-//		 	 return content.Template(w, fsys, "index.html", nil, http.StatusOK)
-//		 }))
+//	  fsys := os.DirFS("content")
+//		 s := content.Server(fsys,
+//			 content.Handler("/", func(w http.ReponseWriter, _ *http.Request) error {
+//			 	 return content.Template(w, fsys, "index.html", nil, http.StatusOK)
+//			 }))
 //
 // or without a handler:
 //
@@ -84,7 +86,7 @@ type handlerFunc func(http.ResponseWriter, *http.Request, fs.FS) error
 // Both examples will render the template index.html for requests to "/".
 func Server(fsys fs.FS, handlers ...*handler) http.Handler {
 	fserv := http.FileServer(http.FS(fsys))
-	hs := make(map[string]handlerFunc)
+	hs := make(map[string]HandlerFunc)
 	for _, h := range handlers {
 		if _, ok := hs[h.path]; ok {
 			panic("multiple registrations for " + h.path)
@@ -94,21 +96,23 @@ func Server(fsys fs.FS, handlers ...*handler) http.Handler {
 	return &contentServer{fsys, fserv, hs}
 }
 
-func Handler(path string, h handlerFunc) *handler {
+type handler struct {
+	path string
+	fn   HandlerFunc
+}
+
+func Handler(path string, h HandlerFunc) *handler {
 	return &handler{path, h}
 }
 
 func (c *contentServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(r.URL.Path) > 255 {
-		Error(w, r, errors.New("url too long"), http.StatusBadRequest)
+		handleErr(w, r, errors.New("url too long"), http.StatusBadRequest)
 		return
 	}
 
-	if handler, ok := c.handlers[r.URL.Path]; ok {
-		err := handler(w, r, c.fsys)
-		if err != nil {
-			Error(w, r, err, http.StatusInternalServerError)
-		}
+	if h, ok := c.handlers[r.URL.Path]; ok {
+		h.ServeHTTP(w, r)
 		return
 	}
 
@@ -120,7 +124,7 @@ func (c *contentServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	filepath, info, err := stat(c.fsys, r.URL.Path)
 	if errors.Is(err, fs.ErrNotExist) {
-		Error(w, r, errors.New("page not found"), http.StatusNotFound)
+		handleErr(w, r, errors.New(http.StatusText(http.StatusNotFound)), http.StatusNotFound)
 		return
 	}
 	if err == nil {
@@ -140,7 +144,7 @@ func (c *contentServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err != nil {
-		Error(w, r, err, http.StatusInternalServerError)
+		handleErr(w, r, err, http.StatusInternalServerError)
 	}
 }
 
@@ -205,8 +209,30 @@ func Text(w http.ResponseWriter, data any, code int) error {
 	return nil
 }
 
-// Error writes an error as an HTTP response with a status code.
-func Error(w http.ResponseWriter, req *http.Request, err error, code int) {
+// Error annotates an error with http status information.
+func Error(err error, code int) error {
+
+	return &contentError{err, code}
+}
+
+// Error status returns a content error from a status code.
+func ErrorStatus(code int) error {
+	err := errors.New(http.StatusText(code))
+	return &contentError{err, code}
+}
+
+type contentError struct {
+	err  error
+	Code int
+}
+
+func (e *contentError) Error() string { return e.err.Error() }
+
+// handleErr writes an error as an HTTP response with a status code.
+func handleErr(w http.ResponseWriter, req *http.Request, err error, code int) {
+	if cerr, ok := err.(*contentError); ok {
+		code = cerr.Code
+	}
 	if code == http.StatusInternalServerError {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), code)
 	} else {

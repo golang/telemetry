@@ -19,11 +19,12 @@ import (
 )
 
 func TestServer_ServeHTTP(t *testing.T) {
-	server := Server(os.DirFS("testdata"),
-		Handler("/data", handleTemplate),
-		Handler("/json", handleJSON),
-		Handler("/text", handleText),
-		Handler("/error", handleError),
+	fsys := os.DirFS("testdata")
+	server := Server(fsys,
+		Handler("/data", handleTemplate(fsys)),
+		Handler("/json", handleJSON()),
+		Handler("/text", handleText()),
+		Handler("/error", handleError()),
 	)
 
 	tests := []struct {
@@ -140,19 +141,23 @@ func Test_stat(t *testing.T) {
 	}
 }
 
-func handleTemplate(w http.ResponseWriter, _ *http.Request, fsys fs.FS) error {
-	return Template(w, fsys, "data.html", "Data from Handler", http.StatusOK)
+func handleTemplate(fsys fs.FS) HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) error {
+		return Template(w, fsys, "data.html", "Data from Handler", http.StatusOK)
+	}
 }
-
-func handleJSON(w http.ResponseWriter, _ *http.Request, fsys fs.FS) error {
-	return JSON(w, struct{ Data string }{Data: "Data"}, http.StatusOK)
+func handleJSON() HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) error {
+		return JSON(w, struct{ Data string }{Data: "Data"}, http.StatusOK)
+	}
 }
-
-func handleText(w http.ResponseWriter, _ *http.Request, fsys fs.FS) error {
-	return Text(w, "Hello, World!", http.StatusOK)
+func handleText() HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) error {
+		return Text(w, "Hello, World!", http.StatusOK)
+	}
 }
-
-func handleError(w http.ResponseWriter, r *http.Request, fsys fs.FS) error {
-	Error(w, r, errors.New("Bad Request"), http.StatusBadRequest)
-	return nil
+func handleError() HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return Error(errors.New("Bad Request"), http.StatusBadRequest)
+	}
 }
