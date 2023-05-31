@@ -13,6 +13,7 @@ import (
 
 	"github.com/fullstorydev/emulators/storage/gcsemu"
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/telemetry/godev/internal/testenv"
 )
 
 type jsondata struct {
@@ -28,16 +29,18 @@ var writeData = jsondata{
 }
 
 func TestGCStore(t *testing.T) {
-	err := os.Setenv("STORAGE_EMULATOR_HOST", "localhost:8081")
-	if err != nil {
-		t.Fatal(err)
-	}
+	testenv.NeedsLocalhostNet(t)
 
-	server, err := gcsemu.NewServer("localhost:8081", gcsemu.Options{})
+	server, err := gcsemu.NewServer("localhost:0", gcsemu.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer server.Close()
+
+	addr := server.Addr
+	if err := os.Setenv("STORAGE_EMULATOR_HOST", addr); err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	s, err := NewGCStore(ctx, "go-test-project", "test-bucket")
