@@ -13,7 +13,7 @@ import (
 
 	"github.com/fullstorydev/emulators/storage/gcsemu"
 	"github.com/google/go-cmp/cmp"
-	"golang.org/x/telemetry/godev/internal/testenv"
+	"golang.org/x/telemetry/internal/testenv"
 )
 
 type jsondata struct {
