@@ -1,5 +1,6 @@
 ---
 Title: Go Telemetry
+Layout: base.html
 ---
 
 # Go Telemetry

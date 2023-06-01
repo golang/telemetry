@@ -1,5 +1,6 @@
 ---
 Title: Go Telemetry Privacy Policy
+Layout: base.html
 ---
 
 # Privacy Policy

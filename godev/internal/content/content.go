@@ -23,6 +23,10 @@
 // and in the same directory as the requested page are included in the
 // html/template execution step to allow for sharing and composing logic from
 // multiple templates.
+//
+// Markdown templates must have an html layout template set in the frontmatter
+// section. The markdown content is available to the layout template as the
+// field `{{.Content}}`.
 package content
 
 import (
@@ -211,7 +215,6 @@ func Text(w http.ResponseWriter, data any, code int) error {
 
 // Error annotates an error with http status information.
 func Error(err error, code int) error {
-
 	return &contentError{err, code}
 }
 
@@ -277,10 +280,11 @@ func markdown(w http.ResponseWriter, fsys fs.FS, tmplPath string, code int) erro
 		data = map[string]interface{}{}
 	}
 	data["Content"] = template.HTML(content.String())
-	if _, ok := data["Template"]; !ok {
-		data["Template"] = "base.html"
+	layout, ok := data["Layout"]
+	if !ok {
+		return errors.New("missing layout for template " + tmplPath)
 	}
-	return Template(w, fsys, data["Template"].(string), data, code)
+	return Template(w, fsys, layout.(string), data, code)
 }
 
 // script serves TypeScript code tranformed into JavaScript.

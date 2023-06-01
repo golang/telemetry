@@ -1,5 +1,6 @@
 ---
 Title: Page Title
+Layout: base.html
 ---
 
 # This is a heading
