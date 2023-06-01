@@ -32,7 +32,7 @@ set -e
 
 version=v0.0.0-20230523204811-eccb7d2267b0
 port=8081
-dir=.localstorage
+dir="${GO_TELEMETRY_LOCAL_STORAGE:-.localstorage}"
 if [ ! -z "$1" ]; then
   dir="$1"
 fi
