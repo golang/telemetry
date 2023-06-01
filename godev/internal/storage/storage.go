@@ -10,7 +10,7 @@ import (
 	"context"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 
 	"cloud.google.com/go/storage"
 )
@@ -75,10 +75,14 @@ func NewFSStore(ctx context.Context, dir string) (*fsStore, error) {
 // Writer creates a new file if it does not exist. Any previous file with the same
 // name will be truncated.
 func (s *fsStore) Writer(ctx context.Context, file string) (io.WriteCloser, error) {
-	return os.Create(path.Join(s.dir, file))
+	name := filepath.Join(s.dir, file)
+	if err := os.MkdirAll(filepath.Dir(name), os.ModePerm); err != nil {
+		return nil, err
+	}
+	return os.Create(name)
 }
 
 // Reader opens the named file for reading.
 func (s *fsStore) Reader(ctx context.Context, file string) (io.ReadCloser, error) {
-	return os.Open(path.Join(s.dir, file))
+	return os.Open(filepath.Join(s.dir, file))
 }
