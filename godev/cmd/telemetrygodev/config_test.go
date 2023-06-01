@@ -15,7 +15,7 @@ func TestConfig(t *testing.T) {
 		ProjectID:           "go-telemetry",
 		StorageEmulatorHost: "localhost:8081",
 		LocalStorage:        ".localstorage",
-		UploadBucket:        "local-telemetry-uploads",
+		UploadBucket:        "local-telemetry-uploaded",
 	}
 	if got := newConfig(); !reflect.DeepEqual(got, want) {
 		t.Errorf("Config() = %v, want %v", got, want)

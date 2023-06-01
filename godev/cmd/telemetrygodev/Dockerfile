@@ -54,4 +54,4 @@ RUN go build -mod=readonly -o /app/telemetrygodev ./cmd/telemetrygodev
 
 WORKDIR /app
 
-CMD ["./telemetrygodev"]
+CMD ["./telemetrygodev", "--gcs"]

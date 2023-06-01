@@ -35,6 +35,18 @@ type config struct {
 	DevMode bool
 }
 
+// onCloudRun reports whether the current process is running on Cloud Run.
+func (c *config) onCloudRun() bool {
+	// Use the presence of the environment variables provided by Cloud Run.
+	// See https://cloud.google.com/run/docs/reference/container-contract.
+	for _, ev := range []string{"K_SERVICE", "K_REVISION", "K_CONFIGURATION"} {
+		if os.Getenv(ev) == "" {
+			return false
+		}
+	}
+	return true
+}
+
 var (
 	devMode = flag.Bool("dev", false, "load static content and templates from the filesystem")
 	useGCS  = flag.Bool("gcs", false, "use Cloud Storage for reading and writing storage objects")
@@ -49,7 +61,7 @@ func newConfig() *config {
 		ProjectID:           env("GO_TELEMETRY_PROJECT_ID", "go-telemetry"),
 		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
 		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
-		UploadBucket:        service + "-uploads",
+		UploadBucket:        service + "-uploaded",
 		UseGCS:              *useGCS,
 		DevMode:             *devMode,
 	}
