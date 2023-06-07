@@ -6,7 +6,6 @@ package counter
 
 import (
 	"fmt"
-	"log"
 	"runtime"
 	"strings"
 	"sync"
@@ -53,24 +52,33 @@ func (c *StackCounter) Inc() {
 	defer c.mu.Unlock()
 	for _, s := range c.stacks {
 		if eq(s.pcs, pcs) {
-			s.counter.Inc()
+			if s.counter != nil {
+				s.counter.Inc()
+			}
 			return
 		}
 	}
 	// have to create the new counter's name, and the new counter itself
-	locs := make([]string, c.depth)
+	locs := make([]string, 0, c.depth)
 	frs := runtime.CallersFrames(pcs)
-	for i := 0; i < n; i++ {
+	for i := 0; ; i++ {
 		fr, more := frs.Next()
-		_, pcline := fr.Func.FileLine(pcs[i])
-		entryptr := fr.Func.Entry()
-		_, entryline := fr.Func.FileLine(entryptr)
-		locs[i] = fmt.Sprintf("%s:%d", fr.Function, pcline-entryline)
-		if pcline-entryline < 0 {
-			// should never happen, remove before production TODO(pjw)
-			log.Printf("i=%d, f=%s, pcline=%d entryLine=%d", i, fr.Function, pcline, entryline)
-			log.Printf("pcs[i]=%x, entryptr=%x", pcs[i], entryptr)
+		pcline := fr.Line
+		entryptr := fr.Entry
+		var locline string
+		if fr.Func != nil {
+			_, entryline := fr.Func.FileLine(entryptr)
+			if pcline >= entryline {
+				// anything else is unexpected
+				locline = fmt.Sprintf("%s:%d", fr.Function, pcline-entryline)
+			} else {
+				locline = fmt.Sprintf("%s:??%d", fr.Function, pcline)
+			}
+		} else {
+			// might happen if the function is non-Go code or is fully inlined.
+			locline = fmt.Sprintf("%s:?%d", fr.Function, pcline)
 		}
+		locs = append(locs, locline)
 		if !more {
 			break
 		}
@@ -78,7 +86,9 @@ func (c *StackCounter) Inc() {
 
 	name := c.name + "\n" + strings.Join(locs, "\n")
 	if len(name) > maxNameLen {
-		return // fails silently, every time
+		const bad = "\ntruncated\n"
+		name = name[:maxNameLen-len(bad)] + bad
+
 	}
 	ctr := New(name)
 	c.stacks = append(c.stacks, stack{pcs: pcs, counter: ctr})
