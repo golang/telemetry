@@ -193,8 +193,8 @@ func TestNewFile(t *testing.T) {
 		}
 		f.rotate()
 		// now we should see a file
-		fi, err = os.ReadDir(telemetry.LocalDir)
-		if len(fi) != 1 {
+		fi, _ = os.ReadDir(telemetry.LocalDir)
+		if len(fi) != 1 { // TODO: why don't we check err != nil here?
 			close(&f)
 			t.Fatalf("len(fi) = %d, want 1", len(fi))
 		}

@@ -39,7 +39,6 @@ type file struct {
 	namePrefix string
 	err        error
 	meta       string
-	prev       *mappedFile
 	current    atomic.Pointer[mappedFile] // can be read without holding mu
 }
 
@@ -615,7 +614,7 @@ func (m *mappedFile) extend(end uint32) (*mappedFile, error) {
 		return nil, err
 	}
 	if info.Size() < int64(end) {
-		if m.f.WriteAt(m.zero[:], int64(end)-int64(len(m.zero))); err != nil {
+		if _, err := m.f.WriteAt(m.zero[:], int64(end)-int64(len(m.zero))); err != nil {
 			return nil, err
 		}
 	}
