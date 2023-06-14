@@ -6,8 +6,6 @@
 
 package counter
 
-import "fmt"
-
 func Add(string, int64) {}
 func Inc(string)        {}
 func Open()             {}
