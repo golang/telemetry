@@ -46,7 +46,7 @@ var defaultFile file
 
 // register ensures that the counter c is registered with the file.
 func (f *file) register(c *Counter) {
-	debugPrintf("register %s %p\n", c.name, c)
+	debugPrintf("register %s %p\n", c.Name(), c)
 
 	// If counter is not registered with file, register it.
 	// Doing this lazily avoids init-time work
@@ -59,10 +59,10 @@ func (f *file) register(c *Counter) {
 		if next == nil {
 			next = &f.end
 		}
-		debugPrintf("register %s next %p\n", c.name, next)
+		debugPrintf("register %s next %p\n", c.Name(), next)
 		if !wroteNext {
 			if !c.next.CompareAndSwap(nil, next) {
-				debugPrintf("register %s cas failed %p\n", c.name, c.next.Load())
+				debugPrintf("register %s cas failed %p\n", c.Name(), c.next.Load())
 				continue
 			}
 			wroteNext = true
@@ -70,10 +70,10 @@ func (f *file) register(c *Counter) {
 			c.next.Store(next)
 		}
 		if f.counters.CompareAndSwap(head, c) {
-			debugPrintf("registered %s %p\n", c.name, f.counters.Load())
+			debugPrintf("registered %s %p\n", c.Name(), f.counters.Load())
 			return
 		}
-		debugPrintf("register %s cas2 failed %p %p\n", c.name, f.counters.Load(), head)
+		debugPrintf("register %s cas2 failed %p %p\n", c.Name(), f.counters.Load(), head)
 	}
 }
 
@@ -244,12 +244,16 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 		if err := munmap(current.mapping); err != nil {
 			log.Print(err)
 		}
+		// TODO(hyangah): Ask pjw/rsc:
+		// Lookup accesses f.current.Load without lock.
+		// Why is it ok to munmap here?
 	}
 
 	m, err := openMapped(name, f.meta, nil)
 	if err != nil {
 		debugPrintf("rotate: openMapped: %v\n", err)
 		if current != nil {
+			// TODO(hyangah): Didn't we just munmap current.mapping?
 			if v, _, _, _ := current.lookup("counter/rotate-error"); v != nil {
 				v.Add(1)
 			}
@@ -296,7 +300,7 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 
 var mainCounter = New("counter/main")
 
-func open() {
+func Open() {
 	debugPrintf("Open")
 	mainCounter.Add(1)
 	defaultFile.rotate()

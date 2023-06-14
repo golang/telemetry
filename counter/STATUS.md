@@ -1,13 +1,5 @@
 # Issues in the counter package
 
-## `Open()`
-
-`Open()` is an exported function that asociates counters with a
- counter file. Should it remain exported? It is presently called in
- `init()` in upload.go. [We don't want to call it if telemetry is off,
- but it could be called conditionally in counter.init(), which would
- create a disk file even if no counter is ever incremented.]
-
 ## Generating reports and uploading
 
 The simplest story would be to generate and upload reports when the

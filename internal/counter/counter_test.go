@@ -285,7 +285,8 @@ func TestStack(t *testing.T) {
 	setup(t)
 	defer restore()
 	defer close(&defaultFile)
-	open()
+	// TODO(hyangah): can we avoid closing DefaultFile like other counter tests?
+	Open()
 	c := NewStack("foo", 5)
 	c.Inc()
 	c.Inc()

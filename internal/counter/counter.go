@@ -4,6 +4,9 @@
 
 //go:build !compiler_bootstrap
 
+// Package internal/counter implements the internals of the public counter package.
+// In addition to the public API, this package also includes APIs to parse and
+// manage the counter files, needed by the upload package.
 package counter
 
 import (
@@ -24,16 +27,6 @@ func debugPrintf(format string, args ...interface{}) {
 		}
 		fmt.Fprintf(os.Stderr, "counter: "+format, args...)
 	}
-}
-
-// Inc increments the counter with the given name.
-func Inc(name string) {
-	New(name).Inc()
-}
-
-// Add adds n to the counter with the given name.
-func Add(name string, n int64) {
-	New(name).Add(n)
 }
 
 // A Counter is a single named event counter.
@@ -57,14 +50,14 @@ func Add(name string, n int64) {
 // that usage fails to amortize the construction cost over
 // multiple calls to Add, so it is more expensive and not recommended.
 type Counter struct {
-	name  string
-	file  *file
+	name string
+	file *file
+
 	next  atomic.Pointer[Counter]
 	state counterState
 	ptr   counterPtr
 }
 
-// Name returns the name of the counter.
 func (c *Counter) Name() string {
 	return c.name
 }
