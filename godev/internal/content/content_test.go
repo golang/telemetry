@@ -24,6 +24,7 @@ func TestServer_ServeHTTP(t *testing.T) {
 		Handler("/data", handleTemplate(fsys)),
 		Handler("/json", handleJSON()),
 		Handler("/text", handleText()),
+		Handler("/teapot", handleTeapot()),
 		Handler("/error", handleError()),
 	)
 
@@ -56,6 +57,11 @@ func TestServer_ServeHTTP(t *testing.T) {
 			"/error",
 			"error.out",
 			http.StatusBadRequest,
+		},
+		{
+			"/teapot",
+			"teapot.out",
+			http.StatusTeapot,
 		},
 		{
 			"/script.ts",
@@ -146,16 +152,25 @@ func handleTemplate(fsys fs.FS) HandlerFunc {
 		return Template(w, fsys, "data.html", "Data from Handler", http.StatusOK)
 	}
 }
+
 func handleJSON() HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) error {
 		return JSON(w, struct{ Data string }{Data: "Data"}, http.StatusOK)
 	}
 }
+
 func handleText() HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) error {
 		return Text(w, "Hello, World!", http.StatusOK)
 	}
 }
+
+func handleTeapot() HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return Status(w, http.StatusTeapot)
+	}
+}
+
 func handleError() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		return Error(errors.New("Bad Request"), http.StatusBadRequest)

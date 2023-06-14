@@ -213,14 +213,16 @@ func Text(w http.ResponseWriter, data any, code int) error {
 	return nil
 }
 
-// Error annotates an error with http status information.
-func Error(err error, code int) error {
-	return &contentError{err, code}
+// Text renders an http status code as a text response.
+func Status(w http.ResponseWriter, code int) error {
+	if code < http.StatusBadRequest {
+		return Text(w, http.StatusText(code), code)
+	}
+	return Error(errors.New(http.StatusText(code)), code)
 }
 
-// Error status returns a content error from a status code.
-func ErrorStatus(code int) error {
-	err := errors.New(http.StatusText(code))
+// Error annotates an error with http status information.
+func Error(err error, code int) error {
 	return &contentError{err, code}
 }
 

@@ -68,7 +68,7 @@ func handleUpload(store storage.Store) content.HandlerFunc {
 			}
 			return content.Text(w, "ok", http.StatusOK)
 		}
-		return content.ErrorStatus(http.StatusMethodNotAllowed)
+		return content.Status(w, http.StatusMethodNotAllowed)
 	}
 }
 
