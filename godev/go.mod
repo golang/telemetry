@@ -9,6 +9,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/yuin/goldmark v1.5.4
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
+	golang.org/x/mod v0.10.0
 	golang.org/x/telemetry v0.0.0-00010101000000-000000000000
 )
 

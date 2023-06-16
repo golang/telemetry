@@ -14,11 +14,12 @@ cloud storage emulator and use the -gcs flag to use the Cloud Storage API.
 
 ### Environment Variables
 
-| Name                               | Default        | Description                                               |
-| ---------------------------------- | -------------- | --------------------------------------------------------- |
-| GO_TELEMETRY_PROJECT_ID            | go-telemetry   | GCP project ID                                            |
-| GO_TELEMETRY_STORAGE_EMULATOR_HOST | localhost:8081 | Host for the Cloud Storage emulator                       |
-| GO_TELEMETRY_LOCAL_STORAGE         | .localstorage  | Directory for storage emulator I/O or file system storage |
+| Name                               | Default               | Description                                               |
+| ---------------------------------- | --------------------- | --------------------------------------------------------- |
+| GO_TELEMETRY_PROJECT_ID            | go-telemetry          | GCP project ID                                            |
+| GO_TELEMETRY_STORAGE_EMULATOR_HOST | localhost:8081        | Host for the Cloud Storage emulator                       |
+| GO_TELEMETRY_LOCAL_STORAGE         | .localstorage         | Directory for storage emulator I/O or file system storage |
+| GO_TELEMETRY_UPLOAD_CONFIG         | ../config/config.json | Location of the upload config used for report validation  |
 
 ## Testing
 
