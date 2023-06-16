@@ -64,3 +64,11 @@ type StackCounter = counter.StackCounter
 func NewStack(name string, depth int) *StackCounter {
 	return counter.NewStack(name, depth)
 }
+
+// Open opens the counter file on disk and starts to mmap telemetry
+// counters to the file. Open also persists counters created and
+// incremented before it is called.
+// Programs are supposed to call this once.
+func Open() {
+	counter.Open()
+}
