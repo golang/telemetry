@@ -70,6 +70,16 @@ func Recover(next http.Handler) http.Handler {
 	})
 }
 
+// RequestSize limits the size of incoming request bodies.
+func RequestSize(n int64) Middleware {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, n)
+			h.ServeHTTP(w, r)
+		})
+	}
+}
+
 type statusRecorder struct {
 	http.ResponseWriter
 	status int

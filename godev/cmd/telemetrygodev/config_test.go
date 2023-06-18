@@ -17,6 +17,7 @@ func TestConfig(t *testing.T) {
 		LocalStorage:        ".localstorage",
 		UploadBucket:        "local-telemetry-uploaded",
 		UploadConfig:        "../config/config.json",
+		MaxRequestBytes:     1024 * 100,
 	}
 	if got := newConfig(); !reflect.DeepEqual(got, want) {
 		t.Errorf("Config() = %v, want %v", got, want)

@@ -6,7 +6,9 @@ package main
 
 import (
 	"flag"
+	"log"
 	"os"
+	"strconv"
 )
 
 type config struct {
@@ -29,6 +31,9 @@ type config struct {
 	// UploadConfig is the location of the upload config deployed with the server.
 	// It's used to validate telemetry uploads.
 	UploadConfig string
+
+	// MaxRequestBytes is the maximum request body size the server will allow.
+	MaxRequestBytes int64
 
 	// UseGCS is true if the server should use the Cloud Storage API for reading and
 	// writing storage objects.
@@ -67,14 +72,26 @@ func newConfig() *config {
 		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
 		UploadBucket:        service + "-uploaded",
 		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "../config/config.json"),
+		MaxRequestBytes:     env("GO_TELEMETRY_MAX_REQUEST_BYTES", int64(100*1024)),
 		UseGCS:              *useGCS,
 		DevMode:             *devMode,
 	}
 }
 
-func env(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
+// env reads a value from the os environment and returns a fallback
+// when it is unset.
+func env[T string | int64](key string, fallback T) T {
+	if s, ok := os.LookupEnv(key); ok {
+		switch any(fallback).(type) {
+		case string:
+			return any(s).(T)
+		case int64:
+			v, err := strconv.Atoi(s)
+			if err != nil {
+				log.Fatalf("bad value %q for %s: %v", s, key, err)
+			}
+			return any(v).(T)
+		}
 	}
 	return fallback
 }

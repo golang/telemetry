@@ -47,8 +47,14 @@ func main() {
 	mux.Handle("/", cserv)
 	mux.Handle("/upload/", handleUpload(ucfg, store))
 
+	mw := middleware.Chain(
+		middleware.Log,
+		middleware.RequestSize(cfg.MaxRequestBytes),
+		middleware.Recover,
+	)
+
 	fmt.Printf("server listening at http://localhost:%s\n", cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, middleware.Default(mux)))
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, mw(mux)))
 }
 
 func handleUpload(ucfg *upload.Config, store storage.Store) content.HandlerFunc {
@@ -56,7 +62,7 @@ func handleUpload(ucfg *upload.Config, store storage.Store) content.HandlerFunc 
 		if r.Method == "POST" {
 			var report telemetry.Report
 			if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
-				return err
+				return content.Error(err, http.StatusBadRequest)
 			}
 			if err := validate(&report, ucfg); err != nil {
 				return content.Error(err, http.StatusBadRequest)
