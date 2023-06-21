@@ -5,10 +5,10 @@
 package telemetry
 
 import (
-	"bytes"
-	"log"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 // Common types and directories used by multple packages.
@@ -69,9 +69,13 @@ var (
 // init() sets LocalDir and UploadDir. Users must not change these.
 // If the directories cannot be found or set, telemetry is disabled.
 func init() {
+	mode := telemetry.LookupMode()
+	if mode == "off" {
+		return
+	}
+
 	env, err := os.UserConfigDir()
 	if err != nil {
-		log.Print(err)
 		return
 	}
 	env = filepath.Join(env, "go", "telemetry")
@@ -79,43 +83,12 @@ func init() {
 	l := filepath.Join(env, "local")
 	u := filepath.Join(env, "upload")
 	if err := os.MkdirAll(l, 0755); err != nil {
-		log.Printf("no local directory %v", err)
 		return
 	}
 	if err := os.MkdirAll(u, 0755); err != nil {
-		log.Printf("no upload directory %v", err)
 		return
 	}
 	LocalDir = l
 	UploadDir = u
-
-	env = readVar("GOTELEMETRY")
-	Enabled = env != "off"
-}
-
-func readVar(name string) string {
-	env := os.Getenv(name)
-	if env == "" {
-		env = readGoEnv(name + "=")
-	}
-	return env
-}
-
-func readGoEnv(key string) string {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return ""
-	}
-	data, err := os.ReadFile(filepath.Join(dir, "go/env"))
-	if err != nil {
-		return ""
-	}
-	for data != nil {
-		line, rest, _ := bytes.Cut(data, []byte("\n"))
-		data = rest
-		if bytes.HasPrefix(line, []byte(key)) {
-			return string(line[len(key):])
-		}
-	}
-	return ""
+	Enabled = true
 }

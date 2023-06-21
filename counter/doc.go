@@ -14,8 +14,8 @@
 // by Parse().
 //
 // Simple counters are very cheap. Stack counters are not collected if
-// the envirnonment variable GOTELEMETRY is set to 'off'. (Stack counters
-// are implemented as a set of regular counters whose names
+// go telemetry is disabled ("off").
+// (Stack counters are implemented as a set of regular counters whose names
 // are the concatenation of the name and the stack trace. There is an upper
 // limit on the size of this name, about 256 bytes. If the name is too long
 // the stack will be truncated and "truncated" appended.)
