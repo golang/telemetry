@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build compiler_bootstrap
+//go:build !go1.19
 
 package counter
+
+import "fmt"
 
 func Add(string, int64) {}
 func Inc(string)        {}
@@ -23,3 +25,7 @@ type File struct {
 }
 
 func Parse(filename string, data []byte) (*File, error) { return nil, fmt.Errorf("unimplemented") }
+
+type StackCounter struct{ name string }
+
+func NewStack(name string, _ int) *StackCounter { return &StackCounter{name} }
