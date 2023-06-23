@@ -78,12 +78,13 @@ func TestBasic(t *testing.T) {
 // this is needed in Windows so that the generated testing.go file
 // can clean up the temporary test directory
 func close(f *file) {
-	if f == nil {
+	mf := f.current.Load()
+	if mf == nil {
 		// telemetry might have been off
 		return
 	}
-	f.current.Load().f.Close()
-	mmap.Munmap(f.current.Load().mapping)
+	mmap.Munmap(mf.mapping)
+	mf.f.Close()
 }
 
 func TestLarge(t *testing.T) {
