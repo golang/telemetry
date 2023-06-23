@@ -24,10 +24,22 @@ import (
 	"golang.org/x/telemetry/internal/mmap"
 )
 
-func TestBasic(t *testing.T) {
-	if runtime.GOOS == "openbsd" || runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+func skipIfUnsupportedPlatform(t *testing.T) {
+	t.Helper()
+	switch runtime.GOOS {
+	case "openbsd", "js", "wasip1", "solaris", "android":
+		// BUGS: #60614 - openbsd, #60967 - android , #60968 - solaris #60970 - solaris #60971 - wasip1)
 		t.Skip("broken for openbsd etc")
 	}
+	if runtime.GOARCH == "386" {
+		// BUGS: #60615 #60692 #60965 #60967
+		t.Skip("broken for GOARCH 386")
+	}
+}
+
+func TestBasic(t *testing.T) {
+	skipIfUnsupportedPlatform(t)
+
 	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
@@ -75,9 +87,7 @@ func close(f *file) {
 }
 
 func TestLarge(t *testing.T) {
-	if runtime.GOOS == "openbsd" || runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
-		t.Skip("broken for openbsd etc")
-	}
+	skipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
@@ -123,6 +133,8 @@ func TestLarge(t *testing.T) {
 }
 
 func TestRepeatedNew(t *testing.T) {
+	skipIfUnsupportedPlatform(t)
+
 	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
@@ -161,6 +173,8 @@ func hexDump(data []byte) string {
 }
 
 func TestNewFile(t *testing.T) {
+	skipIfUnsupportedPlatform(t)
+
 	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
@@ -226,6 +240,8 @@ func TestNewFile(t *testing.T) {
 }
 
 func TestRotate(t *testing.T) {
+	skipIfUnsupportedPlatform(t)
+
 	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
 	year, month, day := time.Now().Date()
 	now := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
@@ -281,6 +297,7 @@ func TestRotate(t *testing.T) {
 }
 
 func TestStack(t *testing.T) {
+	skipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
