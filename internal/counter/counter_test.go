@@ -40,7 +40,7 @@ func skipIfUnsupportedPlatform(t *testing.T) {
 func TestBasic(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
 
-	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
+	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
 	var f file
@@ -88,7 +88,7 @@ func close(f *file) {
 
 func TestLarge(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
-	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
+	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
 	var f file
@@ -135,7 +135,7 @@ func TestLarge(t *testing.T) {
 func TestRepeatedNew(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
 
-	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
+	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
 	var f file
@@ -175,7 +175,7 @@ func hexDump(data []byte) string {
 func TestNewFile(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
 
-	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
+	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
 	year, month, day := time.Now().Date()
@@ -242,7 +242,7 @@ func TestNewFile(t *testing.T) {
 func TestRotate(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
 
-	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
+	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	year, month, day := time.Now().Date()
 	now := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 	setup(t)
@@ -298,7 +298,7 @@ func TestRotate(t *testing.T) {
 
 func TestStack(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
-	t.Logf("GOOS %s GARCH %s", runtime.GOOS, runtime.GOARCH)
+	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
 	defer close(&defaultFile)
