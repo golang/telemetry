@@ -6,28 +6,42 @@
 package telemetry
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
+func TestTelemetryDefault(t *testing.T) {
+	gotelemetrydir := os.Getenv("GOTELEMETRYDIR")
+	if _, err := os.UserConfigDir(); gotelemetrydir == "" && err != nil {
+		if LocalDir != "" || UploadDir != "" || ModeFile != "" {
+			t.Errorf("DefaultSetting: (%q, %q, %q), want non-empty LocalDir/UploadDir/ModeFile", LocalDir, UploadDir, ModeFile)
+		}
+	} else {
+		if LocalDir == "" || UploadDir == "" || ModeFile == "" {
+			t.Errorf("DefaultSetting: (%q, %q, %q), want non-empty LocalDir/UploadDir/ModeFile", LocalDir, UploadDir, ModeFile)
+		}
+	}
+}
 func TestTelemetryModeWithNoModeConfig(t *testing.T) {
-	defer func() { userConfigDir = os.UserConfigDir }()
-
 	tmp := t.TempDir()
-	userConfigDir = func() (string, error) { return tmp, nil }
-
-	got := LookupMode()
-	if got != "local" {
-		t.Fatalf("LookupMode() = %q, want local", got)
+	tests := []struct {
+		modefile ModeFilePath
+		want     string
+	}{
+		{ModeFilePath(filepath.Join(tmp, "mode")), "local"},
+		{"", "off"},
+	}
+	for _, tt := range tests {
+		if got := tt.modefile.Mode(); got != tt.want {
+			t.Logf("Mode file: %q", tt.modefile)
+			t.Errorf("Mode() = %v, want %v", got, tt.want)
+		}
 	}
 }
 
 func TestTelemetryMode(t *testing.T) {
-	defer func() { userConfigDir = os.UserConfigDir }()
-
-	tmp := t.TempDir()
-	userConfigDir = func() (string, error) { return tmp, nil }
-
 	tests := []struct {
 		in      string
 		wantErr bool // want error when setting.
@@ -40,16 +54,18 @@ func TestTelemetryMode(t *testing.T) {
 		{"bogus", true},
 		{"", true},
 	}
-	for _, tt := range tests {
+	tmp := t.TempDir()
+	for i, tt := range tests {
 		t.Run("mode="+tt.in, func(t *testing.T) {
-			setErr := SetMode(tt.in)
+			modefile := ModeFilePath(filepath.Join(tmp, fmt.Sprintf("modefile%d", i)))
+			setErr := modefile.SetMode(tt.in)
 			if (setErr != nil) != tt.wantErr {
 				t.Fatalf("Set() error = %v, wantErr %v", setErr, tt.wantErr)
 			}
 			if setErr != nil {
 				return
 			}
-			if got := LookupMode(); got != tt.in {
+			if got := modefile.Mode(); got != tt.in {
 				t.Errorf("LookupMode() = %q, want %q", got, tt.in)
 			}
 		})

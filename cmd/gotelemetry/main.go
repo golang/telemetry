@@ -20,7 +20,7 @@ func main() {
 
 	args := flag.Args()
 	if len(args) == 0 {
-		fmt.Println(telemetry.LookupMode())
+		fmt.Println(telemetry.Mode())
 		return
 	}
 	switch cmd := args[0]; cmd {
