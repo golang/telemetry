@@ -11,6 +11,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
@@ -139,18 +140,18 @@ func (f *file) init(begin, end time.Time) {
 	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
 		goVers = "devel"
 	}
-	prog := info.Path
-	if prog == "" {
-		prog = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+	progPkgPath := info.Path
+	if progPkgPath == "" {
+		progPkgPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
 	}
-	prog = filepath.Base(prog)
+	prog := path.Base(progPkgPath)
 	progVers := info.Main.Version
 	if strings.Contains(progVers, "devel") || strings.Contains(progVers, "-") {
 		progVers = "devel"
 	}
 	f.meta = fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
 		begin.Format(time.RFC3339), end.Format(time.RFC3339),
-		prog, progVers, goVers, runtime.GOOS, runtime.GOARCH)
+		progPkgPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
 	if len(f.meta) > maxMetaLen { // should be impossible for our use
 		f.err = fmt.Errorf("metadata too long")
 		return
