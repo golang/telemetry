@@ -22,6 +22,7 @@ import (
 type StackCounter struct {
 	name  string
 	depth int
+	file  *file
 
 	mu sync.Mutex
 	// as this is a detail of the implementation, it could be replaced
@@ -35,7 +36,7 @@ type stack struct {
 }
 
 func NewStack(name string, depth int) *StackCounter {
-	return &StackCounter{name: name, depth: depth}
+	return &StackCounter{name: name, depth: depth, file: &defaultFile}
 }
 
 // Inc increments a stack counter. It computes the caller's stack and
@@ -99,7 +100,7 @@ func (c *StackCounter) Inc() {
 		name = name[:maxNameLen-len(bad)] + bad
 
 	}
-	ctr := New(name)
+	ctr := &Counter{name: name, file: c.file}
 	c.stacks = append(c.stacks, stack{pcs: pcs, counter: ctr})
 	ctr.Inc()
 }

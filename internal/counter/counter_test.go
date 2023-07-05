@@ -140,9 +140,9 @@ func TestRepeatedNew(t *testing.T) {
 	var f file
 	defer close(&f)
 	f.rotate()
-	New("gophers")
+	f.New("gophers")
 	c1ptr := f.lookup("gophers")
-	New("gophers")
+	f.New("gophers")
 	c2ptr := f.lookup("gophers")
 	if c1ptr != c2ptr {
 		t.Errorf("c1ptr = %p, c2ptr = %p, want same", c1ptr, c2ptr)
@@ -303,9 +303,11 @@ func TestStack(t *testing.T) {
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
-	defer close(&defaultFile)
-	Open()
-	c := NewStack("foo", 5)
+	var f file
+	defer close(&f)
+	f.rotate()
+
+	c := f.NewStack("foo", 5)
 	c.Inc()
 	c.Inc()
 	names := c.Names()
@@ -332,7 +334,7 @@ func TestStack(t *testing.T) {
 		oldnames[nm] = true
 	}
 	for i := 0; i < 2; i++ {
-		f(t, 4, c)
+		fn(t, 4, c)
 	}
 	newnames := make(map[string]bool)
 	for _, nm := range c.Names() {
@@ -367,8 +369,8 @@ func TestStack(t *testing.T) {
 		}
 	}
 	// check that Parse expands compressed counter names
-	data := defaultFile.current.Load().mapping.Data
-	fname := "2023-01-01.v1.count"
+	data := f.current.Load().mapping.Data
+	fname := "2023-01-01.v1.count" // bogus file name required by Parse.
 	theFile, err := Parse(fname, data)
 	if err != nil {
 		t.Fatal(err)
@@ -379,7 +381,7 @@ func TestStack(t *testing.T) {
 	known := map[string]bool{
 		"counter/main": true,
 		"foo":          true,
-		"golang.org/x/telemetry/internal/counter.f":         true,
+		"golang.org/x/telemetry/internal/counter.fn":        true,
 		"golang.org/x/telemetry/internal/counter.TestStack": true,
 		"runtime.goexit":  true,
 		"testing.tRunner": true,
@@ -400,10 +402,11 @@ func TestStack(t *testing.T) {
 	}
 }
 
-func f(t *testing.T, n int, c *StackCounter) {
+// fn calls itself n times recursively as incrementing the stack counter.
+func fn(t *testing.T, n int, c *StackCounter) {
 	c.Inc()
 	if n > 0 {
-		f(t, n-1, c)
+		fn(t, n-1, c)
 	}
 }
 
@@ -420,7 +423,10 @@ func restore() {
 	counterTime = time.Now
 }
 
-// New returns a counter with the given name, using the given file
 func (f *file) New(name string) *Counter {
 	return &Counter{name: name, file: f}
+}
+
+func (f *file) NewStack(name string, depth int) *StackCounter {
+	return &StackCounter{name: name, depth: depth, file: f}
 }
