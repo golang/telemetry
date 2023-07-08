@@ -177,8 +177,10 @@ func TestNewFile(t *testing.T) {
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
-	year, month, day := time.Now().Date()
-	now := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	now := time.Now()
+	year, month, day := now.Date()
+	// preserve time location as done in (*file).filename.
+	testStartTime := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
 
 	// test that completely new files have dates well in the future
 	// Try 20 times to get 20 different random numbers.
@@ -227,10 +229,10 @@ func TestNewFile(t *testing.T) {
 			close(&f)
 			t.Fatal(err)
 		}
-		days := (timeEnd.Sub(now)) / (24 * time.Hour)
+		days := (timeEnd.Sub(testStartTime)) / (24 * time.Hour)
 		if days <= 7 || days > 14 {
 			timeBegin, _ := time.Parse(time.RFC3339, cf.Meta["TimeBegin"])
-			t.Logf("now: %v file: %v TimeBegin: %v TimeEnd: %v", now, fi[0].Name(), timeBegin, timeEnd)
+			t.Logf("testStartTime: %v file: %v TimeBegin: %v TimeEnd: %v", testStartTime, fi[0].Name(), timeBegin, timeEnd)
 			t.Errorf("%d: days = %d, want 7 < days <= 14", i, days)
 		}
 		close(&f)
