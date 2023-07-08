@@ -184,7 +184,7 @@ func (f *file) filename(now time.Time) (name string, expire time.Time, err error
 }
 
 // fileValidity returns the number of days that a file is valid for.
-// It is 7, except for new clients.
+// It is 7 for old clients, [8, 14] for new clients.
 func fileValidity() int {
 	dir := telemetry.UploadDir
 	if c, err := os.ReadDir(dir); err == nil && len(c) > 0 {

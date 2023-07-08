@@ -222,14 +222,15 @@ func TestNewFile(t *testing.T) {
 			close(&f)
 			t.Fatal(err)
 		}
-		then, err := time.Parse(time.RFC3339, cf.Meta["TimeEnd"])
+		timeEnd, err := time.Parse(time.RFC3339, cf.Meta["TimeEnd"])
 		if err != nil {
 			close(&f)
 			t.Fatal(err)
 		}
-		days := (then.Sub(now)) / (24 * time.Hour)
+		days := (timeEnd.Sub(now)) / (24 * time.Hour)
 		if days <= 7 || days > 14 {
-			// this fails on Solaris, but only once, so print i.
+			timeBegin, _ := time.Parse(time.RFC3339, cf.Meta["TimeBegin"])
+			t.Logf("now: %v file: %v TimeBegin: %v TimeEnd: %v", now, fi[0].Name(), timeBegin, timeEnd)
 			t.Errorf("%d: days = %d, want 7 < days <= 14", i, days)
 		}
 		close(&f)
