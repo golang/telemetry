@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"golang.org/x/mod/semver"
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/godev"
 	"golang.org/x/telemetry/godev/internal/content"
 	"golang.org/x/telemetry/godev/internal/middleware"
@@ -32,7 +31,7 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 	cfg := newConfig()
-	store, err := uploadBucket(ctx, cfg)
+	store, reject, err := buckets(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,7 +44,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle("/", cserv)
-	mux.Handle("/upload/", handleUpload(ucfg, store))
+	mux.Handle("/upload/", handleUpload(ucfg, store, reject))
 
 	mw := middleware.Chain(
 		middleware.Log,
@@ -57,17 +56,19 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, mw(mux)))
 }
 
-func handleUpload(ucfg *upload.Config, store storage.Store) content.HandlerFunc {
+func handleUpload(ucfg *upload.Config, uploads, rejects storage.Store) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method == "POST" {
-			var report telemetry.Report
+			var report upload.Report
 			if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
 				return content.Error(err, http.StatusBadRequest)
 			}
+			var store = uploads
 			if err := validate(&report, ucfg); err != nil {
-				return content.Error(err, http.StatusBadRequest)
+				report.ValidationError = err.Error()
+				store = rejects
 			}
-			// TODO: capture metrics for collisions.
+			// TODO: capture metrics for collisions (duplicate-uploads).
 			ctx := r.Context()
 			name := fmt.Sprintf("%s/%g.json", report.Week, report.X)
 			f, err := store.Writer(ctx, name)
@@ -88,7 +89,7 @@ func handleUpload(ucfg *upload.Config, store storage.Store) content.HandlerFunc 
 }
 
 // validate validates the telemetry report data against the latest config.
-func validate(r *telemetry.Report, cfg *upload.Config) error {
+func validate(r *upload.Report, cfg *upload.Config) error {
 	// TODO: reject/drop data arrived too early or too late.
 	if _, err := time.Parse("2006-01-02", r.Week); err != nil {
 		return fmt.Errorf("invalid week %s", r.Week)
@@ -135,15 +136,31 @@ func fsys(fromOS bool) fs.FS {
 	return f
 }
 
-// uploadBucket returns a telemtry upload bucket for the given config.
-func uploadBucket(ctx context.Context, cfg *config) (storage.Store, error) {
+// buckets returns a telemtry upload and reject buckets for the given config.
+func buckets(ctx context.Context, cfg *config) (upload, reject storage.Store, err error) {
 	if cfg.UseGCS && !cfg.onCloudRun() {
 		if err := os.Setenv("STORAGE_EMULATOR_HOST", cfg.StorageEmulatorHost); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	if cfg.UseGCS {
-		return storage.NewGCStore(ctx, cfg.ProjectID, cfg.UploadBucket)
+		upload, err = storage.NewGCStore(ctx, cfg.ProjectID, cfg.UploadBucket)
+		if err != nil {
+			return nil, nil, err
+		}
+		reject, err = storage.NewGCStore(ctx, cfg.ProjectID, cfg.UploadErrorBucket)
+		if err != nil {
+			return nil, nil, err
+		}
+		return upload, reject, nil
 	}
-	return storage.NewFSStore(ctx, path.Join(cfg.LocalStorage, cfg.UploadBucket))
+	upload, err = storage.NewFSStore(ctx, path.Join(cfg.LocalStorage, cfg.UploadBucket))
+	if err != nil {
+		return nil, nil, err
+	}
+	reject, err = storage.NewFSStore(ctx, path.Join(cfg.LocalStorage, cfg.UploadErrorBucket))
+	if err != nil {
+		return nil, nil, err
+	}
+	return upload, reject, nil
 }

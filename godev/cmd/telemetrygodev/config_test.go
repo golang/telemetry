@@ -16,6 +16,7 @@ func TestConfig(t *testing.T) {
 		StorageEmulatorHost: "localhost:8081",
 		LocalStorage:        ".localstorage",
 		UploadBucket:        "local-telemetry-uploaded",
+		UploadErrorBucket:   "local-telemetry-rejected",
 		UploadConfig:        "../config/config.json",
 		MaxRequestBytes:     1024 * 100,
 	}

@@ -19,44 +19,48 @@ func TestValidate(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		report  *telemetry.Report
+		report  *upload.Report
 		wantErr bool
 	}{
 		{
 			name:    "empty report",
-			report:  &telemetry.Report{},
+			report:  &upload.Report{Report: &telemetry.Report{}},
 			wantErr: true,
 		},
 		{
 			name: "valid report with no counters",
-			report: &telemetry.Report{
-				Week:     "2023-06-15",
-				LastWeek: "",
-				X:        0.1,
-				Programs: []*telemetry.ProgramReport{},
-				Config:   "v0.0.1-test",
+			report: &upload.Report{
+				Report: &telemetry.Report{
+					Week:     "2023-06-15",
+					LastWeek: "",
+					X:        0.1,
+					Programs: []*telemetry.ProgramReport{},
+					Config:   "v0.0.1-test",
+				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "valid report with counters",
-			report: &telemetry.Report{
-				Week:     "2023-06-15",
-				LastWeek: "",
-				X:        0.1,
-				Programs: []*telemetry.ProgramReport{
-					{
-						Program:   "golang.org/x/tools/gopls",
-						Version:   "v0.10.1",
-						GoVersion: "go1.20.1",
-						GOOS:      "linux",
-						GOARCH:    "arm64",
-						Counters: map[string]int64{
-							"editor:vim": 100,
+			report: &upload.Report{
+				Report: &telemetry.Report{
+					Week:     "2023-06-15",
+					LastWeek: "",
+					X:        0.1,
+					Programs: []*telemetry.ProgramReport{
+						{
+							Program:   "golang.org/x/tools/gopls",
+							Version:   "v0.10.1",
+							GoVersion: "go1.20.1",
+							GOOS:      "linux",
+							GOARCH:    "arm64",
+							Counters: map[string]int64{
+								"editor:vim": 100,
+							},
 						},
 					},
+					Config: "v0.0.1-test",
 				},
-				Config: "v0.0.1-test",
 			},
 			wantErr: false,
 		},
