@@ -50,8 +50,14 @@ WORKDIR /telemetry/godev
 # Build the telemetrygodev binary and put it in /app.
 RUN go build -mod=readonly -o /app/telemetrygodev ./cmd/telemetrygodev
 
+WORKDIR /telemetry
+
+COPY config/config.json /app/config.json
+
 #### telemetrygodev init
 
 WORKDIR /app
+
+ENV GO_TELEMETRY_UPLOAD_CONFIG=/app/config.json
 
 CMD ["./telemetrygodev", "--gcs"]
