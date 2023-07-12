@@ -386,11 +386,11 @@ const (
 	recordUnit  = 32
 	maxMetaLen  = 512
 	numHash     = 512 // 2kB for hash table
-	maxNameLen  = 256
+	maxNameLen  = 4 * 1024
 	limitOff    = 0
 	hashOff     = 4
-	pageSize    = 4096
-	minFileLen  = 4096
+	pageSize    = 16 * 1024
+	minFileLen  = 16 * 1024
 )
 
 func mappedHeader(meta string) ([]byte, error) {
