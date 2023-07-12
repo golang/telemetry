@@ -28,9 +28,6 @@ type config struct {
 	// UploadBucket is the storage bucket for report uploads.
 	UploadBucket string
 
-	// UploadErrorBucket is the storage bucket for report uploads that do not pass validation.
-	UploadErrorBucket string
-
 	// UploadConfig is the location of the upload config deployed with the server.
 	// It's used to validate telemetry uploads.
 	UploadConfig string
@@ -74,7 +71,6 @@ func newConfig() *config {
 		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
 		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
 		UploadBucket:        service + "-uploaded",
-		UploadErrorBucket:   service + "-rejected",
 		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "../config/config.json"),
 		MaxRequestBytes:     env("GO_TELEMETRY_MAX_REQUEST_BYTES", int64(100*1024)),
 		UseGCS:              *useGCS,

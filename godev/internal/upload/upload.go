@@ -14,13 +14,6 @@ import (
 	"golang.org/x/telemetry"
 )
 
-// Report is a wrapper around telemetry.Report that adds a field
-// for validation errors.
-type Report struct {
-	*telemetry.Report
-	ValidationError string `json:",omitempty"`
-}
-
 // Config is a wrapper around telemetry.UploadConfig that provides some
 // convenience methods for checking the contents of a report.
 type Config struct {
