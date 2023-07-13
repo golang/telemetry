@@ -304,7 +304,6 @@ func TestStack(t *testing.T) {
 	setup(t)
 	defer restore()
 	defer close(&defaultFile)
-	// TODO(hyangah): can we avoid closing DefaultFile like other counter tests?
 	Open()
 	c := NewStack("foo", 5)
 	c.Inc()
@@ -345,6 +344,12 @@ func TestStack(t *testing.T) {
 	if len(newnames) != 5 {
 		t.Errorf("got %d new names, want 5", len(newnames))
 	}
+	// make sure the new names contain compression
+	for k := range newnames {
+		if !strings.Contains(k, "\"") {
+			t.Errorf("new name %q does not contain \"", k)
+		}
+	}
 	// look inside. old names should have a count of 1, new ones 2
 	for _, ct := range c.Counters() {
 		if ct == nil {
@@ -359,6 +364,38 @@ func TestStack(t *testing.T) {
 		}
 		if newnames[ct.Name()] && ct.ptr.count.Load() != 2 {
 			t.Errorf("new name %q has count %d, want 2", ct.Name(), ct.ptr.count.Load())
+		}
+	}
+	// check that Parse expands compressed counter names
+	data := defaultFile.current.Load().mapping.Data
+	fname := "2023-01-01.v1.count"
+	theFile, err := Parse(fname, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// We know what lines should appear in the stack counter names,
+	// although line numbers outside our control might change.
+	// A less fragile test would just check that " doesn't appear
+	known := map[string]bool{
+		"counter/main": true,
+		"foo":          true,
+		"golang.org/x/telemetry/internal/counter.f":         true,
+		"golang.org/x/telemetry/internal/counter.TestStack": true,
+		"runtime.goexit":  true,
+		"testing.tRunner": true,
+	}
+	counts := theFile.Count
+	for k := range counts {
+		ll := strings.Split(k, "\n")
+		for _, line := range ll {
+			ix := strings.LastIndex(line, ":")
+			if ix < 0 {
+				continue // foo, for instance
+			}
+			line = line[:ix]
+			if !known[line] {
+				t.Errorf("unexpected line %q", line)
+			}
 		}
 	}
 }

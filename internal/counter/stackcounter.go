@@ -60,23 +60,32 @@ func (c *StackCounter) Inc() {
 	}
 	// have to create the new counter's name, and the new counter itself
 	locs := make([]string, 0, c.depth)
+	lastImport := ""
 	frs := runtime.CallersFrames(pcs)
 	for i := 0; ; i++ {
 		fr, more := frs.Next()
 		pcline := fr.Line
 		entryptr := fr.Entry
 		var locline string
+		path, fname := splitPath(fr.Function)
+		if path == lastImport {
+			path = "\""
+		} else {
+			lastImport = path
+		}
 		if fr.Func != nil {
 			_, entryline := fr.Func.FileLine(entryptr)
 			if pcline >= entryline {
-				// anything else is unexpected
-				locline = fmt.Sprintf("%s:%d", fr.Function, pcline-entryline)
+				locline = fmt.Sprintf("%s.%s:%d", path, fname, pcline-entryline)
 			} else {
-				locline = fmt.Sprintf("%s:??%d", fr.Function, pcline)
+				// unexpected
+				locline = fmt.Sprintf("%s.%s:??%d", path, fname, pcline)
+				lastImport = ""
 			}
 		} else {
 			// might happen if the function is non-Go code or is fully inlined.
-			locline = fmt.Sprintf("%s:?%d", fr.Function, pcline)
+			locline = fmt.Sprintf("%s.%s:?%d", path, fname, pcline)
+			lastImport = ""
 		}
 		locs = append(locs, locline)
 		if !more {
@@ -93,6 +102,16 @@ func (c *StackCounter) Inc() {
 	ctr := New(name)
 	c.stacks = append(c.stacks, stack{pcs: pcs, counter: ctr})
 	ctr.Inc()
+}
+
+// input is <import path>.<function name>
+// output is (import path, function name)
+func splitPath(x string) (string, string) {
+	i := strings.LastIndex(x, ".")
+	if i < 0 {
+		return "", x
+	}
+	return x[:i], x[i+1:]
 }
 
 // Names reports all the counter names associated with a StackCounter.
