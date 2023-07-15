@@ -17,7 +17,7 @@
 // go telemetry is disabled ("off").
 // (Stack counters are implemented as a set of regular counters whose names
 // are the concatenation of the name and the stack trace. There is an upper
-// limit on the size of this name, about 256 bytes. If the name is too long
+// limit on the size of this name, about 4K bytes. If the name is too long
 // the stack will be truncated and "truncated" appended.)
 //
 // Counter files are turned into reports by the upload package.
