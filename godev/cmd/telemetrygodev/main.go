@@ -25,7 +25,7 @@ import (
 	"golang.org/x/telemetry/godev/internal/middleware"
 	"golang.org/x/telemetry/godev/internal/storage"
 	"golang.org/x/telemetry/godev/internal/unionfs"
-	"golang.org/x/telemetry/godev/internal/upload"
+	tconfig "golang.org/x/telemetry/internal/config"
 )
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ucfg, err := upload.ReadConfig(cfg.UploadConfig)
+	ucfg, err := tconfig.ReadConfig(cfg.UploadConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, mw(mux)))
 }
 
-func handleUpload(ucfg *upload.Config, store storage.Store) content.HandlerFunc {
+func handleUpload(ucfg *tconfig.Config, store storage.Store) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method == "POST" {
 			var report telemetry.Report
@@ -88,7 +88,7 @@ func handleUpload(ucfg *upload.Config, store storage.Store) content.HandlerFunc 
 }
 
 // validate validates the telemetry report data against the latest config.
-func validate(r *telemetry.Report, cfg *upload.Config) error {
+func validate(r *telemetry.Report, cfg *tconfig.Config) error {
 	// TODO: reject/drop data arrived too early or too late.
 	if _, err := time.Parse("2006-01-02", r.Week); err != nil {
 		return fmt.Errorf("invalid week %s", r.Week)

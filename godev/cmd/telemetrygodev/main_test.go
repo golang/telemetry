@@ -9,11 +9,11 @@ import (
 	"testing"
 
 	"golang.org/x/telemetry"
-	"golang.org/x/telemetry/godev/internal/upload"
+	tconfig "golang.org/x/telemetry/internal/config"
 )
 
 func TestValidate(t *testing.T) {
-	cfg, err := upload.ReadConfig("testdata/config.json")
+	cfg, err := tconfig.ReadConfig("testdata/config.json")
 	if err != nil {
 		t.Fatal(err)
 	}

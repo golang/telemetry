@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// package upload provides methods for loading and querying a
+// package config provides methods for loading and querying a
 // telemetry upload config file.
-package upload
+package config
 
 import (
 	"encoding/json"
