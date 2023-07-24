@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/telemetry/cmd/gotelemetry/internal/view"
 	"golang.org/x/telemetry/internal/counter"
 	"golang.org/x/telemetry/internal/telemetry"
 )
@@ -41,6 +42,8 @@ func main() {
 		counterDump(args[1:]...)
 	case "help":
 		usage(os.Stdout)
+	case "view":
+		view.Start()
 	}
 }
 
