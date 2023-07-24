@@ -18,13 +18,14 @@ import (
 // convenience methods for checking the contents of a report.
 type Config struct {
 	*telemetry.UploadConfig
-	program   map[string]bool
-	goos      map[string]bool
-	goarch    map[string]bool
-	goversion map[string]bool
-	pgversion map[pgkey]bool
-	pgcounter map[pgkey]bool
-	pgstack   map[pgkey]bool
+	program         map[string]bool
+	goos            map[string]bool
+	goarch          map[string]bool
+	goversion       map[string]bool
+	pgversion       map[pgkey]bool
+	pgcounter       map[pgkey]bool
+	pgcounterprefix map[pgkey]bool
+	pgstack         map[pgkey]bool
 }
 
 type pgkey struct {
@@ -51,6 +52,7 @@ func NewConfig(cfg *telemetry.UploadConfig) *Config {
 	ucfg.program = make(map[string]bool, len(ucfg.Programs))
 	ucfg.pgversion = make(map[pgkey]bool, len(ucfg.Programs))
 	ucfg.pgcounter = make(map[pgkey]bool, len(ucfg.Programs))
+	ucfg.pgcounterprefix = make(map[pgkey]bool, len(ucfg.Programs))
 	ucfg.pgstack = make(map[pgkey]bool, len(ucfg.Programs))
 	for _, p := range ucfg.Programs {
 		ucfg.program[p.Name] = true
@@ -60,6 +62,10 @@ func NewConfig(cfg *telemetry.UploadConfig) *Config {
 		for _, c := range p.Counters {
 			for _, e := range expand(c.Name) {
 				ucfg.pgcounter[pgkey{p.Name, e}] = true
+			}
+			prefix, _, found := strings.Cut(c.Name, ":")
+			if found {
+				ucfg.pgcounterprefix[pgkey{p.Name, prefix}] = true
 			}
 		}
 		for _, s := range p.Stacks {
@@ -91,6 +97,10 @@ func (r *Config) HasVersion(program, version string) bool {
 
 func (r *Config) HasCounter(program, counter string) bool {
 	return r.pgcounter[pgkey{program, counter}]
+}
+
+func (r *Config) HasCounterPrefix(program, prefix string) bool {
+	return r.pgcounterprefix[pgkey{program, prefix}]
 }
 
 func (r *Config) HasStack(program, stack string) bool {

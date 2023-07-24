@@ -32,6 +32,10 @@ func TestUploadConfig(t *testing.T) {
 		{"cmd/go", "go/buildcache/miss:10"},
 		{"cmd/go", "go/buildcache/miss:100"},
 	}
+	wantPrefix := [][2]string{
+		{"golang.org/x/tools/gopls", "editor"},
+		{"cmd/go", "go/buildcache/miss"},
+	}
 
 	for _, w := range wantGOOS {
 		if !got.HasGOOS(w) {
@@ -61,6 +65,11 @@ func TestUploadConfig(t *testing.T) {
 	for _, w := range wantCounters {
 		if !got.HasCounter(w[0], w[1]) {
 			t.Errorf("got.HasCounter(%s, %s) = false: want true", w[0], w[1])
+		}
+	}
+	for _, w := range wantPrefix {
+		if !got.HasCounterPrefix(w[0], w[1]) {
+			t.Errorf("got.HasCounterPrefix(%s, %s) = false: want true", w[0], w[1])
 		}
 	}
 }
