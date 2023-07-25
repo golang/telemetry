@@ -9,8 +9,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-
-	"golang.org/x/telemetry"
 )
 
 // On the disk, and upstream, stack counters look like sets of
@@ -43,9 +41,6 @@ func NewStack(name string, depth int) *StackCounter {
 // looks up the corresponding counter. It then increments that counter,
 // creating it if necessary.
 func (c *StackCounter) Inc() {
-	if !telemetry.Enabled {
-		return
-	}
 	pcs := make([]uintptr, c.depth)
 	n := runtime.Callers(2, pcs) // caller of Inc
 	pcs = pcs[:n]
