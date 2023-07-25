@@ -31,20 +31,11 @@ var (
 type ModeFilePath string
 
 func init() {
-	// First check if the undocumented EXP_GOTELEMETRYDIR
-	// env var is set. This variable name may change or
-	// get abandoned in the future.
-	// This knob helps running instrumented binaries in test
-	// without affecting or being affected by the system
-	// default telemetry settings.
-	gotelemetrydir := os.Getenv("EXP_GOTELEMETRYDIR")
-	if gotelemetrydir == "" {
-		cfgDir, err := os.UserConfigDir()
-		if err != nil {
-			return
-		}
-		gotelemetrydir = filepath.Join(cfgDir, "go", "telemetry")
+	cfgDir, err := os.UserConfigDir()
+	if err != nil {
+		return
 	}
+	gotelemetrydir := filepath.Join(cfgDir, "go", "telemetry")
 	LocalDir = filepath.Join(gotelemetrydir, "local")
 	UploadDir = filepath.Join(gotelemetrydir, "upload")
 	ModeFile = ModeFilePath(filepath.Join(gotelemetrydir, "mode"))

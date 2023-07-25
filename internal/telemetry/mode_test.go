@@ -13,10 +13,13 @@ import (
 )
 
 func TestTelemetryDefault(t *testing.T) {
-	gotelemetrydir := os.Getenv("GOTELEMETRYDIR")
-	if _, err := os.UserConfigDir(); gotelemetrydir == "" && err != nil {
+	defaultDirMissing := false
+	if _, err := os.UserConfigDir(); err != nil {
+		defaultDirMissing = true
+	}
+	if defaultDirMissing {
 		if LocalDir != "" || UploadDir != "" || ModeFile != "" {
-			t.Errorf("DefaultSetting: (%q, %q, %q), want non-empty LocalDir/UploadDir/ModeFile", LocalDir, UploadDir, ModeFile)
+			t.Errorf("DefaultSetting: (%q, %q, %q), want empty LocalDir/UploadDir/ModeFile", LocalDir, UploadDir, ModeFile)
 		}
 	} else {
 		if LocalDir == "" || UploadDir == "" || ModeFile == "" {
