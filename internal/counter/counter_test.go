@@ -7,9 +7,15 @@ package counter
 // Builders at
 // https://build.golang.org/?repo=golang.org%2fx%2ftelemetry
 
+// there are troubles with tests in Windows. all open files have to
+// be closed by the test so the test directory can be removed.
+// Once defaultFile is closed, no more tests can be run as
+// Open() will fault. (This is mysterious.)
+
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -177,7 +183,7 @@ func TestNewFile(t *testing.T) {
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
-	now := time.Now()
+	now := counterTime()
 	year, month, day := now.Date()
 	// preserve time location as done in (*file).filename.
 	testStartTime := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
@@ -245,7 +251,7 @@ func TestRotate(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
-	year, month, day := time.Now().Date()
+	year, month, day := counterTime().Date()
 	now := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 	setup(t)
 	defer restore()
@@ -411,12 +417,14 @@ func fn(t *testing.T, n int, c *StackCounter) {
 }
 
 func setup(t *testing.T) {
+	log.SetFlags(log.Lshortfile)
 	tmpDir := t.TempDir() // new dir for each test
 	telemetry.LocalDir = tmpDir + "/local"
 	telemetry.UploadDir = tmpDir + "/upload"
 	os.MkdirAll(telemetry.LocalDir, 0777)
 	os.MkdirAll(telemetry.UploadDir, 0777)
 	// os.UserConfigDir() is "" in tests so no point in looking at it
+
 }
 
 func restore() {

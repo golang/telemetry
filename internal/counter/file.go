@@ -235,8 +235,6 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 	}
 
 	if current != nil {
-		// TODO(pjw): are these log statements a good idea?
-		log.Printf("closing %s", current.f.Name())
 		if err := current.f.Close(); err != nil {
 			log.Print(err)
 		}
@@ -246,6 +244,8 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 		// TODO(hyangah): Ask pjw/rsc:
 		// Lookup accesses f.current.Load without lock.
 		// Why is it ok to munmap here?
+		// pjw: i think current.mapping can't be what we
+		// want; we're discarding it.
 	}
 
 	m, err := openMapped(name, f.meta, nil)
@@ -431,7 +431,7 @@ func (m *mappedFile) close() {
 			m.mapping = nil
 		}
 		if m.f != nil {
-			m.f.Close()
+			m.f.Close() // best effort
 			m.f = nil
 		}
 	})
@@ -537,7 +537,6 @@ func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, 
 			return nil, nil, errCorrupt
 		}
 		newM, err := openMapped(m.f.Name(), m.meta, m)
-		m.f.Close() // PJW
 		if err != nil {
 			return nil, nil, err
 		}
