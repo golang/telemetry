@@ -29,3 +29,6 @@ func Parse(filename string, data []byte) (*File, error) { return nil, fmt.Errorf
 type StackCounter struct{ name string }
 
 func NewStack(name string, _ int) *StackCounter { return &StackCounter{name} }
+func (c *StackCounter) Counters() []*Counter    { return nil }
+func (c *StackCounter) Inc()                    {}
+func (c *StackCounter) Names() []string         { return nil }
