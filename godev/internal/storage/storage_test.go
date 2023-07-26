@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"path"
 	"testing"
 
 	"github.com/fullstorydev/emulators/storage/gcsemu"
@@ -48,69 +47,77 @@ func TestGCStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	writeObj, err := s.Writer(ctx, "test-object")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := json.NewEncoder(writeObj).Encode(writeData); err != nil {
-		t.Fatal(err)
-	}
-	if err := writeObj.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	readObj, err := s.Reader(ctx, "test-object")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var readData jsondata
-	if err := json.NewDecoder(readObj).Decode(&readData); err != nil {
-		t.Fatal(err)
-	}
-	if err := readObj.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	if diff := cmp.Diff(writeData, readData); diff != "" {
-		t.Errorf("data write read mismatch (-wrote +read):\n%s", diff)
-	}
+	runTest(t, ctx, s)
 }
 
 func TestFSStore(t *testing.T) {
 	ctx := context.Background()
-	s, err := NewFSStore(ctx, "testdata")
+	s, err := NewFSStore(ctx, t.TempDir(), "test-bucket")
 	if err != nil {
 		t.Fatal(err)
 	}
+	runTest(t, ctx, s)
+}
 
-	writeObj, err := s.Writer(ctx, "test-file")
+func runTest(t *testing.T, ctx context.Context, s Store) {
+	// write the object to store
+	if err := write(ctx, s, "prefix/test-object", writeData); err != nil {
+		t.Fatal(err)
+	}
+	// read same object from store
+	readData, err := read(ctx, s, "prefix/test-object")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := json.NewEncoder(writeObj).Encode(writeData); err != nil {
-		t.Fatal(err)
-	}
-	if err := writeObj.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	readObj, err := s.Reader(ctx, "test-file")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var readData jsondata
-	if err := json.NewDecoder(readObj).Decode(&readData); err != nil {
-		t.Fatal(err)
-	}
-	if err := readObj.Close(); err != nil {
-		t.Fatal(err)
-	}
-
 	if diff := cmp.Diff(writeData, readData); diff != "" {
 		t.Errorf("data write read mismatch (-wrote +read):\n%s", diff)
 	}
 
-	if err := os.Remove(path.Join("testdata", "test-file")); err != nil {
+	// write an object with a different prefix to store
+	if err = write(ctx, s, "other-prefix/test-object-2", writeData); err != nil {
 		t.Fatal(err)
 	}
+	// check that prefix matches single object
+	result, err := s.List(ctx, "prefix")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(result, []string{"prefix/test-object"}); diff != "" {
+		t.Errorf("List() mismatch (-want +got):\n%s", diff)
+	}
+
+	// check that prefix matches with partial path and separator
+	result, err = s.List(ctx, "prefix/test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(result, []string{"prefix/test-object"}); diff != "" {
+		t.Errorf("List() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func write(ctx context.Context, s Store, object string, data any) error {
+	obj, err := s.Writer(ctx, "prefix/test-object")
+	if err != nil {
+		return err
+	}
+	if err := json.NewEncoder(obj).Encode(writeData); err != nil {
+		return err
+	}
+	return obj.Close()
+}
+
+func read(ctx context.Context, s Store, object string) (any, error) {
+	obj, err := s.Reader(ctx, "prefix/test-object")
+	if err != nil {
+		return nil, err
+	}
+	var data jsondata
+	if err := json.NewDecoder(obj).Decode(&data); err != nil {
+		return nil, err
+	}
+	if err := obj.Close(); err != nil {
+		return nil, err
+	}
+	return data, nil
 }

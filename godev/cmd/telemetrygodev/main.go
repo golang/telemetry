@@ -15,7 +15,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"time"
 
 	"golang.org/x/mod/semver"
@@ -145,5 +144,5 @@ func uploadBucket(ctx context.Context, cfg *config) (storage.Store, error) {
 	if cfg.UseGCS {
 		return storage.NewGCStore(ctx, cfg.ProjectID, cfg.UploadBucket)
 	}
-	return storage.NewFSStore(ctx, path.Join(cfg.LocalStorage, cfg.UploadBucket))
+	return storage.NewFSStore(ctx, cfg.LocalStorage, cfg.UploadBucket)
 }

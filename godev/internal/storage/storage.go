@@ -8,11 +8,15 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 )
 
 var _ Store = &gcStore{}
@@ -21,10 +25,13 @@ var _ Store = &fsStore{}
 type Store interface {
 	Writer(_ context.Context, object string) (io.WriteCloser, error)
 	Reader(_ context.Context, object string) (io.ReadCloser, error)
+	List(_ context.Context, prefix string) ([]string, error)
+	Location() string
 }
 
 type gcStore struct {
-	bucket *storage.BucketHandle
+	bucket   *storage.BucketHandle
+	location string
 }
 
 // NewGCStore returns a store for that writes to a GCS bucket. If the bucket does
@@ -42,7 +49,8 @@ func NewGCStore(ctx context.Context, project, bucket string) (*gcStore, error) {
 			return nil, err
 		}
 	}
-	return &gcStore{bkt}, nil
+	loc := "https://storage.googleapis.com/" + bucket
+	return &gcStore{bkt, loc}, nil
 }
 
 // Writer creates a new object if it does not exist. Any previous object with the same
@@ -59,30 +67,82 @@ func (s *gcStore) Reader(ctx context.Context, object string) (io.ReadCloser, err
 	return obj.NewReader(ctx)
 }
 
+// List returns the names of objects in the bucket that match the prefix.
+func (s *gcStore) List(ctx context.Context, prefix string) ([]string, error) {
+	query := &storage.Query{Prefix: prefix}
+	var names []string
+	it := s.bucket.Objects(ctx, query)
+	for {
+		attrs, err := it.Next()
+		if errors.Is(err, iterator.Done) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, attrs.Name)
+	}
+	return names, nil
+}
+
+// Location returns the URL of the cloud storage bucket.
+func (s *gcStore) Location() string {
+	return s.location
+}
+
 type fsStore struct {
-	dir string
+	dir, bucket, location string
 }
 
 // NewFSStore returns a store for that writes to a directory. If the directory does
 // not exist it will be created.
-func NewFSStore(ctx context.Context, dir string) (*fsStore, error) {
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+func NewFSStore(ctx context.Context, dir, bucket string) (*fsStore, error) {
+	if err := os.MkdirAll(filepath.Join(dir, bucket), os.ModePerm); err != nil {
 		return nil, err
 	}
-	return &fsStore{dir}, nil
+	uri, err := filepath.Abs(filepath.Join(dir, filepath.Clean(bucket)))
+	if err != nil {
+		return nil, err
+	}
+	return &fsStore{dir, bucket, uri}, nil
 }
 
-// Writer creates a new file if it does not exist. Any previous file with the same
-// name will be truncated.
-func (s *fsStore) Writer(ctx context.Context, file string) (io.WriteCloser, error) {
-	name := filepath.Join(s.dir, file)
+// Writer creates a new object if it does not exist. Any previous object with the same
+// name will be replaced.
+func (s *fsStore) Writer(ctx context.Context, object string) (io.WriteCloser, error) {
+	name := filepath.Join(s.dir, s.bucket, filepath.FromSlash(object))
 	if err := os.MkdirAll(filepath.Dir(name), os.ModePerm); err != nil {
 		return nil, err
 	}
 	return os.Create(name)
 }
 
-// Reader opens the named file for reading.
-func (s *fsStore) Reader(ctx context.Context, file string) (io.ReadCloser, error) {
-	return os.Open(filepath.Join(s.dir, file))
+// Reader creates a new Reader to read the contents of the object.
+func (s *fsStore) Reader(ctx context.Context, object string) (io.ReadCloser, error) {
+	return os.Open(filepath.Join(s.dir, s.bucket, filepath.FromSlash(object)))
+}
+
+// List returns the names of objects in the bucket that match the prefix.
+func (s *fsStore) List(ctx context.Context, prefix string) ([]string, error) {
+	var elems []string
+	if err := fs.WalkDir(
+		os.DirFS(filepath.Join(s.dir, s.bucket)),
+		".",
+		func(path string, d fs.DirEntry, err error) error {
+			if d.IsDir() {
+				return nil
+			}
+			if strings.HasPrefix(path, prefix) {
+				elems = append(elems, path)
+			}
+			return nil
+		}); err != nil {
+		return nil, err
+	}
+	return elems, nil
+}
+
+// Location returns the directory containing store objects.
+func (s *fsStore) Location() string {
+	return s.location
 }
