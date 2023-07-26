@@ -70,7 +70,7 @@ func newConfig() *config {
 	// K_SERVICE is a Cloud Run environment variable.
 	service := env("K_SERVICE", "local-telemetry")
 	return &config{
-		Port:                env("PORT", "8080"),
+		Port:                env("PORT", "8082"),
 		ProjectID:           env("GO_TELEMETRY_PROJECT_ID", "go-telemetry"),
 		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
 		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
