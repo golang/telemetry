@@ -308,3 +308,40 @@ func (c *Counter) AllDone() {
 	mmap.Munmap(mf.mapping)
 	mf.f.Close() // best effort
 }
+
+// Read reads the given counter.
+// This is the implementation of x/telemetry/counter/countertest.ReadCounter.
+func Read(c *Counter) (uint64, error) {
+	pf, err := readFile(c.file)
+	if err != nil {
+		return 0, err
+	}
+	// counter doesn't write the entry to file until the value becomes non-zero.
+	return pf.Count[c.name], nil
+}
+
+func readFile(f *file) (*File, error) {
+	if f == nil {
+		debugPrintf("No file")
+		return nil, fmt.Errorf("counter is not initialized - was Open called?")
+	}
+
+	f.rotate()
+	if f.err != nil {
+		return nil, fmt.Errorf("failed to rotate mapped file - %v", f.err)
+	}
+	current := f.current.Load()
+	if current == nil {
+		return nil, fmt.Errorf("counter has no mapped file")
+	}
+	name := current.f.Name()
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from file: %v", err)
+	}
+	pf, err := Parse(name, data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse: %v", err)
+	}
+	return pf, nil
+}

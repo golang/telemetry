@@ -93,7 +93,6 @@ func (c *StackCounter) Inc() {
 	if len(name) > maxNameLen {
 		const bad = "\ntruncated\n"
 		name = name[:maxNameLen-len(bad)] + bad
-
 	}
 	ctr := &Counter{name: name, file: c.file}
 	c.stacks = append(c.stacks, stack{pcs: pcs, counter: ctr})
@@ -143,4 +142,24 @@ func eq(a, b []uintptr) bool {
 		}
 	}
 	return true
+}
+
+// ReadStack reads the given stack counter.
+// This is the implementation of
+// golang.org/x/telemetry/counter/countertest.ReadStackCounter.
+func ReadStack(c *StackCounter) (map[string]uint64, error) {
+	pf, err := readFile(c.file)
+	if err != nil {
+		return nil, err
+	}
+	names := c.Names()
+	ret := make(map[string]uint64, len(names))
+	for _, n := range names {
+		if v, ok := pf.Count[n]; ok {
+			ret[n] = v
+		} else {
+			debugPrintf("Missing value in stack counter: %q", n)
+		}
+	}
+	return ret, nil
 }
