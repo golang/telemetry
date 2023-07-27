@@ -21,8 +21,8 @@ import (
 	"time"
 	"unsafe"
 
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/mmap"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 // A file is a counter file.
@@ -125,7 +125,7 @@ func (f *file) init(begin, end time.Time) {
 		f.err = errNoBuildInfo
 		return
 	}
-	if !telemetry.Enabled {
+	if telemetry.Mode() == "off" {
 		f.err = ErrDisabled
 		return
 	}
@@ -177,7 +177,7 @@ func (f *file) filename(now time.Time) (name string, expire time.Time, err error
 		debugPrintf("init: %#q, %v", f.namePrefix, f.err)
 	}
 	if f.err != nil {
-		return "", time.Time{}, err
+		return "", time.Time{}, err // TODO(pjw): err == nil. Shouldn't we return f.err?
 	}
 
 	name = f.namePrefix + now.Format("2006-01-02") + "." + fileVersion + ".count"
@@ -220,6 +220,8 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	// TODO(hyangah): shouldn't we close the current one if f.current.Load() != nil
+	// but f.filename fails to return a valid name for the next counter file?
 	name, expire, err := f.filename(counterTime())
 	if err != nil {
 		debugPrintf("rotate: %v\n", err)

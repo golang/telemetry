@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/mmap"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 func skipIfUnsupportedPlatform(t *testing.T) {

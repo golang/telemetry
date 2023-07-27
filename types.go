@@ -60,5 +60,5 @@ var (
 	// directory containing uploaded reports
 	UploadDir = telemetry.UploadDir
 	// whether telemetry is enabled
-	Enabled bool = telemetry.Mode() != "off"
+	Enabled bool = telemetry.Mode() != "off" // TODO(hyangah): consider to delete.
 )
