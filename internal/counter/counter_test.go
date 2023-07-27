@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -74,6 +75,48 @@ func TestBasic(t *testing.T) {
 	}
 
 	want := map[string]uint64{"gophers": 0x99}
+	if !reflect.DeepEqual(pf.Count, want) {
+		t.Errorf("pf.Count = %v, want %v", pf.Count, want)
+	}
+}
+
+func TestParallel(t *testing.T) {
+	skipIfUnsupportedPlatform(t)
+
+	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
+	setup(t)
+	defer restore()
+	var f file
+	defer close(&f)
+	c := f.New("manygophers")
+
+	var wg sync.WaitGroup
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func() {
+			c.Inc()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	f.rotate()
+	if f.err != nil {
+		t.Fatal(f.err)
+	}
+	current := f.current.Load()
+	name := current.f.Name()
+	t.Logf("wrote %s:\n%s", name, hexDump(current.mapping.Data))
+
+	data, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pf, err := Parse(name, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := map[string]uint64{"manygophers": 100}
 	if !reflect.DeepEqual(pf.Count, want) {
 		t.Errorf("pf.Count = %v, want %v", pf.Count, want)
 	}

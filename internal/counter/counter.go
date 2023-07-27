@@ -106,14 +106,14 @@ func (b counterStateBits) setHavePtr() counterStateBits   { return b | stateHave
 func (b counterStateBits) clearHavePtr() counterStateBits { return b &^ stateHavePtr }
 func (b counterStateBits) clearExtra() counterStateBits   { return b &^ stateExtra }
 func (b counterStateBits) addExtra(n uint64) counterStateBits {
-	const maxExtra = uint64(stateExtra) >> stateExtraShift
+	const maxExtra = uint64(stateExtra) >> stateExtraShift // 0x1ffffffff
 	x := b.extra()
 	if x+n < x || x+n > maxExtra {
 		x = maxExtra
 	} else {
 		x += n
 	}
-	return b | counterStateBits(x)<<stateExtraShift
+	return b.clearExtra() | counterStateBits(x)<<stateExtraShift
 }
 
 // New returns a counter with the given name.
@@ -155,6 +155,7 @@ func (c *Counter) Add(n int64) {
 			if c.ptr.count == nil {
 				for !c.state.update(&state, state.addExtra(uint64(n))) {
 					// keep trying - we already took the reader lock
+					state = c.state.load()
 				}
 				debugPrintf("Add %q += %d: nil extra=%d\n", c.name, n, state.extra())
 			} else {
