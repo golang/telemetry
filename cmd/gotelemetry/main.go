@@ -71,13 +71,15 @@ func usage(w io.Writer) {
 }
 
 func counterDump(args ...string) {
-	localdir := telemetry.LocalDir
-	fi, err := os.ReadDir(localdir)
-	if err != nil && len(args) == 0 {
-		log.Fatal(err)
-	}
-	for _, f := range fi {
-		args = append(args, filepath.Join(localdir, f.Name()))
+	if len(args) == 0 {
+		localdir := telemetry.LocalDir
+		fi, err := os.ReadDir(localdir)
+		if err != nil && len(args) == 0 {
+			log.Fatal(err)
+		}
+		for _, f := range fi {
+			args = append(args, filepath.Join(localdir, f.Name()))
+		}
 	}
 	for _, file := range args {
 		if !strings.HasSuffix(file, ".count") {
