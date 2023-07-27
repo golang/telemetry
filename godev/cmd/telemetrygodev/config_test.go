@@ -7,6 +7,7 @@ package main
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestConfig(t *testing.T) {
@@ -18,6 +19,7 @@ func TestConfig(t *testing.T) {
 		UploadBucket:        "local-telemetry-uploaded",
 		UploadConfig:        "../config/config.json",
 		MaxRequestBytes:     1024 * 100,
+		RequestTimeout:      10 * time.Duration(time.Minute),
 	}
 	if got := newConfig(); !reflect.DeepEqual(got, want) {
 		t.Errorf("Config() = %v, want %v", got, want)

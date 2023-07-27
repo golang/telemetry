@@ -48,6 +48,7 @@ func main() {
 
 	mw := middleware.Chain(
 		middleware.Log,
+		middleware.Timeout(cfg.RequestTimeout),
 		middleware.RequestSize(cfg.MaxRequestBytes),
 		middleware.Recover,
 	)
