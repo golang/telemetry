@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 )
 
 type config struct {
@@ -38,6 +39,9 @@ type config struct {
 
 	// MaxRequestBytes is the maximum request body size the server will allow.
 	MaxRequestBytes int64
+
+	// RequestTimeout is the default request timeout for the server.
+	RequestTimeout time.Duration
 
 	// UseGCS is true if the server should use the Cloud Storage API for reading and
 	// writing storage objects.
@@ -78,6 +82,7 @@ func newConfig() *config {
 		UploadBucket:        service + "-uploaded",
 		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "../config/config.json"),
 		MaxRequestBytes:     env("GO_TELEMETRY_MAX_REQUEST_BYTES", int64(100*1024)),
+		RequestTimeout:      10 * time.Duration(time.Minute),
 		UseGCS:              *useGCS,
 		DevMode:             *devMode,
 	}
