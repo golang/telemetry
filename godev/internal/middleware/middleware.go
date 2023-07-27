@@ -89,3 +89,13 @@ func (rec *statusRecorder) WriteHeader(code int) {
 	rec.status = code
 	rec.ResponseWriter.WriteHeader(code)
 }
+
+// Timeout returns a new Middleware that times out each request after the given
+// duration.
+func Timeout(d time.Duration) Middleware {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.TimeoutHandler(h, d, "request timed out").ServeHTTP(w, r)
+		})
+	}
+}
