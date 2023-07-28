@@ -7,6 +7,7 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"testing"
 
@@ -78,20 +79,43 @@ func runTest(t *testing.T, ctx context.Context, s Store) {
 		t.Fatal(err)
 	}
 	// check that prefix matches single object
-	result, err := s.List(ctx, "prefix")
+	it, err := s.List(ctx, "prefix")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(result, []string{"prefix/test-object"}); diff != "" {
+	var list1 []string
+	for {
+		elem, err := it.Next()
+		if errors.Is(err, ErrObjectIteratorDone) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		list1 = append(list1, elem)
+	}
+	if diff := cmp.Diff(list1, []string{"prefix/test-object"}); diff != "" {
 		t.Errorf("List() mismatch (-want +got):\n%s", diff)
 	}
 
 	// check that prefix matches with partial path and separator
-	result, err = s.List(ctx, "prefix/test")
+	it, err = s.List(ctx, "prefix/test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(result, []string{"prefix/test-object"}); diff != "" {
+	var list2 []string
+	for {
+		elem, err := it.Next()
+		if errors.Is(err, ErrObjectIteratorDone) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		list2 = append(list2, elem)
+	}
+
+	if diff := cmp.Diff(list2, []string{"prefix/test-object"}); diff != "" {
 		t.Errorf("List() mismatch (-want +got):\n%s", diff)
 	}
 }

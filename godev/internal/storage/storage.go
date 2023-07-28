@@ -31,7 +31,7 @@ type Store interface {
 	Reader(_ context.Context, object string) (io.ReadCloser, error)
 
 	// List returns the names of objects in the bucket that match the prefix.
-	List(_ context.Context, prefix string) ([]string, error)
+	List(_ context.Context, prefix string) (*ObjectIterator, error)
 
 	// Location returns the URI representing the location of the store. It may be
 	// a URL for a cloud storage bucket or directory on a filesystem.
@@ -73,21 +73,21 @@ func (s *gcStore) Reader(ctx context.Context, object string) (io.ReadCloser, err
 	return obj.NewReader(ctx)
 }
 
-func (s *gcStore) List(ctx context.Context, prefix string) ([]string, error) {
+func (s *gcStore) List(ctx context.Context, prefix string) (*ObjectIterator, error) {
 	query := &storage.Query{Prefix: prefix}
-	var names []string
 	it := s.bucket.Objects(ctx, query)
-	for {
-		attrs, err := it.Next()
-		if errors.Is(err, iterator.Done) {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		names = append(names, attrs.Name)
-	}
-	return names, nil
+	return &ObjectIterator{
+		Next: func() (string, error) {
+			attrs, err := it.Next()
+			if errors.Is(err, iterator.Done) {
+				return "", ErrObjectIteratorDone
+			}
+			if err != nil {
+				return "", err
+			}
+			return attrs.Name, nil
+		},
+	}, nil
 }
 
 func (s *gcStore) Location() string {
@@ -123,7 +123,7 @@ func (s *fsStore) Reader(ctx context.Context, object string) (io.ReadCloser, err
 	return os.Open(filepath.Join(s.dir, s.bucket, filepath.FromSlash(object)))
 }
 
-func (s *fsStore) List(ctx context.Context, prefix string) ([]string, error) {
+func (s *fsStore) List(ctx context.Context, prefix string) (*ObjectIterator, error) {
 	var elems []string
 	if err := fs.WalkDir(
 		os.DirFS(filepath.Join(s.dir, s.bucket)),
@@ -139,9 +139,25 @@ func (s *fsStore) List(ctx context.Context, prefix string) ([]string, error) {
 		}); err != nil {
 		return nil, err
 	}
-	return elems, nil
+	i := 0
+	return &ObjectIterator{
+		Next: func() (string, error) {
+			if i >= len(elems) {
+				return "", ErrObjectIteratorDone
+			}
+			elem := elems[i]
+			i++
+			return elem, nil
+		},
+	}, nil
 }
 
 func (s *fsStore) Location() string {
 	return s.location
+}
+
+var ErrObjectIteratorDone = errors.New("object iterator done")
+
+type ObjectIterator struct {
+	Next func() (elem string, err error)
 }

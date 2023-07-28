@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -62,7 +63,7 @@ func handleMerge(cfg *tconfig.Config, s *stores) content.HandlerFunc {
 		if _, err := time.Parse("2006-01-02", date); err != nil {
 			return content.Error(err, http.StatusBadRequest)
 		}
-		objs, err := s.upload.List(ctx, date)
+		it, err := s.upload.List(ctx, date)
 		if err != nil {
 			return err
 		}
@@ -72,8 +73,17 @@ func handleMerge(cfg *tconfig.Config, s *stores) content.HandlerFunc {
 		}
 		defer mergeWriter.Close()
 		encoder := json.NewEncoder(mergeWriter)
-		for _, o := range objs {
-			reader, err := s.upload.Reader(ctx, o)
+		var count int
+		for {
+			obj, err := it.Next()
+			if errors.Is(err, storage.ErrObjectIteratorDone) {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			count++
+			reader, err := s.upload.Reader(ctx, obj)
 			if err != nil {
 				return err
 			}
@@ -92,7 +102,7 @@ func handleMerge(cfg *tconfig.Config, s *stores) content.HandlerFunc {
 		if err := mergeWriter.Close(); err != nil {
 			return err
 		}
-		msg := fmt.Sprintf("merged %d reports into %s/%s", len(objs), s.merge.Location(), date)
+		msg := fmt.Sprintf("merged %d reports into %s/%s", count, s.merge.Location(), date)
 		return content.Text(w, msg, http.StatusOK)
 	}
 }
