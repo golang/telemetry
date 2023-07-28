@@ -67,14 +67,12 @@ var (
 
 // newConfig returns a new config. Getting the config should follow a call to flag.Parse.
 func newConfig() *config {
-	// K_SERVICE is a Cloud Run environment variable.
-	service := env("K_SERVICE", "local-telemetry")
 	return &config{
 		Port:                env("PORT", "8080"),
 		ProjectID:           env("GO_TELEMETRY_PROJECT_ID", "go-telemetry"),
 		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
 		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
-		UploadBucket:        service + "-uploaded",
+		UploadBucket:        env("ENV", "local") + "-telemetry-uploaded",
 		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "../config/config.json"),
 		MaxRequestBytes:     env("GO_TELEMETRY_MAX_REQUEST_BYTES", int64(100*1024)),
 		RequestTimeout:      10 * time.Duration(time.Minute),

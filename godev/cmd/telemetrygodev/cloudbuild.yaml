@@ -31,10 +31,12 @@ steps:
     args:
       - "run"
       - "deploy"
-      - "$_SERVICE"
+      - "$_ENV-telemetry"
       - "--image"
       - "gcr.io/$PROJECT_ID/telemetrygodev:$COMMIT_SHA"
       - "--region"
       - "us-central1"
+      - "--set-env-vars"
+      - "ENV=$_ENV"
 images:
   - "gcr.io/$PROJECT_ID/telemetrygodev:$COMMIT_SHA"
