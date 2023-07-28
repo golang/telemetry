@@ -23,9 +23,18 @@ var _ Store = &gcStore{}
 var _ Store = &fsStore{}
 
 type Store interface {
+	// Writer creates a new object if it does not exist. Any previous object with the same
+	// name will be replaced.
 	Writer(_ context.Context, object string) (io.WriteCloser, error)
+
+	// Reader creates a new Reader to read the contents of the object.
 	Reader(_ context.Context, object string) (io.ReadCloser, error)
+
+	// List returns the names of objects in the bucket that match the prefix.
 	List(_ context.Context, prefix string) ([]string, error)
+
+	// Location returns the URI representing the location of the store. It may be
+	// a URL for a cloud storage bucket or directory on a filesystem.
 	Location() string
 }
 
@@ -53,21 +62,17 @@ func NewGCStore(ctx context.Context, project, bucket string) (*gcStore, error) {
 	return &gcStore{bkt, loc}, nil
 }
 
-// Writer creates a new object if it does not exist. Any previous object with the same
-// name will be replaced.
 func (s *gcStore) Writer(ctx context.Context, object string) (io.WriteCloser, error) {
 	obj := s.bucket.Object(object)
 	w := obj.NewWriter(ctx)
 	return w, nil
 }
 
-// Reader creates a new Reader to read the contents of the object.
 func (s *gcStore) Reader(ctx context.Context, object string) (io.ReadCloser, error) {
 	obj := s.bucket.Object(object)
 	return obj.NewReader(ctx)
 }
 
-// List returns the names of objects in the bucket that match the prefix.
 func (s *gcStore) List(ctx context.Context, prefix string) ([]string, error) {
 	query := &storage.Query{Prefix: prefix}
 	var names []string
@@ -85,7 +90,6 @@ func (s *gcStore) List(ctx context.Context, prefix string) ([]string, error) {
 	return names, nil
 }
 
-// Location returns the URL of the cloud storage bucket.
 func (s *gcStore) Location() string {
 	return s.location
 }
@@ -107,8 +111,6 @@ func NewFSStore(ctx context.Context, dir, bucket string) (*fsStore, error) {
 	return &fsStore{dir, bucket, uri}, nil
 }
 
-// Writer creates a new object if it does not exist. Any previous object with the same
-// name will be replaced.
 func (s *fsStore) Writer(ctx context.Context, object string) (io.WriteCloser, error) {
 	name := filepath.Join(s.dir, s.bucket, filepath.FromSlash(object))
 	if err := os.MkdirAll(filepath.Dir(name), os.ModePerm); err != nil {
@@ -117,12 +119,10 @@ func (s *fsStore) Writer(ctx context.Context, object string) (io.WriteCloser, er
 	return os.Create(name)
 }
 
-// Reader creates a new Reader to read the contents of the object.
 func (s *fsStore) Reader(ctx context.Context, object string) (io.ReadCloser, error) {
 	return os.Open(filepath.Join(s.dir, s.bucket, filepath.FromSlash(object)))
 }
 
-// List returns the names of objects in the bucket that match the prefix.
 func (s *fsStore) List(ctx context.Context, prefix string) ([]string, error) {
 	var elems []string
 	if err := fs.WalkDir(
@@ -142,7 +142,6 @@ func (s *fsStore) List(ctx context.Context, prefix string) ([]string, error) {
 	return elems, nil
 }
 
-// Location returns the directory containing store objects.
 func (s *fsStore) Location() string {
 	return s.location
 }
