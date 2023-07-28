@@ -14,7 +14,17 @@ steps:
       - "."
   # Push the container image to Container Registry
   - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "gcr.io/$PROJECT_ID/telemetrygodev:$COMMIT_SHA"]
+    args:
+      - "push"
+      - "gcr.io/$PROJECT_ID/telemetrygodev:$COMMIT_SHA"
+  - name: golang
+    args:
+      - "go"
+      - "run"
+      - "golang.org/x/website/cmd/locktrigger@latest"
+      - "--project=$PROJECT_ID"
+      - "--build=$BUILD_ID"
+      - "--repo=https://go.googlesource.com/telemetry"
   # Deploy container image to Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
