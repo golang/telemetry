@@ -67,6 +67,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "\tgotelemetry")
 	fmt.Fprintln(w, "\tgotelemetry set <on|off|local>")
 	fmt.Fprintln(w, "\tgotelemetry dump [file1 file2 ...]")
+	fmt.Fprintln(w, "\tgotelemetry view")
 	fmt.Fprintln(w, "\tgotelemetry help")
 }
 
