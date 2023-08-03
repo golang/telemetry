@@ -152,13 +152,12 @@ func ReadStack(c *StackCounter) (map[string]uint64, error) {
 	if err != nil {
 		return nil, err
 	}
-	names := c.Names()
-	ret := make(map[string]uint64, len(names))
-	for _, n := range names {
-		if v, ok := pf.Count[n]; ok {
-			ret[n] = v
-		} else {
-			debugPrintf("Missing value in stack counter: %q", n)
+	ret := map[string]uint64{}
+	prefix := c.name + "\n"
+
+	for k, v := range pf.Count {
+		if strings.HasPrefix(k, prefix) {
+			ret[k] = v
 		}
 	}
 	return ret, nil
