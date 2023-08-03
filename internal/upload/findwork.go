@@ -48,9 +48,10 @@ func findWork(localdir, uploaddir string) work {
 	}
 	fis, err = os.ReadDir(uploaddir)
 	if err != nil {
-		return ans // no uploaded directory yet
+		os.MkdirAll(uploaddir, 0777)
+		return ans
 	}
-	// There should be only one of these per week; maybe in 5 or 10 years
+	// There should be only one of these per day; maybe sometime
 	// we'll want to clean the directory.
 	ans.uploaded = make(map[string]bool)
 	for _, fi := range fis {

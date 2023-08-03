@@ -13,8 +13,6 @@ import (
 	"runtime"
 	"strings"
 	"sync/atomic"
-
-	"golang.org/x/telemetry/internal/mmap"
 )
 
 // Note: not using internal/godebug, so that internal/godebug can use internal/counter.
@@ -290,23 +288,6 @@ func (c *Counter) refresh() {
 			return
 		}
 	}
-}
-
-// This is a TEMPORARY function to help with testing uploads
-// on Windows
-// it is temporary until we figure out the right solution
-func (c *Counter) AllDone() {
-	if c == nil || c.file == nil {
-		return
-	}
-	f := c.file
-	mf := f.current.Load()
-	if mf == nil {
-		// telemetry might have been off
-		return
-	}
-	mmap.Munmap(mf.mapping)
-	mf.f.Close() // best effort
 }
 
 // Read reads the given counter.

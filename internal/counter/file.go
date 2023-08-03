@@ -301,10 +301,24 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 
 var mainCounter = New("counter/main")
 
-func Open() {
+// Open associates counting with the defaultFile.
+// The returned function is for testing only, and should
+// be called after all Inc()s are finished, but before
+// any reports are generated.
+// (Otherwise expired count files will not be deleted on Windows.)
+func Open() func() {
 	debugPrintf("Open")
 	mainCounter.Add(1)
 	defaultFile.rotate()
+	return func() {
+		mf := defaultFile.current.Load()
+		if mf == nil {
+			// telemetry might have been off
+			return
+		}
+		mmap.Munmap(mf.mapping)
+		mf.f.Close() // best effort
+	}
 }
 
 // A mappedFile is a counter file mmapped into memory.

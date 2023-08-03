@@ -1,0 +1,142 @@
+// Copyright 2023 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package upload
+
+import (
+	"log"
+	"os"
+	"runtime"
+	"testing"
+	"time"
+
+	"golang.org/x/telemetry"
+	xt "golang.org/x/telemetry"
+	it "golang.org/x/telemetry/internal/telemetry"
+)
+
+func setup(t *testing.T) {
+	log.SetFlags(log.Lshortfile)
+	dir := t.TempDir()
+	it.LocalDir = dir + "/local"
+	it.UploadDir = dir + "/upload"
+	os.MkdirAll(it.LocalDir, 0777)
+	os.MkdirAll(it.UploadDir, 0777)
+	xt.LocalDir = it.LocalDir
+	xt.UploadDir = it.UploadDir
+	it.ModeFile = it.ModeFilePath(dir + "/mode")
+	uploadURL := "http://localhost:3131"
+	it.ModeFile.SetMode("on")
+	it.SetMode(uploadURL)
+}
+
+func restore() {
+	now = time.Now
+}
+
+func future(days int) func() time.Time {
+	return func() time.Time {
+		x := time.Duration(days)
+		// make sure we're really x days in the future
+		return time.Now().Add(x*24*time.Hour + 1*time.Second)
+	}
+}
+
+// copied from internal/counter/counter_test.go
+func skipIfUnsupportedPlatform(t *testing.T) {
+	t.Helper()
+	switch runtime.GOOS {
+	case "openbsd", "js", "wasip1", "solaris", "android":
+		// BUGS: #60614 - openbsd, #60967 - android , #60968 - solaris #60970 - solaris #60971 - wasip1)
+		t.Skip("broken for openbsd etc")
+	}
+	if runtime.GOARCH == "386" {
+		// BUGS: #60615 #60692 #60965 #60967
+		t.Skip("broken for GOARCH 386")
+	}
+}
+
+var testUploadConfig = &telemetry.UploadConfig{
+	GOOS: []string{
+		"android",
+		"darwin",
+		"dragonfly",
+		"freebsd",
+		"illumos",
+		"js",
+		"linux",
+		"nacl",
+		"netbsd",
+		"openbsd",
+		"plan9",
+		"solaris",
+		"windows",
+	},
+	GOARCH: []string{
+		"386",
+		"amd64",
+		"amd64p32",
+		"arm",
+		"armbe",
+		"arm64",
+		"arm64be",
+		"mips",
+		"mipsle",
+		"mips64",
+		"mips64le",
+		"mips64p32",
+		"mips64p32le",
+		"ppc64",
+		"ppc64le",
+		"riscv",
+		"riscv64",
+		"s390x",
+		"sparc",
+		"sparc64",
+		"wasm",
+	},
+	GoVersion: []string{
+		"go1.19",
+		"go1.20",
+		"go1.21",
+		"go1.22",
+	},
+	Version: "test",
+	Programs: []*telemetry.ProgramConfig{
+		{
+			Name: "debug.test",
+			Counters: []telemetry.CounterConfig{
+				{
+					Name: "counter/main",
+					Rate: 1.0,
+				},
+			},
+		}, {
+			Name: "upload.test",
+			Counters: []telemetry.CounterConfig{
+				{
+					Name: "counter/main",
+					Rate: 1.0,
+				},
+			},
+		}, {
+			Name: "upload.test-devel",
+			Counters: []telemetry.CounterConfig{
+				{
+					Name: "counter/main",
+					Rate: 1.0,
+				},
+			},
+		},
+		{
+			Name: "test",
+			Counters: []telemetry.CounterConfig{
+				{
+					Name: "counter/main",
+					Rate: 1.0,
+				},
+			},
+		},
+	},
+}

@@ -36,9 +36,10 @@ There are various error conditions.
     write two files with the same name, but different X values, but
     otherwise the same contents. The X values are very close to the front
     of the file. Assuming reasonable file system semantics one version of
-    the file will be written.
+    the file will be written. To minimize this, just before writing reports
+    the code checks again to see if they exist.
 1C. Once there is an existing well-formed file YYYY-MM-DD.json in localdir
     eventually the upload will succeed, and the file will be moved to updatedir.
     It is possible that other processes will not see the file in updatedir and
     upload it again and also move it to uploaddir. This is harmless as all
-    the uploaded files share YYYY-MM-DD and X.
+    the uploaded files are identical.

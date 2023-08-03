@@ -5,51 +5,22 @@
 package upload
 
 import (
-	"log"
 	"os"
 	"testing"
-	"time"
 
-	xt "golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/counter"
 	it "golang.org/x/telemetry/internal/telemetry"
 )
 
-func setup(t *testing.T) {
-	log.SetFlags(log.Lshortfile)
-	dir := t.TempDir()
-	it.LocalDir = dir + "/local"
-	it.UploadDir = dir + "/upload"
-	os.MkdirAll(it.LocalDir, 0777)
-	os.MkdirAll(it.UploadDir, 0777)
-	xt.LocalDir = it.LocalDir
-	xt.UploadDir = it.UploadDir
-	it.ModeFile = it.ModeFilePath(dir + "/mode")
-	uploadURL := "http://localhost:3131"
-	it.ModeFile.SetMode(uploadURL)
-	it.SetMode(uploadURL)
-}
-
-func restore() {
-	now = time.Now
-}
-
-func future(days int) func() time.Time {
-	return func() time.Time {
-		x := time.Duration(days)
-		// make sure we're really x days in the future
-		return time.Now().Add(x*24*time.Hour + 1*time.Second)
-	}
-}
-
 func TestZero(t *testing.T) {
+	skipIfUnsupportedPlatform(t)
 	setup(t)
 	defer restore()
 	now = future(0)
+	finished := counter.Open()
 	c := counter.New("testing")
-	defer c.AllDone()
+
 	c.Inc()
-	counter.Open() // needed for tests
 	now = future(15)
 	work := findWork(it.LocalDir, it.UploadDir)
 	// expect one count file and nothing else
@@ -57,9 +28,38 @@ func TestZero(t *testing.T) {
 		t.Errorf("expected one countfile, got %d", len(work.countfiles))
 	}
 	if len(work.readyfiles) != 0 {
-		t.Errorf("expected no readufiles, got %d", len(work.readyfiles))
+		t.Errorf("expected no readyfiles, got %d", len(work.readyfiles))
 	}
 	if len(work.uploaded) != 0 {
 		t.Errorf("expected no uploadedfiles, got %d", len(work.uploaded))
 	}
+
+	// Windows:
+	// reports will not be able to remove the count file if it is still open
+	// (in non-test situations it would have been rotated out and closed)
+	finished()
+
+	// generate reports
+	uploadConfig = testUploadConfig
+	if err := reports(work); err != nil {
+		t.Fatal(err)
+	}
+	// expect a single report and nothing else
+	got := findWork(it.LocalDir, it.UploadDir)
+	if len(got.countfiles) != 0 {
+		t.Errorf("expected no countfiles, got %d", len(got.countfiles))
+	}
+	if len(got.readyfiles) != 1 {
+		// the uploadable report
+		t.Errorf("expected one readyfile, got %d", len(got.readyfiles))
+	}
+	fi, err := os.ReadDir(it.LocalDir)
+	if len(fi) != 2 || err != nil {
+		// one local report and one uploadable report
+		t.Errorf("expected two files in LocalDir, got %d, %v", len(fi), err)
+	}
+	if len(got.uploaded) != 0 {
+		t.Errorf("expected no uploadedfiles, got %d", len(got.uploaded))
+	}
+	// check contents
 }
