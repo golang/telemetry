@@ -179,12 +179,27 @@
                 <span>{{.Meta.TimeEnd}}</span>
               </div>
               {{$file := .}}
-              {{with .Count}}
+              {{with .Counts}}
               <div class="Count">
-                {{range $name, $value := .}}
-                <div class="Count-entry {{if not (index $file.ActiveCounter $name) }}unknown{{end}}">
-                  <span>{{$name}}</span><span>{{$value}}</span>
+                {{range .}}
+                <div class="Count-entry {{if not .Active }}unknown{{end}}">
+                  <span>{{.Name}}</span><span>{{.Value}}</span>
                 </div>
+                {{end}}
+              </div>
+              {{end}}
+              {{with .Stacks}}
+              <div class="Stack">
+                Call stacks:
+                {{range .}}
+                <details>
+                  <summary>
+                    <div class="Count-entry {{if not .Active }}unknown{{end}}">
+                      <span>{{.Name}}</span><span>{{.Value}}</span>
+                    </div>
+                  </summary>
+                  <pre>{{.Trace}}</pre>
+                </details>
                 {{end}}
               </div>
               {{end}}

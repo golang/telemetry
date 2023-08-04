@@ -273,30 +273,58 @@ func files(dir string, cfg *config.Config) ([]*counterFile, error) {
 // counterFile wraps counter file to add convenience fields for the UI.
 type counterFile struct {
 	*tcounter.File
-	ID            string
-	Summary       template.HTML
-	ActiveMeta    map[string]bool
-	ActiveCounter map[string]bool
+	ID         string
+	Summary    template.HTML
+	ActiveMeta map[string]bool
+	Counts     []*count
+	Stacks     []*stack
+}
+
+type count struct {
+	Name   string
+	Value  uint64
+	Active bool
+}
+
+type stack struct {
+	Name   string
+	Trace  string
+	Value  uint64
+	Active bool
 }
 
 func newCounterFile(name string, c *tcounter.File, cfg *config.Config) *counterFile {
-	meta := map[string]bool{
+	activeMeta := map[string]bool{
 		"Program":   cfg.HasProgram(c.Meta["Program"]),
 		"Version":   cfg.HasVersion(c.Meta["Program"], c.Meta["Version"]),
 		"GOOS":      cfg.HasGOOS(c.Meta["GOOS"]),
 		"GOARCH":    cfg.HasGOARCH(c.Meta["GOARCH"]),
 		"GoVersion": cfg.HasGoVersion(c.Meta["GoVersion"]),
 	}
-	count := make(map[string]bool)
-	for k := range c.Count {
-		count[k] = cfg.HasCounter(c.Meta["Program"], k)
+	var counts []*count
+	var stacks []*stack
+	for k, v := range c.Count {
+		if summary, details, ok := strings.Cut(k, "\n"); ok {
+			active := cfg.HasStack(c.Meta["Program"], k)
+			stacks = append(stacks, &stack{summary, details, v, active})
+		} else {
+			active := cfg.HasCounter(c.Meta["Program"], k)
+			counts = append(counts, &count{k, v, active})
+		}
 	}
+	sort.Slice(counts, func(i, j int) bool {
+		return counts[i].Name < counts[j].Name
+	})
+	sort.Slice(stacks, func(i, j int) bool {
+		return stacks[i].Name < stacks[j].Name
+	})
 	return &counterFile{
-		File:          c,
-		ID:            name,
-		ActiveMeta:    meta,
-		ActiveCounter: count,
-		Summary:       summary(cfg, c.Meta, c.Count),
+		File:       c,
+		ID:         name,
+		ActiveMeta: activeMeta,
+		Counts:     counts,
+		Stacks:     stacks,
+		Summary:    summary(cfg, c.Meta, c.Count),
 	}
 }
 
@@ -447,6 +475,21 @@ func grouped(reports []*telemetryReport) map[programKey]map[counterKey][]*datum 
 				ckey := counterKey{name}
 				result[pgkey][ckey] = append(result[pgkey][ckey], element)
 			}
+			for counter, value := range e.Stacks {
+				summary, _, _ := strings.Cut(counter, "\n")
+				element := &datum{
+					Week:      r.Week,
+					Program:   e.Program,
+					Version:   e.Version,
+					GOARCH:    e.GOARCH,
+					GOOS:      e.GOOS,
+					GoVersion: e.GoVersion,
+					Key:       summary,
+					Value:     value,
+				}
+				ckey := counterKey{summary}
+				result[pgkey][ckey] = append(result[pgkey][ckey], element)
+			}
 		}
 	}
 	return result
@@ -469,8 +512,13 @@ func pending(files []*counterFile, cfg *config.Config) []*telemetryReport {
 			Version:   f.Meta["Version"],
 		}
 		program.Counters = make(map[string]int64)
+		program.Stacks = make(map[string]int64)
 		for k, v := range f.Count {
-			program.Counters[k] = int64(v)
+			if strings.Contains(k, "\n") {
+				program.Stacks[k] = int64(v)
+			} else {
+				program.Counters[k] = int64(v)
+			}
 		}
 		reports[week].Programs = append(reports[week].Programs, program)
 	}

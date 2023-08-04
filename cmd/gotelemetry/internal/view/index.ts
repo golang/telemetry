@@ -131,9 +131,7 @@ function drawCharts() {
         ],
       });
       document
-        .querySelector(
-          `[data-chart-id="${counter.ID}"]`
-        )
+        .querySelector(`[data-chart-id="${counter.ID}"]`)
         ?.replaceChildren(chart);
     }
   }
@@ -157,7 +155,7 @@ function facetToggles() {
 }
 
 // configSelector adds an event listener that reloads the page when a config
-// version is selected. 
+// version is selected.
 function configSelector() {
   const el = document.querySelector<HTMLButtonElement>(".js-selectConfig");
   el?.addEventListener("change", () => {
