@@ -9,28 +9,14 @@ package countertest
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 
 	"golang.org/x/telemetry/counter"
+	"golang.org/x/telemetry/internal/testenv"
 )
-
-// TODO(hyangah): move to internal/testenv.
-func skipIfUnsupportedPlatform(t *testing.T) {
-	t.Helper()
-	switch runtime.GOOS {
-	case "openbsd", "js", "wasip1", "solaris", "android":
-		// BUGS: #60614 - openbsd, #60967 - android , #60968 - solaris #60970 - solaris #60971 - wasip1)
-		t.Skip("broken for openbsd etc")
-	}
-	if runtime.GOARCH == "386" {
-		// BUGS: #60615 #60692 #60965 #60967
-		t.Skip("broken for GOARCH 386")
-	}
-}
 
 func TestMain(m *testing.M) {
 	tmp, err := os.MkdirTemp("", "counter")
@@ -43,7 +29,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestReadCounter(t *testing.T) {
-	skipIfUnsupportedPlatform(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 	c := counter.New("foobar")
 
 	if got, err := ReadCounter(c); err != nil || got != 0 {
@@ -65,7 +51,7 @@ func TestReadCounter(t *testing.T) {
 }
 
 func TestReadStackCounter(t *testing.T) {
-	skipIfUnsupportedPlatform(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 	c := counter.NewStack("foobar", 8)
 
 	if got, err := ReadStackCounter(c); err != nil || len(got) != 0 {

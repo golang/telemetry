@@ -27,23 +27,11 @@ import (
 
 	"golang.org/x/telemetry/internal/mmap"
 	"golang.org/x/telemetry/internal/telemetry"
+	"golang.org/x/telemetry/internal/testenv"
 )
 
-func skipIfUnsupportedPlatform(t *testing.T) {
-	t.Helper()
-	switch runtime.GOOS {
-	case "openbsd", "js", "wasip1", "solaris", "android":
-		// BUGS: #60614 - openbsd, #60967 - android , #60968 - solaris #60970 - solaris #60971 - wasip1)
-		t.Skip("broken for openbsd etc")
-	}
-	if runtime.GOARCH == "386" {
-		// BUGS: #60615 #60692 #60965 #60967
-		t.Skip("broken for GOARCH 386")
-	}
-}
-
 func TestBasic(t *testing.T) {
-	skipIfUnsupportedPlatform(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
@@ -81,7 +69,7 @@ func TestBasic(t *testing.T) {
 }
 
 func TestParallel(t *testing.T) {
-	skipIfUnsupportedPlatform(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
@@ -135,7 +123,7 @@ func close(f *file) {
 }
 
 func TestLarge(t *testing.T) {
-	skipIfUnsupportedPlatform(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
@@ -181,7 +169,7 @@ func TestLarge(t *testing.T) {
 }
 
 func TestRepeatedNew(t *testing.T) {
-	skipIfUnsupportedPlatform(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
@@ -221,7 +209,7 @@ func hexDump(data []byte) string {
 }
 
 func TestNewFile(t *testing.T) {
-	skipIfUnsupportedPlatform(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
@@ -291,7 +279,7 @@ func TestNewFile(t *testing.T) {
 }
 
 func TestRotate(t *testing.T) {
-	skipIfUnsupportedPlatform(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	year, month, day := counterTime().Date()
@@ -348,7 +336,7 @@ func TestRotate(t *testing.T) {
 }
 
 func TestStack(t *testing.T) {
-	skipIfUnsupportedPlatform(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()

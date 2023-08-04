@@ -52,3 +52,18 @@ func NeedsGo(t testing.TB) {
 		t.Skipf("skipping test: go is not available - %v", err)
 	}
 }
+
+// SkipIfUnsupportedPlatform skips test if the current os/arch
+// are not support.
+func SkipIfUnsupportedPlatform(t testing.TB) {
+	t.Helper()
+	switch runtime.GOOS {
+	case "openbsd", "js", "wasip1", "solaris", "android":
+		// BUGS: #60614 - openbsd, #60967 - android , #60968 - solaris #60970 - solaris #60971 - wasip1)
+		t.Skip("broken for openbsd etc")
+	}
+	if runtime.GOARCH == "386" {
+		// BUGS: #60615 #60692 #60965 #60967
+		t.Skip("broken for GOARCH 386")
+	}
+}
