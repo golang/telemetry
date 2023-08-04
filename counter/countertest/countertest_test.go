@@ -9,7 +9,6 @@ package countertest
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"runtime"
 	"slices"
 	"strings"
@@ -77,18 +76,20 @@ func TestReadStackCounter(t *testing.T) {
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
-			c.Inc()
+			c.Inc() // one stack!
 			wg.Done()
 		}()
 	}
 	wg.Wait()
 
-	want := map[string]uint64{}
-	for _, n := range c.Names() {
-		want[n] = 100
+	got, err := ReadStackCounter(c)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("ReadStackCounter = (%v, %v), want to read one entry", stringify(got), err)
 	}
-	if got, err := ReadStackCounter(c); err != nil || !reflect.DeepEqual(got, want) {
-		t.Errorf("ReadStackCounter = (%v, %v), want (%v, nil)", stringify(got), err, stringify(want))
+	for k, v := range got {
+		if !strings.Contains(k, t.Name()) || v != 100 {
+			t.Fatalf("ReadStackCounter = %v, want a stack counter with value 100", got)
+		}
 	}
 }
 
