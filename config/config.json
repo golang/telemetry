@@ -1,19 +1,71 @@
 {
   "GOOS": [
-    "linux",
-    "darwin",
-    "windows"
+		"android",
+		"darwin",
+		"dragonfly",
+		"freebsd",
+		"illumos",
+		"js",
+		"linux",
+		"nacl",
+		"netbsd",
+		"openbsd",
+		"plan9",
+		"solaris",
+		"windows"
   ],
   "GOARCH": [
-    "amd64",
-    "arm64"
+		"386",
+		"amd64",
+		"amd64p32",
+		"arm",
+		"armbe",
+		"arm64",
+		"arm64be",
+		"mips",
+		"mipsle",
+		"mips64",
+		"mips64le",
+		"mips64p32",
+		"mips64p32le",
+		"ppc64",
+		"ppc64le",
+		"riscv",
+		"riscv64",
+		"s390x",
+		"sparc",
+		"sparc64",
+		"wasm"
   ],
   "GoVersion": [
     "go1.20",
     "go1.20.1",
     "go1.20.2",
     "go1.20.3",
-    "go1.20.4"
+    "go1.20.4",
+    "go1.20.5",
+    "go1.20.6",
+    "go1.20.7",
+    "go1.20.8",
+    "go1.20.9",
+    "go1.20.10",
+    "go1.20.11",
+    "go1.20.12",
+    "go1.21.0",
+    "go1.21.1",
+    "go1.21.2",
+    "go1.21.3",
+    "go1.21.4",
+    "go1.21.5",
+    "go1.21.6",
+    "go1.21.7",
+    "go1.21.8",
+    "go1.21.9",
+    "go1.21.10",
+    "go1.21.11",
+    "go1.21.12"
   ],
-  "Programs": []
+  "Programs": [
+    "golang.org/x/tools/gopls"
+  ]
 }
