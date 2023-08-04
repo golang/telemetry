@@ -123,14 +123,20 @@
           {{range .Charts}}
           <div class="Chart">
             {{$pname := .Name}}
-            <h3 id="{{.ID}}">
-              {{$pname}}{{if not .Active}}*{{end}}
+            <h3 id="{{.ID}}" data-label="{{$pname}}">
+              {{$pname}}
+              {{if not .Active}}
+                {{template "info-icon" "This program is not present in the telemetry config."}}
+               {{end}}
             </h3>
             {{range .Counters}}
             <div>
               {{$cname := .Name}}
-              <h4 id="{{.ID}}">
-                {{$cname}}{{if not .Active}}*{{end}}
+              <h4 id="{{.ID}}" data-label="{{$cname}}">
+                {{$cname}}
+                  {{if not .Active}}
+                    {{template "info-icon" "This counter is not present in the telemetry config."}}
+                  {{end}}
               </h4>
               <div data-chart-id="{{.ID}}"></div>
             </div>

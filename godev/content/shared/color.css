@@ -82,4 +82,8 @@
     --color-text-subtle: var(--gray-7);
     --color-code-comment: var(--green-light);
   }
+
+  img.go-Icon {
+    filter: invert(1);
+  }
 }

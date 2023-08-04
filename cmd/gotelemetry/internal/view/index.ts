@@ -7,6 +7,8 @@
 
 import * as Plot from "@observablehq/plot";
 
+import "../../../../godev/content/shared/base";
+
 declare global {
   interface Page {
     Charts: Program[];
@@ -199,7 +201,7 @@ function breadcrumbController() {
       const li = document.createElement("li");
       const a = document.createElement("a");
       a.href = `#${h.id}`;
-      a.innerText = h.innerText;
+      a.innerText = h.getAttribute('data-label') ?? h.innerText;
       li.appendChild(a);
       items.push(li);
     }
