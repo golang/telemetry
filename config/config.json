@@ -65,7 +65,5 @@
     "go1.21.11",
     "go1.21.12"
   ],
-  "Programs": [
-    "golang.org/x/tools/gopls"
-  ]
+  "Programs": []
 }

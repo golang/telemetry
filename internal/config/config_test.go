@@ -6,10 +6,32 @@ package config
 
 import (
 	_ "embed"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"golang.org/x/telemetry"
 )
 
-func TestUploadConfig(t *testing.T) {
+func TestConfig(t *testing.T) {
+	f, err := os.Open(filepath.FromSlash("../../config/config.json"))
+	if os.IsNotExist(err) {
+		t.Skip("config file not found")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	var cfg telemetry.UploadConfig
+	d := json.NewDecoder(f)
+	d.DisallowUnknownFields()
+	if err := d.Decode(&cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInternalConfig(t *testing.T) {
 	got, err := ReadConfig("testdata/config.json")
 	if err != nil {
 		t.Fatal(err)
