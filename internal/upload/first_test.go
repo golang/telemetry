@@ -5,13 +5,35 @@
 package upload
 
 import (
+	"log"
+	"net/http"
 	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"golang.org/x/telemetry/internal/counter"
 	it "golang.org/x/telemetry/internal/telemetry"
 )
 
+// make sure we can talk to the test server
+func TestSimpleServer(t *testing.T) {
+	setup(t)
+	defer restore()
+	url := uploadURL
+	resp, err := http.Post(url+"/foo", "text/plain", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("%#v", resp.StatusCode)
+	}
+	got := <-serverChan
+	if got != (msg{"/foo", 5}) {
+		t.Errorf("got %v", got)
+	}
+}
 func TestZero(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
 	setup(t)
@@ -61,5 +83,34 @@ func TestZero(t *testing.T) {
 	if len(got.uploaded) != 0 {
 		t.Errorf("expected no uploadedfiles, got %d", len(got.uploaded))
 	}
-	// check contents
+	// check contents. The semantic difference is "testing:1" in the
+	// local file, but the json has some extra commas.
+	var localFile, uploadFile []byte
+	for _, f := range fi {
+		fname := filepath.Join(it.LocalDir, f.Name())
+		buf, err := os.ReadFile(fname)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(f.Name(), "local") {
+			localFile = buf
+		} else {
+			uploadFile = buf
+		}
+	}
+	want := regexp.MustCompile("(?s:,. *\"testing\": 1)")
+	found := want.FindSubmatchIndex(localFile)
+	if len(found) != 2 {
+		t.Fatalf("expected to find %q in %q", want, localFile)
+	}
+	if string(uploadFile) != string(localFile[:found[0]])+string(localFile[found[1]:]) {
+		t.Fatalf("got\n%q expected\n%q", uploadFile,
+			string(localFile[:found[0]])+string(localFile[found[1]:]))
+	}
+	// and try uploading to the test
+	uploadReport(got.readyfiles[0])
+	x := <-serverChan
+	if x.length != len(uploadFile) {
+		t.Errorf("%v %d", x, len(uploadFile))
+	}
 }

@@ -5,7 +5,10 @@
 package upload
 
 import (
+	"io"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"runtime"
 	"testing"
@@ -17,6 +20,14 @@ import (
 )
 
 func setup(t *testing.T) {
+	if serverChan == nil {
+		// 10 is more uploads than a test will see
+		serverChan = make(chan msg, 10)
+		go testServer(serverChan)
+		// wait for the server to start
+		addr := <-serverChan
+		uploadURL = addr.path
+	}
 	log.SetFlags(log.Lshortfile)
 	dir := t.TempDir()
 	it.LocalDir = dir + "/local"
@@ -26,7 +37,6 @@ func setup(t *testing.T) {
 	xt.LocalDir = it.LocalDir
 	xt.UploadDir = it.UploadDir
 	it.ModeFile = it.ModeFilePath(dir + "/mode")
-	uploadURL := "http://localhost:3131"
 	it.ModeFile.SetMode("on")
 	it.SetMode(uploadURL)
 }
@@ -55,6 +65,38 @@ func skipIfUnsupportedPlatform(t *testing.T) {
 		// BUGS: #60615 #60692 #60965 #60967
 		t.Skip("broken for GOARCH 386")
 	}
+}
+
+type msg struct {
+	path   string
+	length int
+}
+
+var serverChan chan msg
+
+// a test server. it is started once
+func testServer(started chan msg) {
+	log.SetFlags(log.Lshortfile)
+	http.HandleFunc("/", handlerFunc)
+
+	ln, err := net.Listen("tcp4", ":")
+	if err != nil {
+		log.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	addr = "http://" + addr
+	started <- msg{path: addr, length: len(addr)}
+	log.Fatal(http.Serve(ln, nil))
+}
+
+func handlerFunc(w http.ResponseWriter, r *http.Request) {
+	buf, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Print(err)
+		// set some sensible error code TODO(pjw): not teapot
+		http.Error(w, "read failed", http.StatusTeapot)
+	}
+	serverChan <- msg{path: r.URL.Path, length: len(buf)}
 }
 
 var testUploadConfig = &telemetry.UploadConfig{

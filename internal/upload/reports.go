@@ -95,7 +95,7 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 	if uploadConfig == nil {
 		a, err := configstore.Download("latest", nil)
 		if err != nil {
-			log.Print(err) // or something
+			log.Print(err) // or something (e.g., panic(err))
 		}
 		uploadConfig = &a
 	}
