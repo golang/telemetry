@@ -103,6 +103,9 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 	if uploadConfig == nil || ti.Mode() == "local" {
 		uploadOK = false // no config, nothing to upload
 	}
+	if tooOld(date) {
+		uploadOK = false
+	}
 	version := uploadConfig.Version
 	// should we check that all the x.Meta are consistent for GOOS, GOARCH, etc?
 	report := &telemetry.Report{

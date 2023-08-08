@@ -18,6 +18,17 @@ import (
 
 // another name for time.Now() to use for testing
 var now = time.Now
+var distantPast = 21 * 24 * time.Hour
+
+// reports that are too old (21 days) are not uploaded
+func tooOld(date string) bool {
+	t, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		log.Printf("tooOld: %v", err)
+		return false
+	}
+	return now().Sub(t) > distantPast
+}
 
 // return the expiry date of a countfile in YYYY-MM-DD format
 func expiryDate(fname string) string {

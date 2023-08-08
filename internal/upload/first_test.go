@@ -34,6 +34,9 @@ func TestSimpleServer(t *testing.T) {
 		t.Errorf("got %v", got)
 	}
 }
+
+// (not that this test cannot succeed in debug mode, as the
+// program name is unpredictable and different every time)
 func TestZero(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
 	setup(t)
