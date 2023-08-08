@@ -10,7 +10,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -23,8 +22,8 @@ import (
 
 func main() {
 	log.SetFlags(0)
+	flag.Usage = usage
 	flag.Parse()
-	flag.Usage = func() { usage(os.Stderr) }
 
 	args := flag.Args()
 	if len(args) == 0 {
@@ -35,13 +34,14 @@ func main() {
 	case "set":
 		if err := setMode(args); err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
-			usage(os.Stderr)
+			usage()
 			os.Exit(1)
 		}
 	case "dump":
 		counterDump(args[1:]...)
 	case "help":
-		usage(os.Stdout)
+		flag.CommandLine.SetOutput(os.Stdout)
+		flag.Usage()
 	case "view":
 		view.Start()
 	}
@@ -62,13 +62,16 @@ func setMode(args []string) error {
 	return telemetry.SetMode(args[1])
 }
 
-func usage(w io.Writer) {
+func usage() {
+	w := flag.CommandLine.Output()
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "\tgotelemetry")
 	fmt.Fprintln(w, "\tgotelemetry set <on|off|local>")
 	fmt.Fprintln(w, "\tgotelemetry dump [file1 file2 ...]")
 	fmt.Fprintln(w, "\tgotelemetry view")
 	fmt.Fprintln(w, "\tgotelemetry help")
+	fmt.Fprintln(w, "Flags:")
+	flag.CommandLine.PrintDefaults()
 }
 
 func counterDump(args ...string) {
