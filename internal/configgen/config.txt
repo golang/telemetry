@@ -1,0 +1,10 @@
+# Note: this is not an approved graph config, but merely demonstrates the
+# config generation feature during development.
+
+title: Editor Distribution
+counter: gopls/editor:{emacs,vim,vscode,other}
+description: measure editor distribution for gopls users.
+type: partition
+issue: https://go.dev/issue/61038
+program: golang.org/x/tools/gopls
+version: v0.13.0 # temporarily back-version to demonstrate config generation.

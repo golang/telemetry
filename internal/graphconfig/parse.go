@@ -107,7 +107,7 @@ var fieldParsers = map[string]fieldParser{
 	"counter":     parseString,
 	"depth":       parseInt,
 	"error":       parseFloat,
-	"version":     parseSlice(parseVersionInterval),
+	"version":     parseString,
 }
 
 func parseString(v reflect.Value, input string) error {
@@ -143,33 +143,4 @@ func parseSlice(elemParser fieldParser) fieldParser {
 		}
 		return nil
 	}
-}
-
-func parseVersionInterval(v reflect.Value, input string) error {
-	bad := func() error {
-		return fmt.Errorf("versions must be of the form v<version> or [v<low>, v<high>]")
-	}
-	if input[0] != '[' { // a single version value
-		vi := VersionInterval{Low: input, High: input}
-		v.Set(reflect.ValueOf(vi))
-		return nil
-	}
-	if input[len(input)-1] != ']' {
-		return bad()
-	}
-	input = input[1 : len(input)-1]
-	parts := strings.Split(input, ",")
-	if len(parts) != 2 {
-		return bad()
-	}
-	low, high := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-	var vi VersionInterval
-	if low != "" {
-		vi.Low = low
-	}
-	if high != "" {
-		vi.High = high
-	}
-	v.Set(reflect.ValueOf(vi))
-	return nil
 }

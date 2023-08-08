@@ -29,14 +29,11 @@
 //   - issue: a go issue tracker URL proposing the graph configuration.
 //     Multiple issues may be provided by including additional 'issue:' lines.
 //     All proposals must be in the 'accepted' state.
-//   - type: the graph type: currently only partition, histograph, and stack
-//     are supported.
+//   - type: the graph type: currently only partition, histogram, and stack are
+//     supported.
 //   - program: the package path of the program for which this graph applies.
-//   - version: (optional) range of version for which graph applies. Must be a
-//     valid singular semver value, or a semver interval [vA.B.C, vX.Y.Z].
-//     Intervals may be half-open, e.g. [vA.B.C,], in which case the missing
-//     bound is not enforced. Multiple version ranges may be provided by
-//     including additional 'version:' lines.
+//   - version: (optional) the first version for which this graph applies. Must
+//     be a valid semver value.
 //   - counter: the primary counter this graph illustrates, including buckets
 //     for histogram and partition graphs
 //   - depth: (optional) stack counters only; the maximum stack depth to collect
@@ -84,13 +81,5 @@ type GraphConfig struct {
 	Counter     string
 	Depth       int
 	Error       float64 // TODO(rfindley) is Error still useful?
-	Version     []VersionInterval
-}
-
-// A VersionInterval matches semantic versions v where Low <= v <= High.
-// VersionIntervals may be half-open:
-//   - If Low is unset, it matches v <= High.
-//   - If High is unset, it matches Low <= v.
-type VersionInterval struct {
-	Low, High string
+	Version     string
 }

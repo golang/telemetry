@@ -19,7 +19,7 @@ import (
 	"golang.org/x/mod/module"
 )
 
-// WriteProxy creates a new proxy file tree using the txtar-encoded content,
+// WriteProxy creates a new proxy file tree using the provided content,
 // and returns its URL.
 func WriteProxy(tmpdir string, files map[string][]byte) (string, error) {
 	type moduleVersion struct {

@@ -30,10 +30,7 @@ issue: F1
 issue: F2
 depth: 2
 error: 0.1
-version: [v1.0.0, v1.2.3]
 version: v2.0.0
-version: [v3.0.0, ]
-version: [, v4.0.0]
 `,
 			[]graphconfig.GraphConfig{{
 				Title:       "A",
@@ -44,12 +41,7 @@ version: [, v4.0.0]
 				Issue:       []string{"F1", "F2"},
 				Depth:       2,
 				Error:       0.1,
-				Version: []graphconfig.VersionInterval{
-					{"v1.0.0", "v1.2.3"},
-					{"v2.0.0", "v2.0.0"},
-					{"v3.0.0", ""},
-					{"", "v4.0.0"},
-				},
+				Version:     "v2.0.0",
 			}},
 		},
 		{
@@ -163,12 +155,6 @@ title: bar
 			"invalid depth",
 			`
 depth: notanint
-`,
-		},
-		{
-			"invalid interval",
-			`
-version: [v1.2.3,
 `,
 		},
 	}

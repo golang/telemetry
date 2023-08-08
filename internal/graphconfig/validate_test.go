@@ -38,10 +38,7 @@ func TestValidate(t *testing.T) {
 		"description:bar": {"title", "program", "issue", "counter", "type"},
 
 		// validation of semver intervals
-		"version:1.2.3":            {"semver"},
-		"version:[1.2.3, v2.3.4]":  {"semver"},
-		"version:[v1.2.3, 2.3.4]":  {"semver"},
-		"version:[v1.2.3, v1.2.2]": {"<="},
+		"version:1.2.3": {"semver"},
 
 		// valid of stack configuration
 		"depth:-1": {"non-negative", "stack"},

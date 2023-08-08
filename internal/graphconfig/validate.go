@@ -39,16 +39,8 @@ func Validate(cfg GraphConfig) error {
 	if cfg.Depth != 0 && cfg.Type != "stack" {
 		reportf("depth can only be set for \"stack\" graph types")
 	}
-	for _, vi := range cfg.Version {
-		if vi.Low != "" && !semver.IsValid(vi.Low) {
-			reportf("%q is not valid semver", vi.Low)
-		}
-		if vi.High != "" && vi.High != vi.Low && !semver.IsValid(vi.High) {
-			reportf("%q is not valid semver", vi.High)
-		}
-		if vi.Low != "" && vi.High != "" && semver.IsValid(vi.Low) && semver.IsValid(vi.High) && semver.Compare(vi.Low, vi.High) > 0 {
-			reportf("low version %q must be <= high version %q", vi.Low, vi.High)
-		}
+	if cfg.Version != "" && !semver.IsValid(cfg.Version) {
+		reportf("%q is not valid semver", cfg.Version)
 	}
 	return errors.Join(errs...)
 }

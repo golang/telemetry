@@ -10,7 +10,7 @@ import (
 	"golang.org/x/telemetry/internal/telemetry"
 )
 
-// Common types and directories used by multple packages.
+// Common types and directories used by multiple packages.
 
 // An UploadConfig controls what data is uploaded.
 type UploadConfig struct {
@@ -18,7 +18,8 @@ type UploadConfig struct {
 	GOARCH    []string
 	GoVersion []string // how does this get changed with new releases?
 	Programs  []*ProgramConfig
-	Version   string // version of this config. Is this needed?
+	Version   string `json:",omitempty" ` // version of this config. TODO(rfindley): Is this needed?
+	// TODO(rfindley): add a 'FormatVersion' field, to allow evolution of the config format?
 }
 
 type ProgramConfig struct {
@@ -26,15 +27,15 @@ type ProgramConfig struct {
 	// repeated for each program. (e.g., if the counters are in a package
 	// that is used in more than one program.)
 	Name     string
-	Versions []string // where do these come from
-	Counters []CounterConfig
-	Stacks   []CounterConfig
+	Versions []string        // versions present in a counterconfig
+	Counters []CounterConfig `json:",omitempty"`
+	Stacks   []CounterConfig `json:",omitempty"`
 }
 
 type CounterConfig struct {
 	Name  string
 	Rate  float64 // If X < Rate, report this counter
-	Depth int     // for stack counters
+	Depth int     `json:",omitempty"` // for stack counters
 }
 
 // A Report is what's uploaded (or saved locally)
