@@ -52,7 +52,7 @@ func TestTelemetryMode(t *testing.T) {
 		{"on", false},
 		{"off", false},
 		{"local", false},
-		{"https://mytelemetry.com", false},
+		{"https://mytelemetry.com", true},
 		{"http://insecure.com", true},
 		{"bogus", true},
 		{"", true},

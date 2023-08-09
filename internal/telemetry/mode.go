@@ -6,7 +6,6 @@
 package telemetry
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -48,12 +47,11 @@ func SetMode(mode string) error {
 }
 
 func (m ModeFilePath) SetMode(mode string) error {
+	mode = strings.TrimSpace(mode)
 	switch mode {
 	case "on", "off", "local":
 	default:
-		if !strings.HasPrefix(mode, "https://") {
-			return errors.New("invalid telemetry mode value")
-		}
+		return fmt.Errorf("invalid telemetry mode: %q", mode)
 	}
 	fname := string(m)
 	if fname == "" {
@@ -81,12 +79,6 @@ func (m ModeFilePath) Mode() string {
 		return "local" // default
 	}
 	mode := string(data)
-	switch mode {
-	case "on", "off", "local":
-	default:
-		if !strings.HasPrefix(mode, "https://") {
-			return "local"
-		}
-	}
+	mode = strings.TrimSpace(mode)
 	return mode
 }
