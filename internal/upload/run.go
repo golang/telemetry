@@ -12,12 +12,10 @@ import (
 
 // Run generates and uploads reports
 // TODO(pjw): decide what to do about error reporting throughout the package
-func Run() {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Printf("upload: %v", err)
-		}
-	}()
+func Run(c *telemetry.Configuration) {
+	if c != nil && c.UploadConfig != nil {
+		uploadConfig = c.UploadConfig()
+	}
 	todo := findWork(telemetry.LocalDir, telemetry.UploadDir)
 	if err := reports(todo); err != nil {
 		log.Printf("reports: %v", err)

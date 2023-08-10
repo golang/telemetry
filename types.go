@@ -54,6 +54,17 @@ type ProgramReport struct {
 	Stacks    map[string]int64
 }
 
+// A Configuration allows the user to override various default
+// reporting and uploading choices.
+// Future versions may also allow the user to set the upload URL.
+type Configuration struct {
+	// UploadConfig provides the telemetry UploadConfig used to
+	// decide which counters get uploaded. nil is legal, and
+	// means the code will use the latest version of the module
+	// golang.org/x/telemetry/config.
+	UploadConfig func() *UploadConfig
+}
+
 var (
 	// directory containing count files and local (not to be uploaded) reports
 	LocalDir = telemetry.LocalDir

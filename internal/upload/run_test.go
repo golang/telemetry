@@ -24,6 +24,6 @@ func TestRun(t *testing.T) {
 	now = future(15)
 	finished() // for Windows
 
-	Run()
+	Run(nil)
 	log.Printf("finished")
 }
