@@ -5,20 +5,31 @@
 package upload
 
 import (
+	"io"
 	"log"
 
 	"golang.org/x/telemetry"
 )
 
+var logger *log.Logger
+
+func init() {
+	logger = log.New(io.Discard, "", 0)
+}
+
 // Run generates and uploads reports
-// TODO(pjw): decide what to do about error reporting throughout the package
-func Run(c *telemetry.Configuration) {
-	if c != nil && c.UploadConfig != nil {
-		uploadConfig = c.UploadConfig()
+func Run(c *telemetry.Control) {
+	if c != nil {
+		if c.UploadConfig != nil {
+			uploadConfig = c.UploadConfig()
+		}
+		if c.Logging != nil {
+			logger.SetOutput(c.Logging)
+		}
 	}
 	todo := findWork(telemetry.LocalDir, telemetry.UploadDir)
 	if err := reports(todo); err != nil {
-		log.Printf("reports: %v", err)
+		logger.Printf("reports: %v", err)
 	}
 	for _, f := range todo.readyfiles {
 		uploadReport(f)

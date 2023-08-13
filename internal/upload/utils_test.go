@@ -28,7 +28,8 @@ func setup(t *testing.T) {
 		addr := <-serverChan
 		uploadURL = addr.path
 	}
-	log.SetFlags(log.Lshortfile)
+	logger = log.Default()
+	logger.SetFlags(log.Lshortfile)
 	dir := t.TempDir()
 	it.LocalDir = dir + "/local"
 	it.UploadDir = dir + "/upload"

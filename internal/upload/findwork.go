@@ -5,7 +5,6 @@
 package upload
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,8 +26,8 @@ func findWork(localdir, uploaddir string) work {
 	var ans work
 	fis, err := os.ReadDir(localdir)
 	if err != nil {
-		// This occurs in a separate upload process, not in gopls or go.
-		log.Fatal(err)
+		logger.Printf("could not read %s, progress impossible (%v)", localdir, err)
+		return ans
 	}
 	// count files end in .v1.count
 	// reports end in .json. If they are not to be uploaded they

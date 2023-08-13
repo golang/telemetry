@@ -6,7 +6,6 @@ package upload
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"sync"
 	"time"
@@ -24,7 +23,7 @@ var distantPast = 21 * 24 * time.Hour
 func tooOld(date string) bool {
 	t, err := time.Parse("2006-01-02", date)
 	if err != nil {
-		log.Printf("tooOld: %v", err)
+		logger.Printf("tooOld: %v", err)
 		return false
 	}
 	return now().Sub(t) > distantPast
@@ -50,12 +49,12 @@ var farFuture = time.UnixMilli(1 << 62)
 func expiry(fname string) time.Time {
 	parsed, err := parse(fname)
 	if err != nil {
-		log.Printf("expiry Parse: %v for %s", err, fname)
+		logger.Printf("expiry Parse: %v for %s", err, fname)
 		return farFuture // don't process it, whatever it is
 	}
 	expiry, err := time.Parse(time.RFC3339, parsed.Meta["TimeEnd"])
 	if err != nil {
-		log.Printf("time.Parse: %v for %s", err, fname)
+		logger.Printf("time.Parse: %v for %s", err, fname)
 		return farFuture // don't process it, whatever it is
 	}
 	// TODO(pjw): check for off-by-one-day?

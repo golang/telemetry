@@ -7,7 +7,6 @@ package upload
 import (
 	"bytes"
 	"crypto/tls"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -24,7 +23,7 @@ var uploadURL = "https://telemetry.go.dev/upload"
 func uploadReport(fname string) {
 	buf, err := os.ReadFile(fname)
 	if err != nil {
-		log.Printf("%v reading %s", err, fname)
+		logger.Printf("%v reading %s", err, fname)
 		return
 	}
 	if uploadReportContents(fname, buf) {
@@ -45,11 +44,11 @@ func uploadReportContents(fname string, buf []byte) bool {
 
 	resp, err := client.Post(server, "application/json", b)
 	if err != nil {
-		log.Printf("error on Post: %v %q for %q", err, server, fname)
+		logger.Printf("error on Post: %v %q for %q", err, server, fname)
 		return false
 	}
 	if resp.StatusCode != 200 {
-		log.Printf("resp error on upload %q: %v for %q %q", server, resp.Status, fname, fdate)
+		logger.Printf("resp error on upload %q: %v for %q %q", server, resp.Status, fname, fdate)
 		return false
 	}
 	// put a copy in the uploaded directory

@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -95,7 +94,7 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 	if uploadConfig == nil {
 		a, err := configstore.Download("latest", nil)
 		if err != nil {
-			log.Print(err) // or something (e.g., panic(err))
+			logger.Print(err) // or something (e.g., panic(err))
 		}
 		uploadConfig = &a
 	}
@@ -120,7 +119,7 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 	for _, f := range files {
 		x, err := parse(string(f))
 		if err != nil {
-			log.Printf("unparseable (%v) %s", err, f)
+			logger.Printf("unparseable (%v) %s", err, f)
 			continue
 		}
 		prog := findProgReport(x.Meta, report)
@@ -250,7 +249,7 @@ func computeRandom() float64 {
 		b := make([]byte, 8)
 		_, err := rand.Read(b)
 		if err != nil {
-			log.Fatalf("rand.Read: %v", err)
+			logger.Fatalf("rand.Read: %v", err)
 		}
 		// and turn it into a float64
 		x := math.Float64frombits(binary.LittleEndian.Uint64(b))
