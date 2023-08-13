@@ -7,7 +7,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -15,9 +14,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/telemetry/cmd/gotelemetry/internal/csv"
 	"golang.org/x/telemetry/cmd/gotelemetry/internal/view"
 	"golang.org/x/telemetry/internal/counter"
-	"golang.org/x/telemetry/internal/telemetry"
+	it "golang.org/x/telemetry/internal/telemetry"
 )
 
 func main() {
@@ -44,22 +44,27 @@ func main() {
 		flag.Usage()
 	case "view":
 		view.Start()
+	case "csv":
+		csv.Csv()
+	default:
+		flag.Usage()
 	}
 }
 
 func printSetting() {
-	fmt.Println(telemetry.Mode())
+	fmt.Println("[-h for help]")
+	fmt.Printf("mode: %s\n", it.Mode())
 	fmt.Println()
-	fmt.Println("modefile: ", telemetry.ModeFile)
-	fmt.Println("localdir: ", telemetry.LocalDir)
-	fmt.Println("uploaddir:", telemetry.UploadDir)
+	fmt.Println("modefile: ", it.ModeFile)
+	fmt.Println("localdir: ", it.LocalDir)
+	fmt.Println("uploaddir:", it.UploadDir)
 }
 
 func setMode(args []string) error {
 	if len(args) != 2 {
-		return errors.New("unexpected number of arguments for 'set'")
+		return fmt.Errorf("expected 2 args for set, not %d", len(args))
 	}
-	return telemetry.SetMode(args[1])
+	return it.SetMode(args[1])
 }
 
 func usage() {
@@ -68,7 +73,8 @@ func usage() {
 	fmt.Fprintln(w, "\tgotelemetry")
 	fmt.Fprintln(w, "\tgotelemetry set <on|off|local>")
 	fmt.Fprintln(w, "\tgotelemetry dump [file1 file2 ...]")
-	fmt.Fprintln(w, "\tgotelemetry view")
+	fmt.Fprintln(w, "\tgotelemetry view (runs web server)")
+	fmt.Fprintln(w, "\tgotelemetry csv (prints all known counters)")
 	fmt.Fprintln(w, "\tgotelemetry help")
 	fmt.Fprintln(w, "Flags:")
 	flag.CommandLine.PrintDefaults()
@@ -76,7 +82,7 @@ func usage() {
 
 func counterDump(args ...string) {
 	if len(args) == 0 {
-		localdir := telemetry.LocalDir
+		localdir := it.LocalDir
 		fi, err := os.ReadDir(localdir)
 		if err != nil && len(args) == 0 {
 			log.Fatal(err)
