@@ -9,6 +9,7 @@ import (
 	"log"
 
 	"golang.org/x/telemetry"
+	it "golang.org/x/telemetry/internal/telemetry"
 )
 
 var logger *log.Logger
@@ -27,7 +28,7 @@ func Run(c *telemetry.Control) {
 			logger.SetOutput(c.Logging)
 		}
 	}
-	todo := findWork(telemetry.LocalDir, telemetry.UploadDir)
+	todo := findWork(it.LocalDir, it.UploadDir)
 	if err := reports(todo); err != nil {
 		logger.Printf("reports: %v", err)
 	}

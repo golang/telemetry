@@ -16,7 +16,7 @@ import (
 
 	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/configstore"
-	ti "golang.org/x/telemetry/internal/telemetry"
+	it "golang.org/x/telemetry/internal/telemetry"
 )
 
 // the upload configuration
@@ -27,7 +27,7 @@ var (
 
 // reports generates reports from inactive count files
 func reports(todo work) error {
-	if ti.Mode() == "off" {
+	if it.Mode() == "off" {
 		return nil // no reports
 	}
 	// lastWeek is needed for that field in reports
@@ -103,7 +103,7 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 		configVersion = v
 	}
 	uploadOK := true
-	if uploadConfig == nil || ti.Mode() == "local" {
+	if uploadConfig == nil || it.Mode() == "local" {
 		uploadOK = false // no config, nothing to upload
 	}
 	if tooOld(date) {
@@ -195,8 +195,8 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal upload report (%v)", err)
 	}
-	localFileName := filepath.Join(telemetry.LocalDir, "local."+date+".json")
-	uploadFileName := filepath.Join(telemetry.LocalDir, date+".json")
+	localFileName := filepath.Join(it.LocalDir, "local."+date+".json")
+	uploadFileName := filepath.Join(it.LocalDir, date+".json")
 	// if either file exists, someone has been here ahead of us
 	// (there is still a race, but this check shortens the open window)
 	if _, err := os.Stat(localFileName); err == nil {

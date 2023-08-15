@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"golang.org/x/telemetry"
-	xt "golang.org/x/telemetry"
 	it "golang.org/x/telemetry/internal/telemetry"
 )
 
@@ -35,8 +34,6 @@ func setup(t *testing.T) {
 	it.UploadDir = dir + "/upload"
 	os.MkdirAll(it.LocalDir, 0777)
 	os.MkdirAll(it.UploadDir, 0777)
-	xt.LocalDir = it.LocalDir
-	xt.UploadDir = it.UploadDir
 	it.ModeFile = it.ModeFilePath(dir + "/mode")
 	it.ModeFile.SetMode("on")
 	it.SetMode(uploadURL)

@@ -29,6 +29,7 @@ import (
 	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/configstore"
 	tcounter "golang.org/x/telemetry/internal/counter"
+	it "golang.org/x/telemetry/internal/telemetry"
 )
 
 var (
@@ -119,11 +120,11 @@ func handleIndex(fsys fs.FS) handlerFunc {
 		if err != nil {
 			return err
 		}
-		reports, err := reports(telemetry.LocalDir, cfg)
+		reports, err := reports(it.LocalDir, cfg)
 		if err != nil {
 			return err
 		}
-		files, err := files(telemetry.LocalDir, cfg)
+		files, err := files(it.LocalDir, cfg)
 		if err != nil {
 			return err
 		}

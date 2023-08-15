@@ -6,8 +6,6 @@ package telemetry
 
 import (
 	"io"
-
-	"golang.org/x/telemetry/internal/telemetry"
 )
 
 // Common types and directories used by multiple packages.
@@ -68,12 +66,3 @@ type Control struct {
 	// nil is legal and no log messages get generated
 	Logging io.Writer
 }
-
-var (
-	// directory containing count files and local (not to be uploaded) reports
-	LocalDir = telemetry.LocalDir
-	// directory containing uploaded reports
-	UploadDir = telemetry.UploadDir
-	// whether telemetry is enabled
-	Enabled bool = telemetry.Mode() != "off" // TODO(hyangah): consider to delete.
-)
