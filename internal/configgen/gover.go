@@ -38,22 +38,22 @@ func Compare(x, y string) int {
 
 // IsValid reports whether the version x is valid.
 func IsValid(x string) bool {
-	return parse(x) != version{}
+	return parse(x) != goVersion{}
 }
 
 // parse parses the Go version string x into a version.
 // It returns the zero version if x is malformed.
-func parse(x string) version {
-	var v version
+func parse(x string) goVersion {
+	var v goVersion
 	// Parse major version.
 	if len(x) < 2 || x[:2] != "go" {
-		return version{}
+		return goVersion{}
 	}
 	x = x[2:]
 	var ok bool
 	v.major, x, ok = cutInt(x)
 	if !ok {
-		return version{}
+		return goVersion{}
 	}
 	if x == "" {
 		// Interpret "1" as "1.0.0".
@@ -64,13 +64,13 @@ func parse(x string) version {
 
 	// Parse . before minor version.
 	if x[0] != '.' {
-		return version{}
+		return goVersion{}
 	}
 
 	// Parse minor version.
 	v.minor, x, ok = cutInt(x[1:])
 	if !ok {
-		return version{}
+		return goVersion{}
 	}
 	if x == "" {
 		// Patch missing is same as "0" for older versions.
@@ -91,7 +91,7 @@ func parse(x string) version {
 			// But a prerelease of a patch would have the opposite effect:
 			//	1.21.3rc1 < 1.21.3
 			// We've never needed them before, so let's not start now.
-			return version{}
+			return goVersion{}
 		}
 		return v
 	}
@@ -100,12 +100,12 @@ func parse(x string) version {
 	i := 0
 	for i < len(x) && (x[i] < '0' || '9' < x[i]) {
 		if x[i] < 'a' || 'z' < x[i] {
-			return version{}
+			return goVersion{}
 		}
 		i++
 	}
 	if i == 0 {
-		return version{}
+		return goVersion{}
 	}
 	v.kind, x = x[:i], x[i:]
 	if x == "" {
@@ -113,7 +113,7 @@ func parse(x string) version {
 	}
 	v.pre, x, ok = cutInt(x)
 	if !ok || x != "" {
-		return version{}
+		return goVersion{}
 	}
 
 	return v
@@ -157,7 +157,7 @@ func cmpInt(x, y string) int {
 // but at the time this code was written, there was an existing test that used
 // go1.99999999999, which does not fit in an int on 32-bit platforms.
 // The "big decimal" representation avoids the problem entirely.)
-type version struct {
+type goVersion struct {
 	major string // decimal
 	minor string // decimal or ""
 	patch string // decimal or ""
