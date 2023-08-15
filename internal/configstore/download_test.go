@@ -44,13 +44,12 @@ func TestDownload(t *testing.T) {
 
 	opts := testDownloadOption(proxyURI, tmpdir)
 
-	got, err := Download("latest", opts)
+	got, _, err := Download("latest", opts)
 	if err != nil {
 		t.Fatal("failed to download the latest version:", err)
 	}
 
 	want := in
-	want.Version = configVersion // want the Version field to be populated with the module version.
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Download(latest, _) = %v\nwant %v", stringify(got), stringify(want))
 	}

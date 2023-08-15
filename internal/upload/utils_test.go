@@ -145,7 +145,6 @@ var testUploadConfig = &telemetry.UploadConfig{
 		"go1.21",
 		"go1.22",
 	},
-	Version: "test",
 	Programs: []*telemetry.ProgramConfig{
 		{
 			Name: "debug.test",

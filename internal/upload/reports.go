@@ -20,7 +20,10 @@ import (
 )
 
 // the upload configuration
-var uploadConfig *telemetry.UploadConfig
+var (
+	uploadConfig  *telemetry.UploadConfig
+	configVersion string
+)
 
 // reports generates reports from inactive count files
 func reports(todo work) error {
@@ -92,11 +95,12 @@ func notNeeded(date string, todo work) bool {
 // it returns the absolute path name of the file containing the report
 func createReport(date string, files []string, lastWeek string) (string, error) {
 	if uploadConfig == nil {
-		a, err := configstore.Download("latest", nil)
+		a, v, err := configstore.Download("latest", nil)
 		if err != nil {
 			logger.Print(err) // or something (e.g., panic(err))
 		}
 		uploadConfig = &a
+		configVersion = v
 	}
 	uploadOK := true
 	if uploadConfig == nil || ti.Mode() == "local" {
@@ -105,10 +109,9 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 	if tooOld(date) {
 		uploadOK = false
 	}
-	version := uploadConfig.Version
 	// should we check that all the x.Meta are consistent for GOOS, GOARCH, etc?
 	report := &telemetry.Report{
-		Config:   version,
+		Config:   configVersion,
 		X:        computeRandom(), // json encodes all the bits
 		Week:     date,
 		LastWeek: lastWeek,

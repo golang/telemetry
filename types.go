@@ -16,10 +16,8 @@ import (
 type UploadConfig struct {
 	GOOS      []string
 	GOARCH    []string
-	GoVersion []string // how does this get changed with new releases?
+	GoVersion []string
 	Programs  []*ProgramConfig
-	Version   string `json:",omitempty" ` // version of this config. TODO(rfindley): Is this needed?
-	// TODO(rfindley): add a 'FormatVersion' field, to allow evolution of the config format?
 }
 
 type ProgramConfig struct {

@@ -144,18 +144,15 @@ func handleIndex(fsys fs.FS) handlerFunc {
 // configAt gets the config at a given version.
 func configAt(version string) (ucfg *config.Config, err error) {
 	if version == "" || version == "empty" {
-		return config.NewConfig(&telemetry.UploadConfig{Version: "empty"}), nil
+		return config.NewConfig(&telemetry.UploadConfig{}), nil
 	}
 	if *fsConfig != "" {
 		ucfg, err = config.ReadConfig(*fsConfig)
 		if err != nil {
 			return nil, err
 		}
-		if ucfg.Version == "" {
-			ucfg.Version = *fsConfig
-		}
 	} else {
-		cfg, err := configstore.Download(version, nil)
+		cfg, _, err := configstore.Download(version, nil)
 		if err != nil {
 			return nil, err
 		}

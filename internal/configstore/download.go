@@ -33,7 +33,9 @@ type DownloadOption struct {
 }
 
 // Download fetches the requested telemetry UploadConfig using "go mod download".
-func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, error) {
+//
+// The second result is the canonical version of the requested configuration.
+func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, string, error) {
 	if version == "" {
 		version = "latest"
 	}
@@ -47,7 +49,7 @@ func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, err
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return telemetry.UploadConfig{}, fmt.Errorf("failed to download config module: %w\n%s", err, &stderr)
+		return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module: %w\n%s", err, &stderr)
 	}
 
 	var info struct {
@@ -55,16 +57,15 @@ func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, err
 		Version string
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &info); err != nil || info.Dir == "" {
-		return telemetry.UploadConfig{}, fmt.Errorf("failed to download config module (invalid JSON): %w", err)
+		return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module (invalid JSON): %w", err)
 	}
 	data, err := os.ReadFile(filepath.Join(info.Dir, configFileName))
 	if err != nil {
-		return telemetry.UploadConfig{}, fmt.Errorf("invalid config module: %w", err)
+		return telemetry.UploadConfig{}, "", fmt.Errorf("invalid config module: %w", err)
 	}
 	var cfg telemetry.UploadConfig
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return telemetry.UploadConfig{}, fmt.Errorf("invalid config: %w", err)
+		return telemetry.UploadConfig{}, "", fmt.Errorf("invalid config: %w", err)
 	}
-	cfg.Version = info.Version
-	return cfg, nil
+	return cfg, info.Version, nil
 }
