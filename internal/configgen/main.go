@@ -215,8 +215,21 @@ func goVersions() ([]string, error) {
 	for v := range verSet {
 		vers = append(vers, v)
 	}
-	sort.Strings(vers)
+	sort.Sort(byGoVersion(vers))
 	return vers, nil
+}
+
+type byGoVersion []string
+
+func (vs byGoVersion) Len() int      { return len(vs) }
+func (vs byGoVersion) Swap(i, j int) { vs[i], vs[j] = vs[j], vs[i] }
+func (vs byGoVersion) Less(i, j int) bool {
+	cmp := Compare(vs[i], vs[j])
+	if cmp != 0 {
+		return cmp < 0
+	}
+	// To ensure that we have a stable sort, order equivalent Go versions lexically.
+	return vs[i] < vs[j]
 }
 
 // versionsForTesting contains versions to use for testing, rather than

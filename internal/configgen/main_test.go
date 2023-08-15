@@ -5,7 +5,9 @@
 package main
 
 import (
+	_ "embed"
 	"reflect"
+	"sort"
 	"testing"
 
 	"golang.org/x/telemetry"
@@ -58,5 +60,28 @@ version: v0.14.0
 			}
 		}
 		t.Errorf("generate() =\n%+v\nwant:\n%+v", *got, want)
+	}
+}
+
+func TestByGoVersion_Less(t *testing.T) {
+	got := []string{
+		"go1.21.0",
+		"go1.21rc1",
+		"go1.9",
+		"go1.9rc1",
+		"go1.6",
+		"go1.6beta1",
+	}
+	want := []string{
+		"go1.6beta1",
+		"go1.6",
+		"go1.9rc1",
+		"go1.9",
+		"go1.21rc1",
+		"go1.21.0",
+	}
+	sort.Sort(byGoVersion(got))
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("sort.Sort(byGoVersion(got)) = %v, want %v", got, want)
 	}
 }
