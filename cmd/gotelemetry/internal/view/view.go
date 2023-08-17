@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/config"
@@ -97,7 +98,7 @@ type page struct {
 	Reports []*telemetryReport
 
 	// Charts is the counter data from files and reports grouped by program and counter name.
-	Charts []*program
+	Charts *chartdata
 }
 
 // TODO: filtering and pagination for date ranges
@@ -128,7 +129,7 @@ func handleIndex(fsys fs.FS) handlerFunc {
 		if err != nil {
 			return err
 		}
-		charts := charts(append(reports, pending(files, cfg)...), cfg).Programs
+		charts := charts(append(reports, pending(files, cfg)...), cfg)
 		data := page{
 			Config:          cfg,
 			PrettyConfig:    string(cfgJSON),
@@ -330,38 +331,42 @@ func newCounterFile(name string, c *tcounter.File, cfg *config.Config) *counterF
 // located in the set is not allowed given a config and how the data would be handled
 // in the event of a telemetry upload event.
 func summary(cfg *config.Config, meta map[string]string, counts map[string]uint64) template.HTML {
+	msg := " is unregistered. No data from this set would be uploaded to the Go team."
 	if prog := meta["Program"]; !(cfg.HasProgram(prog)) {
 		return template.HTML(fmt.Sprintf(
-			"The program <code>%s</code> is unregistered. No data from this set would be uploaded to the Go team.",
+			"The program <code>%s</code>"+msg,
 			html.EscapeString(prog),
 		))
 	}
 	var result strings.Builder
-	var metaFields []string
-	unknown := func(key string) {
-		metaFields = append(metaFields, fmt.Sprintf("<code>%s=%s</code>", key, html.EscapeString(meta[key])))
-	}
 	if !(cfg.HasGOOS(meta["GOOS"])) || !(cfg.HasGOARCH(meta["GOARCH"])) {
 		return template.HTML(fmt.Sprintf(
-			"The GOOS/GOARCH combination <code>%s/%s</code> is unregistered. No data from this set would be uploaded to the Go team.",
+			"The GOOS/GOARCH combination <code>%s/%s</code> "+msg,
 			html.EscapeString(meta["GOOS"]),
 			html.EscapeString(meta["GOARCH"]),
 		))
 	}
-	if !(cfg.HasGoVersion(meta["GoVersion"])) {
-		unknown("GoVersion")
+	goVersion := meta["GoVersion"]
+	if !(cfg.HasGoVersion(goVersion)) {
+		return template.HTML(fmt.Sprintf(
+			"The go version <code>%s</code> "+msg,
+			html.EscapeString(goVersion),
+		))
 	}
-	if !(cfg.HasVersion(meta["Program"], meta["Version"])) {
-		unknown("Version")
-	}
-	if len(metaFields) > 0 {
-		result.WriteString("Unregistered attribute(s) ")
-		result.WriteString(strings.Join(metaFields, ", "))
-		result.WriteString(" would be reported as other. ")
+	version := meta["Version"]
+	if !(cfg.HasVersion(meta["Program"], version)) {
+		return template.HTML(fmt.Sprintf(
+			"The version <code>%s</code> "+msg,
+			html.EscapeString(version),
+		))
 	}
 	var counters []string
 	for c := range counts {
-		if !(cfg.HasCounter(meta["Program"], c)) {
+		summary, _, ok := strings.Cut(c, "\n")
+		if ok && !cfg.HasStack(meta["Program"], c) {
+			counters = append(counters, fmt.Sprintf("<code>%s</code>", html.EscapeString(summary)))
+		}
+		if !ok && !(cfg.HasCounter(meta["Program"], c)) {
 			counters = append(counters, fmt.Sprintf("<code>%s</code>", html.EscapeString(c)))
 		}
 	}
@@ -375,6 +380,8 @@ func summary(cfg *config.Config, meta map[string]string, counts map[string]uint6
 
 type chartdata struct {
 	Programs []*program
+	// DateRange is used to align the week intervals for each of the charts.
+	DateRange [2]string
 }
 
 type program struct {
@@ -406,7 +413,7 @@ type datum struct {
 // to determine if the programs and counters are active.
 func charts(reports []*telemetryReport, cfg *config.Config) *chartdata {
 	data := grouped(reports)
-	result := &chartdata{}
+	result := &chartdata{DateRange: domain(reports)}
 	for pg, pgdata := range data {
 		prog := &program{ID: "charts:" + pg.Name, Name: pg.Name, Active: cfg.HasProgram(pg.Name)}
 		result.Programs = append(result.Programs, prog)
@@ -435,6 +442,15 @@ func charts(reports []*telemetryReport, cfg *config.Config) *chartdata {
 		return result.Programs[i].Name < result.Programs[j].Name
 	})
 	return result
+}
+
+func domain(reports []*telemetryReport) [2]string {
+	var weeks []string
+	for _, r := range reports {
+		weeks = append(weeks, r.Week)
+	}
+	sort.Strings(weeks)
+	return [2]string{weeks[0], weeks[len(weeks)-1]}
 }
 
 type programKey struct {
@@ -498,7 +514,8 @@ func grouped(reports []*telemetryReport) map[programKey]map[counterKey][]*datum 
 func pending(files []*counterFile, cfg *config.Config) []*telemetryReport {
 	reports := make(map[string]*telemetry.Report)
 	for _, f := range files {
-		week := f.Meta["TimeBegin"]
+		tb, _ := time.Parse(time.RFC3339, f.Meta["TimeBegin"])
+		week := tb.Format("2006-01-02")
 		if _, ok := reports[week]; !ok {
 			reports[week] = &telemetry.Report{Week: week}
 		}

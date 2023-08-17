@@ -38,12 +38,9 @@
           <h2 id="index">Index</h2>
           <ul>
             <li>
-              <a href="#config">Config</a>
-            </li>
-            <li>
               <a href="#charts">Charts</a>
               <ul>
-                {{range .Charts}}
+                {{range .Charts.Programs}}
                 <li>
                   <a href="#{{.ID}}">{{.Name}}</a>
                   <ul>
@@ -56,6 +53,9 @@
                 </li>
                 {{end}}
               </ul>
+            </li>
+            <li>
+              <a href="#config">Config</a>
             </li>
             <li>
               <a href="#files">Counters</a>
@@ -80,25 +80,6 @@
           </ul>
         </section>
 
-        <section class="Config">
-          <h2 id="config">Config</h2>
-          <p>
-            The config contains the list of active counters for each program
-            and allowed report metadata.
-          </p>
-          <label>
-            Version
-            <select class="js-selectConfig" name="config">
-              {{range .ConfigVersions}}
-              <option value="{{.}}" {{if eq . $.RequestedConfig}}selected{{end}}>
-                {{.}}
-              </option>
-              {{end}}
-            </select>
-          </label>
-          <pre style="max-height: 20rem">{{.PrettyConfig}}</pre>
-        </section>
-
         <section class="Charts">
           <h2 id="charts">Charts</h2>
           <p>
@@ -107,20 +88,7 @@
             are summed together. Use the index to navigate to charts by
             counter name.
           </p>
-          <div class="Facets">
-            <fieldset class="Facets-inner js-facets">
-              <legend><strong>Facets</strong></legend>
-              <label>
-                <input name="Facets" value="Version" type="checkbox">
-                Version
-              </label>
-              <label>
-                <input name="Facets" value="GoVersion" type="checkbox">
-                GoVersion
-              </label>
-            </fieldset>
-          </div>
-          {{range .Charts}}
+          {{range .Charts.Programs}}
           <div class="Chart">
             {{$pname := .Name}}
             <h3 id="{{.ID}}" data-label="{{$pname}}">
@@ -145,6 +113,25 @@
           {{end}}
         </section>
 
+        <section class="Config">
+          <h2 id="config">Config</h2>
+          <p>
+            The config contains the list of active counters for each program
+            and allowed report metadata.
+          </p>
+          <label>
+            Version
+            <select class="js-selectConfig" name="config">
+              {{range .ConfigVersions}}
+              <option value="{{.}}" {{if eq . $.RequestedConfig}}selected{{end}}>
+                {{.}}
+              </option>
+              {{end}}
+            </select>
+          </label>
+          <pre style="max-height: 20rem">{{.PrettyConfig}}</pre>
+        </section>
+
         <section class="Files">
           <h2 id="files">Counters</h2>
           <p>
@@ -157,7 +144,7 @@
           {{range .Files}}
           <div class="File">
             <h3 id="{{.ID}}">{{.ID}}</h3>
-            <div class="Counters {{if not .ActiveMeta.Program}}unknown{{end}}">
+            <div class="Counters">
               <div class="Meta">
                 <span>Program:</span>
                 <span class="{{if not .ActiveMeta.Program}}unknown{{end}}">
@@ -220,7 +207,7 @@
         <section class="Reports">
           <h2 id="reports">Reports</h2>
           <p>
-            Reports represent local copies of the data uploaded by to Go
+            Reports represent local copies of the data uploaded by the Go
             command to telemetry.go.dev. Use the index to navigate to a
             report by upload date or program build.
           </p>
@@ -229,7 +216,7 @@
             {{$date := .Week}}
             <h3 id="reports:{{$date}}">{{$date}}</h3>
             {{range .Programs}}
-            <div id="{{.ID}}" class="Counters {{if not ($.Config.HasProgram .Program)}}unknown{{end}}">
+            <div id="{{.ID}}" class="Counters">
               <div class="Meta">
                 <span>Program:</span>
                 <span class="{{if not ($.Config.HasProgram .Program)}}unknown{{end}}">

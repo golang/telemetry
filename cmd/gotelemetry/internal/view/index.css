@@ -67,11 +67,6 @@ html {
   grid-auto-columns: 1fr 2fr 1fr;
 }
 
-.Counters.unknown {
-  border: 0.0625rem dashed var(--color-text-subtle);
-  background-color: var(--color-background-accented);
-}
-
 .Meta {
   grid-area: meta;
   display: grid;
@@ -111,6 +106,7 @@ html {
 
 .Summary {
   border-top: var(--border);
+  font-size: 0.875rem;
   grid-area: summary;
   line-height: 1.5;
   padding-top: 1rem;
@@ -143,17 +139,6 @@ html {
   letter-spacing: 0.125rem;
 }
 
-.Facets {
-  position: sticky;
-  top: 4rem;
-}
-
-.Facets-inner {
-  background-color: var(--color-background);
-  position: absolute;
-  right: max(min((50vw - 33.5rem) * -1, 0rem), -12rem);
-}
-
 h2::after {
   content: "⏷";
   padding-left: 0.5rem;
@@ -176,7 +161,7 @@ html[data-closed-sections*="reports"] h2#reports ~ * {
 }
 
 div[data-chart-id] {
-  min-height: min(628px, 62vw - 2em);
+  min-height: 16rem;
 }
 
 /* Fix tooltip background for dark theme */

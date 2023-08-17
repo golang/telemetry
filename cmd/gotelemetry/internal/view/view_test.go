@@ -74,7 +74,7 @@ func Test_summary(t *testing.T) {
 				meta:   map[string]string{"Program": "gopls", "Version": "v1.2.3", "GOOS": "windows", "GOARCH": "arm64", "GoVersion": "go1.20.1"},
 				counts: map[string]uint64{"editor": 10, "foobar": 10},
 			},
-			template.HTML("The GOOS/GOARCH combination <code>windows/arm64</code> is unregistered. No data from this set would be uploaded to the Go team."),
+			template.HTML("The GOOS/GOARCH combination <code>windows/arm64</code>  is unregistered. No data from this set would be uploaded to the Go team."),
 		},
 		{
 			"multiple unknown fields",
@@ -83,7 +83,7 @@ func Test_summary(t *testing.T) {
 				meta:   map[string]string{"Program": "gopls", "Version": "v1.2.5", "GOOS": "linux", "GOARCH": "amd64", "GoVersion": "go1.25.1"},
 				counts: map[string]uint64{"editor": 10, "foobar": 10},
 			},
-			template.HTML("Unregistered attribute(s) <code>GoVersion=go1.25.1</code>, <code>Version=v1.2.5</code> would be reported as other. Unregistered counter(s) <code>foobar</code> would be excluded from a report. "),
+			template.HTML("The go version <code>go1.25.1</code>  is unregistered. No data from this set would be uploaded to the Go team."),
 		},
 	}
 	for _, tt := range tests {

@@ -11,7 +11,12 @@ import "../../../../godev/content/shared/base";
 
 declare global {
   interface Page {
-    Charts: Program[];
+    Charts: ChartData;
+  }
+
+  interface ChartData {
+    Programs: Program[];
+    DateRange: [string, string];
   }
 
   interface Program {
@@ -43,7 +48,6 @@ declare global {
 
 window.onload = function () {
   drawCharts();
-  facetToggles();
   configSelector();
   breadcrumbController();
   sectionController();
@@ -74,31 +78,8 @@ function sectionController() {
 // drawCharts draws the charts using @observable/plot. It is called when
 // the page is first rendered and when a facet is selected.
 function drawCharts() {
-  for (const program of Page.Charts ?? []) {
+  for (const program of Page.Charts.Programs ?? []) {
     for (const counter of program.Counters) {
-      const xdomain = () => {
-        const weeks = new Set(counter.Data.map((d) => d.Week).sort());
-        const start = new Date(Array.from(weeks.values()).at(0) ?? 0);
-        const end = new Date();
-        const day = 1000 * 60 * 60 * 24;
-        if (Math.ceil(Math.abs(end.getTime() - start.getTime()) / day) < 30) {
-          start.setDate(start.getDate() - 29);
-          end.setDate(end.getDate() + 1);
-        }
-        return [start, end];
-      };
-
-      const fy = (d: Datum) => {
-        const facets: string[] = [];
-        for (const i of ["Version", "GoVersion"]) {
-          const params = new URLSearchParams(location.search);
-          if (params.get(i) === "on") {
-            facets.push(d[i] || "empty");
-          }
-        }
-        return facets.join(" / ");
-      };
-
       const rectYOpts: Plot.BinXInputs<Plot.RectYOptions> = {
         tip: true,
         x: (d: Datum) => new Date(d.Week),
@@ -108,12 +89,12 @@ function drawCharts() {
           const n = Number(d.Key);
           return isNaN(n) ? d.Key : n;
         },
-        fy,
       };
 
       const chart = Plot.plot({
+        nice: true,
         x: {
-          domain: xdomain(),
+          domain: Page.Charts.DateRange.map((d) => new Date(d)),
           label: "Week",
         },
         y: {
@@ -126,6 +107,7 @@ function drawCharts() {
           reverse: true,
           label: "Counter",
         },
+        height: 256,
         style: "overflow:visible;width:100%;background:transparent",
         marks: [
           Plot.rectY(counter.Data, Plot.binX({ y: "sum" }, rectYOpts)),
@@ -136,23 +118,6 @@ function drawCharts() {
         .querySelector(`[data-chart-id="${counter.ID}"]`)
         ?.replaceChildren(chart);
     }
-  }
-}
-
-// facetTogglers adds event listeners to the Facet component for splitting
-// the charts by facet.
-function facetToggles() {
-  const container = document.querySelector(".js-facets");
-  const els = container?.querySelectorAll<HTMLInputElement>("input") ?? [];
-  for (const i of els) {
-    const params = new URLSearchParams(location.search);
-    i.checked = params.get(i.value) === "on";
-    i.addEventListener("change", () => {
-      const params = new URLSearchParams(location.search);
-      params.set(i.value, i.checked ? "on" : "off");
-      history.replaceState(null, "", "?" + params.toString());
-      drawCharts();
-    });
   }
 }
 
@@ -201,7 +166,7 @@ function breadcrumbController() {
       const li = document.createElement("li");
       const a = document.createElement("a");
       a.href = `#${h.id}`;
-      a.innerText = h.getAttribute('data-label') ?? h.innerText;
+      a.innerText = h.getAttribute("data-label") ?? h.innerText;
       li.appendChild(a);
       items.push(li);
     }
