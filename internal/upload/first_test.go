@@ -79,9 +79,9 @@ func TestZero(t *testing.T) {
 		t.Errorf("expected one readyfile, got %d", len(got.readyfiles))
 	}
 	fi, err := os.ReadDir(it.LocalDir)
-	if len(fi) != 2 || err != nil {
-		// one local report and one uploadable report
-		t.Errorf("expected two files in LocalDir, got %d, %v", len(fi), err)
+	if len(fi) != 3 || err != nil {
+		// one local report, one uploadable report, one weekends file
+		t.Errorf("expected three files in LocalDir, got %d, %v", len(fi), err)
 	}
 	if len(got.uploaded) != 0 {
 		t.Errorf("expected no uploadedfiles, got %d", len(got.uploaded))
@@ -97,7 +97,7 @@ func TestZero(t *testing.T) {
 		}
 		if strings.Contains(f.Name(), "local") {
 			localFile = buf
-		} else {
+		} else if strings.HasSuffix(f.Name(), ".json") {
 			uploadFile = buf
 		}
 	}

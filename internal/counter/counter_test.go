@@ -13,6 +13,7 @@ package counter
 // Open() will fault. (This is mysterious.)
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -214,10 +215,10 @@ func TestNewFile(t *testing.T) {
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
-	now := counterTime()
+	now := counterTime().UTC()
 	year, month, day := now.Date()
 	// preserve time location as done in (*file).filename.
-	testStartTime := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
+	testStartTime := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 
 	// test that completely new files have dates well in the future
 	// Try 20 times to get 20 different random numbers.
@@ -244,19 +245,37 @@ func TestNewFile(t *testing.T) {
 			t.Fatalf("len(fi) = %d, want 0", len(fi))
 		}
 		f.rotate()
-		// now we should see a file
+		// now we should see a count file and a weekends file
 		fi, _ = os.ReadDir(telemetry.LocalDir)
-		if len(fi) != 1 { // TODO: why don't we check err != nil here?
+		if len(fi) != 2 {
 			close(&f)
-			t.Fatalf("len(fi) = %d, want 1", len(fi))
+			t.Fatalf("len(fi) = %d, want 2", len(fi))
+		}
+		var countFile, weekendsFile string
+		for _, f := range fi {
+			switch f.Name() {
+			case "weekends":
+				weekendsFile = f.Name()
+				// while we're here, check that is ok
+				buf, err := os.ReadFile(filepath.Join(telemetry.LocalDir, weekendsFile))
+				if err != nil {
+					t.Fatal(err)
+				}
+				buf = bytes.TrimSpace(buf)
+				if len(buf) == 0 || buf[0] < '0' || buf[0] >= '7' {
+					t.Errorf("weekends file has bad data: %q", buf)
+				}
+			default:
+				countFile = f.Name()
+			}
 		}
 
-		buf, err := os.ReadFile(filepath.Join(telemetry.LocalDir, fi[0].Name()))
+		buf, err := os.ReadFile(filepath.Join(telemetry.LocalDir, countFile))
 		if err != nil {
 			close(&f)
 			t.Fatal(err)
 		}
-		cf, err := Parse(fi[0].Name(), buf)
+		cf, err := Parse(countFile, buf)
 		if err != nil {
 			close(&f)
 			t.Fatal(err)
@@ -274,7 +293,87 @@ func TestNewFile(t *testing.T) {
 		}
 		close(&f)
 		// remove the file for the next iteration of the loop
-		os.Remove(filepath.Join(telemetry.LocalDir, fi[0].Name()))
+		os.Remove(filepath.Join(telemetry.LocalDir, countFile))
+		os.Remove(filepath.Join(telemetry.LocalDir, weekendsFile))
+	}
+}
+
+func TestWeekendsNewUser(t *testing.T) {
+	commonWeekends(t, false)
+}
+
+func TestWeekendsOldUser(t *testing.T) {
+	commonWeekends(t, true)
+}
+
+func commonWeekends(t *testing.T, old bool) {
+	t.Helper()
+	setup(t)
+	// get all the 49 combinations of today and when the week ends
+	for i := 0; i < 7; i++ {
+		counterTime = future(i)
+		for index := range "0123456" {
+			if old {
+				// make it look like a report has been generated
+				os.WriteFile(filepath.Join(telemetry.LocalDir, "2000-00-00.json"), []byte("{}\n"), 0666)
+			}
+			os.WriteFile(filepath.Join(telemetry.LocalDir, "weekends"), []byte{byte(index + '0')}, 0666)
+			var f file
+			c := f.New("gophers")
+			c.Add(7)
+			f.rotate()
+			fis, err := os.ReadDir(telemetry.LocalDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			weekends := time.Weekday(-1)
+			var begins, ends time.Time
+			for _, fi := range fis {
+				// ignore errors for brevity: something else will fail
+				if fi.Name() == "weekends" {
+					buf, _ := os.ReadFile(filepath.Join(telemetry.LocalDir, fi.Name()))
+					buf = bytes.TrimSpace(buf)
+					weekends = time.Weekday(buf[0] - '0')
+				} else if strings.HasSuffix(fi.Name(), ".count") {
+					buf, _ := os.ReadFile(filepath.Join(telemetry.LocalDir, fi.Name()))
+					parsed, _ := Parse(fi.Name(), buf)
+					begins, _ = time.Parse(time.RFC3339, parsed.Meta["TimeBegin"])
+					ends, _ = time.Parse(time.RFC3339, parsed.Meta["TimeEnd"])
+				}
+			}
+			if weekends < 0 {
+				for _, f := range fis {
+					t.Errorf("in %s, weekends is %d", f.Name(), weekends)
+				}
+				continue
+			}
+			delta := int(ends.Sub(begins) / (24 * time.Hour))
+			// if we're an old user, we should have a <=7 day report
+			// if we're a new user, we should have a <=7+7 day report
+			more := 0
+			if !old {
+				more = 7
+			}
+			if delta <= 0+more || delta > 7+more {
+				t.Errorf("delta %d, expected %d<delta<=%d",
+					delta, more, more+7)
+			}
+			if weekends != ends.Weekday() {
+				t.Errorf("weekends %s unexpecteledy not end day %s", weekends, ends.Weekday())
+			}
+			// needed for Windows
+			close(&f)
+			// remove files for the next iteration of the loop
+			for _, f := range fis {
+				os.Remove(filepath.Join(telemetry.LocalDir, f.Name()))
+			}
+		}
+	}
+}
+
+func future(days int) func() time.Time {
+	return func() time.Time {
+		return time.Now().AddDate(0, 0, days)
 	}
 }
 
@@ -297,8 +396,8 @@ func TestRotate(t *testing.T) {
 		// nothing should change on the second rotate
 		f.rotate()
 		fi, err := os.ReadDir(telemetry.LocalDir)
-		if err != nil || len(fi) != 1 {
-			t.Fatalf("err=%v, len(fi) = %d, want 1", err, len(fi))
+		if err != nil || len(fi) != 2 {
+			t.Fatalf("err=%v, len(fi) = %d, want 2", err, len(fi))
 		}
 		x := fi[0].Name()
 		y := x[len(x)-len("2006-01-02")-len(".v1.count") : len(x)-len(".v1.count")]
@@ -330,8 +429,8 @@ func TestRotate(t *testing.T) {
 	counterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
 	f.rotate()
 	fi, err := os.ReadDir(telemetry.LocalDir)
-	if err != nil || len(fi) != 2 {
-		t.Fatalf("err=%v, len(fi) = %d, want 2", err, len(fi))
+	if err != nil || len(fi) != 3 {
+		t.Fatalf("err=%v, len(fi) = %d, want 3", err, len(fi))
 	}
 }
 

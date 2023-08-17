@@ -168,16 +168,25 @@ func (f *file) init(begin, end time.Time) {
 // It also returns the time when that name will no longer be valid
 // and a new filename should be computed.
 func (f *file) filename(now time.Time) (name string, expire time.Time, err error) {
+	now = now.UTC()
 	year, month, day := now.Date()
-	begin := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
-	incr := fileValidity()
-	end := time.Date(year, month, day+incr, 0, 0, 0, 0, now.Location())
+	begin := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	// files always begin today, but expire on the day of the week
+	// from the 'weekends' file. The actual day is the next day, except
+	// first-time users have no files expiring in less than 7 days.
+	incr, err := fileValidity(now)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	end := time.Date(year, month, day+incr, 0, 0, 0, 0, time.UTC)
 	if f.namePrefix == "" && f.err == nil {
 		f.init(begin, end)
 		debugPrintf("init: %#q, %v", f.namePrefix, f.err)
 	}
+	// f.err != nil was set in f.init and means it is impossible to
+	// have a counter file
 	if f.err != nil {
-		return "", time.Time{}, err // TODO(pjw): err == nil. Shouldn't we return f.err?
+		return "", time.Time{}, f.err
 	}
 
 	name = f.namePrefix + now.Format("2006-01-02") + "." + fileVersion + ".count"
@@ -185,17 +194,54 @@ func (f *file) filename(now time.Time) (name string, expire time.Time, err error
 }
 
 // fileValidity returns the number of days that a file is valid for.
-// It is 7 for old clients, [8, 14] for new clients.
-func fileValidity() int {
-	dir := telemetry.UploadDir
-	if c, err := os.ReadDir(dir); err == nil && len(c) > 0 {
-		return 7
+// It is either the number of days to the next day of the week from the
+// 'weekends' file, or 7 more than that for new users.
+func fileValidity(now time.Time) (int, error) {
+	// If there is no 'weekends' file create it and initialize it
+	// to a random day of the week. There is a short interval for
+	// a race.
+	weekends := filepath.Join(telemetry.LocalDir, "weekends")
+	day := fmt.Sprintf("%d\n", rand.Intn(7))
+	if _, err := os.ReadFile(weekends); err != nil {
+		// if the Write fails, the read 3 lines later will fail
+		// so the error is noted there
+		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
+			return 0, err
+		}
 	}
-	dir = telemetry.LocalDir
-	if c, err := os.ReadDir(dir); err == nil && len(c) > 0 {
-		return 7
+	// race is over, read the file
+	buf, err := os.ReadFile(weekends)
+	// There is no reasonable way of recovering from errors
+	// so we just fail
+	if err != nil {
+		return 0, err
 	}
-	return 8 + rand.Intn(7)
+	buf = bytes.TrimSpace(buf)
+	if len(buf) == 0 {
+		return 0, fmt.Errorf("empty weekends file")
+	}
+	dayofweek := time.Weekday(buf[0] - '0') // 0 is Sunday
+	// paranoia to make sure the value is legal
+	dayofweek %= 7
+	if dayofweek < 0 {
+		dayofweek += 7
+	}
+	today := now.Weekday()
+	incr := dayofweek - today
+	if incr <= 0 {
+		incr += 7
+	}
+	// as long as there are no reports this is a new user
+	fi, err := os.ReadDir(telemetry.LocalDir)
+	if err != nil {
+		return 0, err
+	}
+	for _, f := range fi {
+		if strings.HasSuffix(f.Name(), ".json") {
+			return int(incr), nil
+		}
+	}
+	return int(incr) + 7, nil
 }
 
 // rotate checks to see whether the file f needs to be rotated,

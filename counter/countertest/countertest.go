@@ -10,6 +10,7 @@ package countertest
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -48,6 +49,11 @@ func Open(telemetryDir string) {
 	telemetry.ModeFile = telemetry.ModeFilePath(filepath.Join(telemetryDir, "mode"))
 	telemetry.LocalDir = filepath.Join(telemetryDir, "local")
 	telemetry.UploadDir = filepath.Join(telemetryDir, "upload")
+	err1 := os.MkdirAll(telemetry.LocalDir, 0755)
+	err2 := os.MkdirAll(telemetry.UploadDir, 0755)
+	if err1 != nil || err2 != nil {
+		panic(fmt.Sprintf("failed to create telemetry dirs: %v, %v", err1, err2))
+	}
 
 	counter.Open()
 	opened = true
