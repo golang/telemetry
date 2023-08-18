@@ -46,6 +46,7 @@
 		"wasm"
 	],
 	"GoVersion": [
+		"go1.9.2rc2",
 		"go1.2.2",
 		"go1.3rc1",
 		"go1.3rc2",
@@ -111,7 +112,6 @@
 		"go1.9rc2",
 		"go1.9",
 		"go1.9.1",
-		"go1.9.2rc2",
 		"go1.9.2",
 		"go1.9.3",
 		"go1.9.4",
@@ -500,7 +500,7 @@
 			],
 			"Counters": [
 				{
-					"Name": "gopls/editor:{emacs,vim,vscode,other}",
+					"Name": "gopls/client:{vscode,vscodium,code-server,eglot,govim,neovim,coc.nvim,sublimetext,other}",
 					"Rate": 0.1
 				}
 			]
