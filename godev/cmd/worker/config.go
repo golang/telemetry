@@ -71,7 +71,7 @@ var (
 
 // newConfig returns a new config. Getting the config should follow a call to flag.Parse.
 func newConfig() *config {
-	environment := env("ENV", "local")
+	environment := env("GO_TELEMETRY_ENV", "local")
 	return &config{
 		Port:                env("PORT", "8082"),
 		ProjectID:           env("GO_TELEMETRY_PROJECT_ID", "go-telemetry"),

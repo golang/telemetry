@@ -72,7 +72,7 @@ func newConfig() *config {
 		ProjectID:           env("GO_TELEMETRY_PROJECT_ID", "go-telemetry"),
 		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
 		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
-		UploadBucket:        env("ENV", "local") + "-telemetry-uploaded",
+		UploadBucket:        env("GO_TELEMETRY_ENV", "local") + "-telemetry-uploaded",
 		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "../config/config.json"),
 		MaxRequestBytes:     env("GO_TELEMETRY_MAX_REQUEST_BYTES", int64(100*1024)),
 		RequestTimeout:      10 * time.Duration(time.Minute),

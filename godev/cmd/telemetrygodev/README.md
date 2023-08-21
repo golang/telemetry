@@ -21,6 +21,7 @@ cloud storage emulator and use the -gcs flag to use the Cloud Storage API.
 | GO_TELEMETRY_LOCAL_STORAGE         | .localstorage         | Directory for storage emulator I/O or file system storage |
 | GO_TELEMETRY_UPLOAD_CONFIG         | ../config/config.json | Location of the upload config used for report validation  |
 | GO_TELEMETRY_MAX_REQUEST_BYTES     | 102400                | Maximum request body size the server allows               |
+| GO_TELEMETRY_ENV                   | local                 | Deployment environment (e.g. prod, dev, local, ... )      |
 
 ## Testing
 

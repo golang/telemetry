@@ -37,6 +37,6 @@ steps:
       - "--region"
       - "us-central1"
       - "--set-env-vars"
-      - "ENV=$_ENV"
+      - "GO_TELEMETRY_ENV=$_ENV"
 images:
   - "gcr.io/$PROJECT_ID/worker:$COMMIT_SHA"
