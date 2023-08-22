@@ -203,8 +203,6 @@ func fileValidity(now time.Time) (int, error) {
 	weekends := filepath.Join(telemetry.LocalDir, "weekends")
 	day := fmt.Sprintf("%d\n", rand.Intn(7))
 	if _, err := os.ReadFile(weekends); err != nil {
-		// if the Write fails, the read 3 lines later will fail
-		// so the error is noted there
 		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
 			return 0, err
 		}
@@ -260,7 +258,7 @@ func (f *file) rotate() {
 
 func nop() {}
 
-var counterTime = time.Now // changed for tests
+var counterTime = time.Now().UTC // can be changed for tests
 
 func (f *file) rotate1() (expire time.Time, cleanup func()) {
 	f.mu.Lock()

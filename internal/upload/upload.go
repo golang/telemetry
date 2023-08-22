@@ -48,7 +48,7 @@ func uploadReportContents(fname string, buf []byte) bool {
 		return false
 	}
 	if resp.StatusCode != 200 {
-		logger.Printf("resp error on upload %q: %v for %q %q", server, resp.Status, fname, fdate)
+		logger.Printf("resp error on upload %q: %v for %q %q [%+v]", server, resp.Status, fname, fdate, resp)
 		return false
 	}
 	// put a copy in the uploaded directory

@@ -26,6 +26,7 @@ func setup(t *testing.T) {
 		// wait for the server to start
 		addr := <-serverChan
 		uploadURL = addr.path
+		t.Logf("server started at %s", uploadURL)
 	}
 	logger = log.Default()
 	logger.SetFlags(log.Lshortfile)
@@ -77,7 +78,7 @@ func testServer(started chan msg) {
 	log.SetFlags(log.Lshortfile)
 	http.HandleFunc("/", handlerFunc)
 
-	ln, err := net.Listen("tcp4", ":")
+	ln, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		log.Fatal(err)
 	}

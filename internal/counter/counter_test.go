@@ -373,7 +373,7 @@ func commonWeekends(t *testing.T, old bool) {
 
 func future(days int) func() time.Time {
 	return func() time.Time {
-		return time.Now().AddDate(0, 0, days)
+		return time.Now().UTC().AddDate(0, 0, days)
 	}
 }
 
@@ -407,7 +407,7 @@ func TestRotate(t *testing.T) {
 		}
 		// we expect today's date?
 		if us != now {
-			t.Errorf("us = %v, want %v", us, now)
+			t.Errorf("us = %v, want %v, i=%d y=%s", us, now, i, y)
 		}
 		fd, err := os.Open(filepath.Join(telemetry.LocalDir, fi[0].Name()))
 		if err != nil {
