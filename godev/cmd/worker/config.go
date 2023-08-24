@@ -33,6 +33,9 @@ type config struct {
 	// UploadBucket is the storage bucket for report uploads.
 	UploadBucket string
 
+	// ChartDataBucket is the storage bucket for chart data.
+	ChartDataBucket string
+
 	// UploadConfig is the location of the upload config deployed with the server.
 	// It's used to validate telemetry uploads.
 	UploadConfig string
@@ -77,6 +80,7 @@ func newConfig() *config {
 		ProjectID:           env("GO_TELEMETRY_PROJECT_ID", "go-telemetry"),
 		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
 		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
+		ChartDataBucket:     environment + "-telemetry-charted",
 		MergedBucket:        environment + "-telemetry-merged",
 		UploadBucket:        environment + "-telemetry-uploaded",
 		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "../config/config.json"),

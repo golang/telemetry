@@ -60,7 +60,7 @@ func NewConfig(cfg *telemetry.UploadConfig) *Config {
 			ucfg.pgversion[pgkey{p.Name, v}] = true
 		}
 		for _, c := range p.Counters {
-			for _, e := range expand(c.Name) {
+			for _, e := range Expand(c.Name) {
 				ucfg.pgcounter[pgkey{p.Name, e}] = true
 			}
 			prefix, _, found := strings.Cut(c.Name, ":")
@@ -115,9 +115,9 @@ func set(slice []string) map[string]bool {
 	return s
 }
 
-// expand takes a counter defined with buckets and expands it into distinct
+// Expand takes a counter defined with buckets and expands it into distinct
 // strings for each bucket
-func expand(counter string) []string {
+func Expand(counter string) []string {
 	prefix, rest, hasBuckets := strings.Cut(counter, "{")
 	var counters []string
 	if hasBuckets {

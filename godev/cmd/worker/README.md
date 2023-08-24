@@ -9,6 +9,12 @@ the value of the data param and encodes each report as newline separated JSON in
 a merged report. It returns the number of reports merged and the location of the
 merged report.
 
+### `/chart/?date=<YYYY-MM-DD>`
+
+The chart endpoint reads the report from the merge bucket from the given date
+and generates chart data for that report. It returns the number of reports used
+in generated the report and the location of the chart data.
+
 ## Local Development
 
 For local development, simply build and run. It serves on localhost:8082.
