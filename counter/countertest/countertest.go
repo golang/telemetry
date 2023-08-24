@@ -5,7 +5,7 @@
 //go:build go1.21
 
 // countertest provides testing utilities for counters.
-// Do not use this package except for testing.
+// This package cannot be used except for testing.
 package countertest
 
 import (
