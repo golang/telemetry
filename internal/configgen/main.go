@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run . -w
+
 //go:build go1.21
 
 // Package configgen generates the upload config file stored in the config.json
@@ -174,7 +176,7 @@ func generate(graphConfig []byte, padding padding) (*telemetry.UploadConfig, err
 		minVersions[gcfg.Program] = minVersion(minVersions[gcfg.Program], gcfg.Version)
 		ccfg := telemetry.CounterConfig{
 			Name:  gcfg.Counter,
-			Rate:  0.1, // TODO(rfindley): how should rate be configured?
+			Rate:  1.0, // TODO(rfindley): how should rate be configured?
 			Depth: gcfg.Depth,
 		}
 		if gcfg.Depth > 0 {
@@ -205,6 +207,10 @@ func generate(graphConfig []byte, padding padding) (*telemetry.UploadConfig, err
 			}
 		}
 		p.Versions = padVersions(versions[:i], prereleasesForProgram(p.Name), padding)
+		// TODO(hakim): allow to collect counters from gopls@devel. go.dev/issues/62271
+		if p.Name == "golang.org/x/tools/gopls" {
+			p.Versions = append(p.Versions, "devel") // added at the end.
+		}
 		ucfg.Programs = append(ucfg.Programs, p)
 	}
 	sort.Slice(ucfg.Programs, func(i, j int) bool {

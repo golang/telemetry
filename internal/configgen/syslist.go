@@ -30,25 +30,6 @@ var knownOS = map[string]bool{
 	"zos":       true,
 }
 
-// unixOS is the set of GOOS values matched by the "unix" build tag.
-// This is not used for filename matching.
-// This list also appears in cmd/dist/build.go and
-// cmd/go/internal/imports/build.go.
-var unixOS = map[string]bool{
-	"aix":       true,
-	"android":   true,
-	"darwin":    true,
-	"dragonfly": true,
-	"freebsd":   true,
-	"hurd":      true,
-	"illumos":   true,
-	"ios":       true,
-	"linux":     true,
-	"netbsd":    true,
-	"openbsd":   true,
-	"solaris":   true,
-}
-
 // knownArch is the list of past, present, and future known GOARCH values.
 // Do not remove from this list, as it is used for filename matching.
 var knownArch = map[string]bool{
