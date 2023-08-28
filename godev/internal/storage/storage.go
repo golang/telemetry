@@ -70,7 +70,11 @@ func (s *gcStore) Writer(ctx context.Context, object string) (io.WriteCloser, er
 
 func (s *gcStore) Reader(ctx context.Context, object string) (io.ReadCloser, error) {
 	obj := s.bucket.Object(object)
-	return obj.NewReader(ctx)
+	r, err := obj.NewReader(ctx)
+	if errors.Is(err, storage.ErrObjectNotExist) {
+		return nil, ErrObjectNotExist
+	}
+	return r, err
 }
 
 func (s *gcStore) List(ctx context.Context, prefix string) (*ObjectIterator, error) {
@@ -120,7 +124,11 @@ func (s *fsStore) Writer(ctx context.Context, object string) (io.WriteCloser, er
 }
 
 func (s *fsStore) Reader(ctx context.Context, object string) (io.ReadCloser, error) {
-	return os.Open(filepath.Join(s.dir, s.bucket, filepath.FromSlash(object)))
+	r, err := os.Open(filepath.Join(s.dir, s.bucket, filepath.FromSlash(object)))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, ErrObjectNotExist
+	}
+	return r, err
 }
 
 func (s *fsStore) List(ctx context.Context, prefix string) (*ObjectIterator, error) {
@@ -157,6 +165,7 @@ func (s *fsStore) Location() string {
 }
 
 var ErrObjectIteratorDone = errors.New("object iterator done")
+var ErrObjectNotExist = errors.New("object does not exist")
 
 type ObjectIterator struct {
 	Next func() (elem string, err error)
