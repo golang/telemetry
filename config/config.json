@@ -501,7 +501,7 @@
 			],
 			"Counters": [
 				{
-					"Name": "gopls/client:{vscode,vscodium,code-server,eglot,govim,neovim,coc.nvim,sublimetext,other}",
+					"Name": "gopls/client:{vscode,vscodium,vscode-insiders,code-server,eglot,govim,neovim,coc.nvim,sublimetext,other}",
 					"Rate": 1
 				}
 			]
