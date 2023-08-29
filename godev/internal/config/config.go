@@ -83,7 +83,7 @@ func NewConfig() *Config {
 		ChartDataBucket:     environment + "-telemetry-charted",
 		MergedBucket:        environment + "-telemetry-merged",
 		UploadBucket:        environment + "-telemetry-uploaded",
-		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "../config/config.json"),
+		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "./config/config.json"),
 		MaxRequestBytes:     env("GO_TELEMETRY_MAX_REQUEST_BYTES", int64(100*1024)),
 		RequestTimeout:      10 * time.Duration(time.Minute),
 		UseGCS:              *useGCS,

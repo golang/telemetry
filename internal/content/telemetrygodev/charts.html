@@ -9,7 +9,7 @@
 {{define "title"}}Go Telemetry / {{index .Charts.DateRange 1}}{{end}}
 
 {{define "content"}}
-<link rel="stylesheet" href="/charts.css">
+<link rel="stylesheet" href="/static/charts.min.css">
 
 <main id="main">
   <div class="Container">
@@ -69,7 +69,5 @@
 <script>
   window.Page = {{.}};
 </script>
-<script src="/d3@7.8.5/dist/d3.min.js"></script>
-<script src="/@observablehq/plot@0.6.9/dist/plot.umd.min.js"></script>
-<script src="/charts.ts" type="module"></script>
+<script src="/static/charts.min.js"></script>
 {{end}}

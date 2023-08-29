@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../charts.css"],
+  "sourcesContent": ["/*!\n * Copyright 2023 The Go Authors. All rights reserved.\n * Use of this source code is governed by a BSD-style\n * license that can be found in the LICENSE file.\n */\n\n/* Fix tooltip background for dark theme */\nsvg g[aria-label=\"tip\"] g {\n  fill: var(--color-background);\n}\n\nhtml {\n  scroll-padding-top: 4rem;\n}\n\n.Breadcrumb {\n  position: sticky;\n  top: 0;\n  z-index: 1000;\n}\n\n.Breadcrumb ol {\n  align-items: center;\n  border-bottom: var(--border);\n  display: inline-flex;\n  gap: 1rem;\n  list-style: none;\n  margin-block-start: 0;\n  margin-block-end: 0;\n  padding-inline-start: 0;\n  min-height: 3rem;\n  width: calc(100% - 2rem);\n  background-color: var(--color-background);\n  padding: 0 1rem;\n  font-size: 0.875rem;\n  position: fixed;\n  top: 0;\n  transition: top 0.1s ease-in 0.1s;\n}\n\n.Breadcrumb ol:empty {\n  top: -3.0625rem;\n}\n\n.Breadcrumb li:not(:last-child)::after {\n  content: \">\";\n  margin-left: 1rem;\n}\n\n.Breadcrumb li:last-child a {\n  color: var(--color-text-subtle);\n}\n"],
+  "mappings": ";AAOA,wBACE,6BAGF,KACE,wBAGF,YACE,gBACA,MACA,aAGF,eACE,mBACA,4BACA,oBACA,SACA,gBACA,qBACA,mBACA,uBACA,gBACA,wBACA,yCAhCF,eAkCE,kBACA,eACA,MACA,+BAGF,qBACE,eAGF,sCACE,YACA,iBAGF,4BACE",
+  "names": []
+}

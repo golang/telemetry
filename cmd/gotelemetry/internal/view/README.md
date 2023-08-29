@@ -7,11 +7,10 @@ and active counter files.
 
 ## Development
 
-The static files are generated with a generator command in
-[`./main.go`](./main.go). You can edit the source files and run go generate to
-rebuild them.
+The static files are generated with a generator command. You can edit the source
+files and run go generate to rebuild them.
 
-    go generate ./cmd/gotelemetry/view
+    go generate ./content
 
 Running the server with the `--dev` flag will watch and rebuild the static files
 on save.

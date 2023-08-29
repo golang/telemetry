@@ -5,7 +5,7 @@
  * license that can be found in the LICENSE file.
  */
 
-import { ToolTipController } from "./tooltip";
+import { ToolTipController } from "./_tooltip";
 
 for (const el of document.querySelectorAll<HTMLDetailsElement>(".js-tooltip")) {
   new ToolTipController(el);

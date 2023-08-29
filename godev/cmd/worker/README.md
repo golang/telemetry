@@ -19,13 +19,13 @@ in generated the report and the location of the chart data.
 
 For local development, simply build and run. It serves on localhost:8082.
 
-    go run ./cmd/worker
+    go run ./godev/cmd/worker
 
 By default, the server will use the filesystem for storage object I/O. Run the
 cloud storage emulator and use the -gcs flag to use the Cloud Storage API.
 
-    ./devtools/localstorage.sh
-    go run ./cmd/worker --gcs
+    ./godev/devtools/localstorage.sh
+    go run ./godev/cmd/worker --gcs
 
 ### Environment Variables
 

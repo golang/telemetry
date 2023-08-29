@@ -7,7 +7,7 @@
 
 import * as Plot from "@observablehq/plot";
 
-import "../../../../godev/content/shared/base";
+import "../shared/base";
 
 declare global {
   interface Page {

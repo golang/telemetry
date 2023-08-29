@@ -2,7 +2,7 @@
   "scripts": {
     "eslint": "eslint . --fix",
     "stylelint": "stylelint '**/*.css' --fix",
-    "prettier": "prettier --write **/*.{css,ts,md,yaml}",
+    "prettier": "prettier --write **/*.{css,ts,md,yaml} !**/*.min.css",
     "all": "run-s --continue-on-error eslint stylelint prettier"
   },
   "devDependencies": {

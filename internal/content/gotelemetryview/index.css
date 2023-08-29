@@ -4,7 +4,7 @@
  * license that can be found in the LICENSE file.
  */
 
-@import url("../../../../godev/content/shared/base.css");
+@import url("../shared/base.css");
 
 html {
   scroll-padding-top: 4rem;
@@ -92,9 +92,11 @@ html {
 .Stack details .Count-entry:first-child::before {
   content: "⏵";
 }
+
 .Stack details[open] .Count-entry:first-child::before {
   content: "⏷";
 }
+
 .Count {
   grid-area: count;
   display: grid;

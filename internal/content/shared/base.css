@@ -4,10 +4,10 @@
  * license that can be found in the LICENSE file.
  */
 
-@import url("./normalize.css");
-@import url("./color.css");
-@import url("./typography.css");
-@import url("./tooltip.css");
+@import url("./_normalize.css");
+@import url("./_color.css");
+@import url("./_typography.css");
+@import url("./_tooltip.css");
 
 :root {
   --border: 0.0625rem solid var(--color-border);

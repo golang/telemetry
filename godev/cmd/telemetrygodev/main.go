@@ -24,12 +24,12 @@ import (
 	"golang.org/x/exp/slog"
 	"golang.org/x/mod/semver"
 	"golang.org/x/telemetry"
-	"golang.org/x/telemetry/godev"
 	"golang.org/x/telemetry/godev/internal/config"
 	"golang.org/x/telemetry/godev/internal/content"
 	"golang.org/x/telemetry/godev/internal/middleware"
 	"golang.org/x/telemetry/godev/internal/storage"
 	tconfig "golang.org/x/telemetry/internal/config"
+	contentfs "golang.org/x/telemetry/internal/content"
 	"golang.org/x/telemetry/internal/unionfs"
 )
 
@@ -209,11 +209,12 @@ func validate(r *telemetry.Report, cfg *tconfig.Config) error {
 }
 
 func fsys(fromOS bool) fs.FS {
-	var f fs.FS = godev.FS
+	var f fs.FS = contentfs.FS
 	if fromOS {
-		f = os.DirFS(".")
+		f = os.DirFS("internal/content")
+		contentfs.WatchStatic()
 	}
-	f, err := unionfs.Sub(f, "content/telemetrygodev", "content/shared")
+	f, err := unionfs.Sub(f, "telemetrygodev", "shared")
 	if err != nil {
 		log.Fatal(err)
 	}

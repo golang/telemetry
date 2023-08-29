@@ -6,5 +6,6 @@
     },
     "unit-disallowed-list": ["px"],
     "selector-class-pattern": "^[a-zA-Z\\-]+$"
-  }
+  },
+  "ignoreFiles": ["**/*.min.css"]
 }

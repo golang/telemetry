@@ -2,13 +2,6 @@
 
 This repository holds the Go Telemetry server code and libraries.
 
-## TypeScript Support
-
-TypeScript files served from content directories are transformed into
-JavaScript. Reference .ts files in html templates as module code.
-
-`<script type="module" src="/filename.ts">`
-
 ## Linting & Formatting
 
 This repository uses [eslint](https://eslint.org/) to format TS files,
@@ -38,5 +31,5 @@ This repository uses Gerrit for code changes. To learn how to submit changes to
 this repository, see https://golang.org/doc/contribute.html.
 
 The main issue tracker for the time repository is located at
-https://github.com/golang/go/issues. Prefix your issue with "x/telemetry:" in the
-subject line, so it is easy to find.
+https://github.com/golang/go/issues. Prefix your issue with "x/telemetry:" in
+the subject line, so it is easy to find.

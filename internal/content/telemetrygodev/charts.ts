@@ -5,37 +5,36 @@
  * license that can be found in the LICENSE file.
  */
 
-declare global {
-  interface Page {
-    Charts: ChartData;
-  }
-
-  interface ChartData {
-    Programs: Program[];
-  }
-
-  interface Program {
-    ID: string;
-    Name: string;
-    Charts: Chart[];
-  }
-
-  interface Chart {
-    ID: string;
-    Name: string;
-    Type: string;
-    Data: Datum[] | null;
-  }
-
-  interface Datum {
-    Key: string;
-    Value: number;
-  }
-
-  const Page: Page;
-  const Plot: typeof import("@observablehq/plot");
-  const d3: typeof import("d3");
+interface Page {
+  Charts: ChartData;
 }
+
+interface ChartData {
+  Programs: Program[];
+}
+
+interface Program {
+  ID: string;
+  Name: string;
+  Charts: Chart[];
+}
+
+interface Chart {
+  ID: string;
+  Name: string;
+  Type: string;
+  Data: Datum[] | null;
+}
+
+interface Datum {
+  Key: string;
+  Value: number;
+}
+
+declare const Page: Page;
+
+import * as d3 from "d3";
+import * as Plot from "@observablehq/plot";
 
 for (const program of Page.Charts.Programs) {
   for (const counter of program.Charts) {
@@ -59,8 +58,8 @@ for (const program of Page.Charts.Programs) {
   }
 }
 
-function partition({Data, Name}: Chart) {
-  Data ??= []
+function partition({ Data, Name }: Chart) {
+  Data ??= [];
   return Plot.plot({
     color: {
       type: "ordinal",
@@ -91,7 +90,7 @@ function partition({Data, Name}: Chart) {
   });
 }
 
-function histogram({Data}: Chart) {
+function histogram({ Data }: Chart) {
   Data ??= [];
   const n = 3; // number of facet columns
   const fixKey = (k: string) => (isNaN(Number(k)) ? k : Number(k));

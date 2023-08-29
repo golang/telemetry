@@ -4,13 +4,13 @@
 
 For local development, simply build and run. It serves on localhost:8080.
 
-    go run ./cmd/telemetrygodev
+    go run ./godev/cmd/telemetrygodev
 
 By default, the server will use the filesystem for storage object I/O. Run the
 cloud storage emulator and use the -gcs flag to use the Cloud Storage API.
 
-    ./devtools/localstorage.sh
-    go run ./cmd/telemetrygodev --gcs
+    ./godev/devtools/localstorage.sh
+    go run ./godev/cmd/telemetrygodev --gcs
 
 ### Environment Variables
 

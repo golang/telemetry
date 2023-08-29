@@ -8,7 +8,6 @@ package view
 
 import (
 	"bytes"
-	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -19,7 +18,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"sort"
 	"strconv"
@@ -30,8 +28,10 @@ import (
 	"golang.org/x/telemetry/cmd/gotelemetry/internal/browser"
 	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/configstore"
+	contentfs "golang.org/x/telemetry/internal/content"
 	tcounter "golang.org/x/telemetry/internal/counter"
 	it "golang.org/x/telemetry/internal/telemetry"
+	"golang.org/x/telemetry/internal/unionfs"
 )
 
 var (
@@ -39,18 +39,21 @@ var (
 	dev      = flag.Bool("dev", false, "rebuild static assets on save")
 	fsConfig = flag.String("config", "", "load a config from the filesystem")
 	open     = flag.Bool("open", true, "open the browser to the server address")
-
-	//go:embed *
-	content embed.FS
 )
 
 func Start() {
 	flag.Parse()
-	var fsys fs.FS = content
+	var fsys fs.FS = contentfs.FS
 	if *dev {
-		fsys = os.DirFS("cmd/gotelemetry/internal/view")
-		watchStatic()
+		fsys = os.DirFS("internal/content")
+		contentfs.WatchStatic()
 	}
+	var err error
+	fsys, err = unionfs.Sub(fsys, "gotelemetryview", "shared")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("/", handleIndex(fsys))
 	listener, err := net.Listen("tcp", *addr)
@@ -63,25 +66,6 @@ func Start() {
 		browser.Open(addr)
 	}
 	log.Fatal(http.Serve(listener, mux))
-}
-
-//go:generate go run golang.org/x/telemetry/godev/devtools/cmd/esbuild --outdir static
-
-// watchStatic runs the same command as the generator above when the server is
-// started in dev mode, rebuilding static assets on save.
-func watchStatic() {
-	cmd := exec.Command("go", "run", "golang.org/x/telemetry/godev/devtools/cmd/esbuild", "--outdir", "static", "--watch")
-	cmd.Dir = "cmd/gotelemetry/internal/view"
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	if err := cmd.Start(); err != nil {
-		log.Fatal(err)
-	}
-	go func() {
-		if err := cmd.Wait(); err != nil {
-			log.Fatal(err)
-		}
-	}()
 }
 
 type page struct {
