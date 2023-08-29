@@ -2,7 +2,7 @@
 # config generation feature during development.
 
 title: Editor Distribution
-counter: gopls/client:{vscode,vscodium,code-server,eglot,govim,neovim,coc.nvim,sublimetext,other}
+counter: gopls/client:{vscode,vscodium,vscode-insiders,code-server,eglot,govim,neovim,coc.nvim,sublimetext,other}
 description: measure editor distribution for gopls users.
 type: partition
 issue: https://go.dev/issue/61038
