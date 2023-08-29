@@ -1,0 +1,40 @@
+<!--
+  Copyright 2023 The Go Authors. All rights reserved.
+  Use of this source code is governed by a BSD-style
+  license that can be found in the LICENSE file.
+-->
+
+{{template "base" .}}
+
+{{define "title"}}Go Telemetry{{end}}
+
+{{define "content"}}
+<main id="main">
+  <h1>Go Telemetry</h1>
+  <section>
+    <h2>Overview</h2>
+    <p>This page will provide information about telemetry collection in the Go
+    toolchain.</p>
+
+    </p>For privacy information about this service, see <a href="/privacy">telemetry.go.dev/privacy</a>.</p>
+  </section>
+  <section>
+    <h2>Charts</h2>
+    <p>View charts for telemetry data.</p>
+    <ul style="column-count: auto; column-width: 10rem">
+    {{range .Charts}}
+      <li><a href="{{.URL}}">{{.Text}}</a></li>
+    {{end}}
+    </ul>
+  </section>
+  <section>
+    <h2>Reports</h2>
+    <p>Download telemetry reports.</p>
+    <ul style="column-count: auto; column-width: 10rem">
+    {{range .Reports}}
+      <li><a href="{{.URL}}">{{.Text}}</a></li>
+    {{end}}
+    </ul>
+  </section>
+</main>
+{{end}}

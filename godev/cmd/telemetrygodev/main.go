@@ -44,10 +44,9 @@ func main() {
 		log.Fatal(err)
 	}
 	fsys := fsys(cfg.DevMode)
-	cserv := content.Server(fsys)
 	mux := http.NewServeMux()
 
-	mux.Handle("/", cserv)
+	mux.Handle("/", handleRoot(fsys, ucfg, buckets))
 	mux.Handle("/upload/", handleUpload(ucfg, buckets))
 	mux.Handle("/charts/", handleChart(fsys, ucfg, buckets))
 
@@ -60,6 +59,55 @@ func main() {
 
 	fmt.Printf("server listening at http://localhost:%s\n", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, mw(mux)))
+}
+
+type link struct {
+	Text, URL string
+}
+
+type indexPage struct {
+	Charts  []*link
+	Reports []*link
+}
+
+func handleRoot(fsys fs.FS, ucfg *tconfig.Config, buckets *stores) content.HandlerFunc {
+	cserv := content.Server(fsys)
+	return func(w http.ResponseWriter, r *http.Request) error {
+		if r.URL.Path != "/" {
+			cserv.ServeHTTP(w, r)
+			return nil
+		}
+		page := indexPage{}
+
+		ctx := r.Context()
+		it, err := buckets.chart.List(ctx, "")
+		if err != nil {
+			return err
+		}
+		for {
+			obj, err := it.Next()
+			if errors.Is(err, storage.ErrObjectIteratorDone) {
+				break
+			}
+			date := strings.TrimSuffix(obj, ".json")
+			page.Charts = append(page.Charts, &link{Text: date, URL: "/charts/" + date})
+		}
+		it, err = buckets.merge.List(ctx, "")
+		if err != nil {
+			return err
+		}
+		for {
+			obj, err := it.Next()
+			if errors.Is(err, storage.ErrObjectIteratorDone) {
+				break
+			}
+			page.Reports = append(page.Reports, &link{
+				Text: strings.TrimSuffix(obj, ".json"),
+				URL:  buckets.merge.Location() + "/" + obj,
+			})
+		}
+		return content.Template(w, fsys, "index.html", page, http.StatusOK)
+	}
 }
 
 type chartPage struct {
