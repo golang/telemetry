@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package config
 
 import (
 	"flag"
@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-type config struct {
+type Config struct {
 	// Port is the port your HTTP server should listen on.
 	Port string
 
@@ -55,8 +55,8 @@ type config struct {
 	DevMode bool
 }
 
-// onCloudRun reports whether the current process is running on Cloud Run.
-func (c *config) onCloudRun() bool {
+// OnCloudRun reports whether the current process is running on Cloud Run.
+func (c *Config) OnCloudRun() bool {
 	// Use the presence of the environment variables provided by Cloud Run.
 	// See https://cloud.google.com/run/docs/reference/container-contract.
 	for _, ev := range []string{"K_SERVICE", "K_REVISION", "K_CONFIGURATION"} {
@@ -72,11 +72,11 @@ var (
 	useGCS  = flag.Bool("gcs", false, "use Cloud Storage for reading and writing storage objects")
 )
 
-// newConfig returns a new config. Getting the config should follow a call to flag.Parse.
-func newConfig() *config {
+// NewConfig returns a new config. Getting the config should follow a call to flag.Parse.
+func NewConfig() *Config {
 	environment := env("GO_TELEMETRY_ENV", "local")
-	return &config{
-		Port:                env("PORT", "8082"),
+	return &Config{
+		Port:                env("PORT", ""),
 		ProjectID:           env("GO_TELEMETRY_PROJECT_ID", "go-telemetry"),
 		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
 		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),

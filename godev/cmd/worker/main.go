@@ -21,6 +21,7 @@ import (
 	"golang.org/x/mod/semver"
 	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/godev"
+	"golang.org/x/telemetry/godev/internal/config"
 	"golang.org/x/telemetry/godev/internal/content"
 	"golang.org/x/telemetry/godev/internal/middleware"
 	"golang.org/x/telemetry/godev/internal/storage"
@@ -28,10 +29,12 @@ import (
 	tconfig "golang.org/x/telemetry/internal/config"
 )
 
+const defaultPort = "8082"
+
 func main() {
 	flag.Parse()
 	ctx := context.Background()
-	cfg := newConfig()
+	cfg := config.NewConfig()
 	buckets, err := buckets(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -55,8 +58,12 @@ func main() {
 		middleware.Recover,
 	)
 
-	fmt.Printf("server listening at http://localhost:%s\n", cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, mw(mux)))
+	port := cfg.Port
+	if port == "" {
+		port = defaultPort
+	}
+	fmt.Printf("server listening at http://localhost:%s\n", port)
+	log.Fatal(http.ListenAndServe(":"+port, mw(mux)))
 }
 
 // TODO: monitor duration and processed data volume.
@@ -459,8 +466,8 @@ type stores struct {
 	chart  storage.Store
 }
 
-func buckets(ctx context.Context, cfg *config) (*stores, error) {
-	if cfg.UseGCS && !cfg.onCloudRun() {
+func buckets(ctx context.Context, cfg *config.Config) (*stores, error) {
+	if cfg.UseGCS && !cfg.OnCloudRun() {
 		if err := os.Setenv("STORAGE_EMULATOR_HOST", cfg.StorageEmulatorHost); err != nil {
 			return nil, err
 		}
