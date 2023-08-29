@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"golang.org/x/telemetry"
+	"golang.org/x/telemetry/cmd/gotelemetry/internal/browser"
 	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/configstore"
 	tcounter "golang.org/x/telemetry/internal/counter"
@@ -37,6 +38,7 @@ var (
 	addr     = flag.String("addr", "localhost:4040", "server listens on the given TCP network address")
 	dev      = flag.Bool("dev", false, "rebuild static assets on save")
 	fsConfig = flag.String("config", "", "load a config from the filesystem")
+	open     = flag.Bool("open", true, "open the browser to the server address")
 
 	//go:embed *
 	content embed.FS
@@ -55,7 +57,11 @@ func Start() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("server listening at http://%s\n", listener.Addr())
+	addr := fmt.Sprintf("http://%s", listener.Addr())
+	fmt.Printf("server listening at %s\n", addr)
+	if *open {
+		browser.Open(addr)
+	}
 	log.Fatal(http.Serve(listener, mux))
 }
 
