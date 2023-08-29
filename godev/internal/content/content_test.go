@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !plan9
-
 package content
 
 import (
@@ -62,11 +60,6 @@ func TestServer_ServeHTTP(t *testing.T) {
 			"/teapot",
 			"teapot.out",
 			http.StatusTeapot,
-		},
-		{
-			"/script.ts",
-			"script.ts.out",
-			http.StatusOK,
 		},
 		{
 			"/style.css",
@@ -140,7 +133,7 @@ func Test_stat(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.urlPath, func(t *testing.T) {
-			if got, _, _ := stat(fsys, tt.urlPath); got != tt.want {
+			if got, _ := stat(fsys, tt.urlPath); got != tt.want {
 				t.Errorf("stat() = %v, want %v", got, tt.want)
 			}
 		})

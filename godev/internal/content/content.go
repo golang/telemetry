@@ -11,7 +11,7 @@
 //
 // The server is defined primarily by the content of its file system fsys,
 // which holds files to be served. It renders markdown files and golang
-// templates into HTML and transforms TypeScript into JavaScript.
+// templates into HTML.
 //
 // # Page Rendering
 //
@@ -49,8 +49,8 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-// contentServer serves requests for a given file system. It can also render
-// templates and transform TypeScript into JavaScript.
+// contentServer serves requests for a given file system and renders html
+// templates.
 type contentServer struct {
 	fsys     fs.FS
 	fserv    http.Handler
@@ -126,7 +126,7 @@ func (c *contentServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filepath, info, err := stat(c.fsys, r.URL.Path)
+	filepath, err := stat(c.fsys, r.URL.Path)
 	if errors.Is(err, fs.ErrNotExist) {
 		handleErr(w, r, errors.New(http.StatusText(http.StatusNotFound)), http.StatusNotFound)
 		return
@@ -141,8 +141,6 @@ func (c *contentServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			err = Template(w, c.fsys, filepath, nil, http.StatusOK)
 		case ".md":
 			err = markdown(w, c.fsys, filepath, http.StatusOK)
-		case ".ts":
-			err = script(w, c.fsys, filepath, info)
 		default:
 			c.fserv.ServeHTTP(w, r)
 		}
@@ -289,25 +287,9 @@ func markdown(w http.ResponseWriter, fsys fs.FS, tmplPath string, code int) erro
 	return Template(w, fsys, layout.(string), data, code)
 }
 
-// script serves TypeScript code tranformed into JavaScript.
-func script(w http.ResponseWriter, fsys fs.FS, filepath string, info fs.FileInfo) error {
-	data, err := fs.ReadFile(fsys, filepath)
-	if err != nil {
-		return err
-	}
-	output := esbuild(data)
-	w.Header().Set("Content-Type", "text/javascript")
-	w.Header().Set("Content-Length", strconv.Itoa(output.Len()))
-	w.Header().Set("Last-Modified", info.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
-	if _, err := w.Write(output.Bytes()); err != nil {
-		return err
-	}
-	return nil
-}
-
 // stat trys to coerce a urlPath into an openable file then returns the
-// file path and file info.
-func stat(fsys fs.FS, urlPath string) (string, fs.FileInfo, error) {
+// file path.
+func stat(fsys fs.FS, urlPath string) (string, error) {
 	cleanPath := path.Clean(strings.TrimPrefix(urlPath, "/"))
 	ext := path.Ext(cleanPath)
 	filePaths := []string{cleanPath}
@@ -319,14 +301,13 @@ func stat(fsys fs.FS, urlPath string) (string, fs.FileInfo, error) {
 		filePaths = []string{md, html, indexMD, indexHTML, cleanPath}
 	}
 	var p string
-	var stat fs.FileInfo
 	var err error
 	for _, p = range filePaths {
-		if stat, err = fs.Stat(fsys, p); err == nil {
+		if _, err = fs.Stat(fsys, p); err == nil {
 			break
 		}
 	}
-	return p, stat, err
+	return p, err
 }
 
 // tmplPatters generates a slice of file patterns to use in template.ParseFS.
