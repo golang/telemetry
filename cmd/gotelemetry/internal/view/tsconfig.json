@@ -1,6 +1,0 @@
-{
-  "extends": "../../../../godev/tsconfig.json",
-  "compilerOptions": {
-    "baseUrl": "../../../../godev/node_modules"
-  }
-}
