@@ -28,8 +28,8 @@ import (
 	"golang.org/x/telemetry/godev/internal/content"
 	"golang.org/x/telemetry/godev/internal/middleware"
 	"golang.org/x/telemetry/godev/internal/storage"
-	"golang.org/x/telemetry/godev/internal/unionfs"
 	tconfig "golang.org/x/telemetry/internal/config"
+	"golang.org/x/telemetry/internal/unionfs"
 )
 
 const defaultPort = "8080"

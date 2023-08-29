@@ -8,9 +8,10 @@ require (
 	github.com/fullstorydev/emulators/storage v0.0.0-20230523204811-eccb7d2267b0
 	github.com/google/go-cmp v0.5.9
 	github.com/yuin/goldmark v1.5.4
-	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
-	golang.org/x/mod v0.10.0
+	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
+	golang.org/x/mod v0.12.0
 	golang.org/x/telemetry v0.0.0-00010101000000-000000000000
+	google.golang.org/api v0.122.0
 )
 
 require (
@@ -32,7 +33,6 @@ require (
 	golang.org/x/oauth2 v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
-	google.golang.org/api v0.122.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	google.golang.org/grpc v1.55.0 // indirect
@@ -42,7 +42,7 @@ require (
 
 require (
 	github.com/yuin/goldmark-meta v1.1.0
-	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/sys v0.11.0 // indirect
 )
 
 replace golang.org/x/telemetry => ./..
