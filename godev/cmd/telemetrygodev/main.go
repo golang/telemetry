@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/exp/slog"
 	"golang.org/x/mod/semver"
 	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/godev"
@@ -54,10 +55,10 @@ func main() {
 	mux.Handle("/charts/", handleChart(fsys, ucfg, buckets))
 
 	mw := middleware.Chain(
-		middleware.Log,
+		middleware.Log(slog.Default()),
 		middleware.Timeout(cfg.RequestTimeout),
 		middleware.RequestSize(cfg.MaxRequestBytes),
-		middleware.Recover,
+		middleware.Recover(),
 	)
 
 	port := cfg.Port
