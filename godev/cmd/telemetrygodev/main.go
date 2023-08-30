@@ -117,7 +117,7 @@ type chartPage struct {
 func handleChart(fsys fs.FS, ucfg *tconfig.Config, buckets *stores) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
-		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/charts")
+		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/charts/")
 		reader, err := buckets.chart.Reader(ctx, p+".json")
 		if errors.Is(err, storage.ErrObjectNotExist) {
 			return content.Status(w, http.StatusNotFound)
