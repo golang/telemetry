@@ -24,7 +24,7 @@ declare global {
     ID: string;
     Name: string;
     Type: string;
-    Data: Datum[];
+    Data: Datum[] | null;
   }
 
   interface Datum {
@@ -59,8 +59,8 @@ for (const program of Page.Charts.Programs) {
   }
 }
 
-function partition(chart: Chart) {
-  const { Data = [], Name } = chart;
+function partition({Data, Name}: Chart) {
+  Data ??= []
   return Plot.plot({
     color: {
       type: "ordinal",
@@ -91,8 +91,8 @@ function partition(chart: Chart) {
   });
 }
 
-function histogram(chart: Chart) {
-  const { Data = [] } = chart;
+function histogram({Data}: Chart) {
+  Data ??= [];
   const n = 3; // number of facet columns
   const fixKey = (k: string) => (isNaN(Number(k)) ? k : Number(k));
   const keys = Array.from(d3.union(Data.map((d) => fixKey(d.Key))));
