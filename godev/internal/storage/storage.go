@@ -19,33 +19,37 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-var _ Store = &gcStore{}
-var _ Store = &fsStore{}
+var (
+	_ BucketHandle = &GCSBucket{}
+	_ BucketHandle = &FSBucket{}
+)
 
-type Store interface {
-	// Writer creates a new object if it does not exist. Any previous object with the same
-	// name will be replaced.
-	Writer(_ context.Context, object string) (io.WriteCloser, error)
+var (
+	ErrObjectIteratorDone = errors.New("object iterator done")
+	ErrObjectNotExist     = errors.New("object not exist")
+)
 
-	// Reader creates a new Reader to read the contents of the object.
-	Reader(_ context.Context, object string) (io.ReadCloser, error)
-
-	// List returns the names of objects in the bucket that match the prefix.
-	List(_ context.Context, prefix string) (*ObjectIterator, error)
-
-	// Location returns the URI representing the location of the store. It may be
-	// a URL for a cloud storage bucket or directory on a filesystem.
-	Location() string
+type BucketHandle interface {
+	Object(name string) ObjectHandle
+	Objects(ctx context.Context, prefix string) ObjectIterator
+	URI() string
 }
 
-type gcStore struct {
-	bucket   *storage.BucketHandle
-	location string
+type ObjectHandle interface {
+	NewReader(ctx context.Context) (io.ReadCloser, error)
+	NewWriter(ctx context.Context) (io.WriteCloser, error)
 }
 
-// NewGCStore returns a store for that writes to a GCS bucket. If the bucket does
-// not exist it will be created.
-func NewGCStore(ctx context.Context, project, bucket string) (*gcStore, error) {
+type ObjectIterator interface {
+	Next() (name string, err error)
+}
+
+type GCSBucket struct {
+	*storage.BucketHandle
+	url string
+}
+
+func NewGCSBucket(ctx context.Context, project, bucket string) (BucketHandle, error) {
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, err
@@ -58,53 +62,58 @@ func NewGCStore(ctx context.Context, project, bucket string) (*gcStore, error) {
 			return nil, err
 		}
 	}
-	loc := "https://storage.googleapis.com/" + bucket
-	return &gcStore{bkt, loc}, nil
+	url := "https://storage.googleapis.com/" + bucket
+	return &GCSBucket{bkt, url}, nil
 }
 
-func (s *gcStore) Writer(ctx context.Context, object string) (io.WriteCloser, error) {
-	obj := s.bucket.Object(object)
-	w := obj.NewWriter(ctx)
-	return w, nil
+func (b *GCSBucket) Object(name string) ObjectHandle {
+	return NewGCSObject(b, name)
 }
 
-func (s *gcStore) Reader(ctx context.Context, object string) (io.ReadCloser, error) {
-	obj := s.bucket.Object(object)
-	r, err := obj.NewReader(ctx)
-	if errors.Is(err, storage.ErrObjectNotExist) {
-		return nil, ErrObjectNotExist
+type GCSObject struct {
+	*storage.ObjectHandle
+}
+
+func NewGCSObject(b *GCSBucket, name string) ObjectHandle {
+	return &GCSObject{b.BucketHandle.Object(name)}
+}
+
+func (o *GCSObject) NewReader(ctx context.Context) (io.ReadCloser, error) {
+	return o.ObjectHandle.NewReader(ctx)
+}
+
+func (o *GCSObject) NewWriter(ctx context.Context) (io.WriteCloser, error) {
+	return o.ObjectHandle.NewWriter(ctx), nil
+}
+
+func (b *GCSBucket) Objects(ctx context.Context, prefix string) ObjectIterator {
+	return &GCSObjectIterator{b.BucketHandle.Objects(ctx, &storage.Query{Prefix: prefix})}
+}
+
+type GCSObjectIterator struct {
+	*storage.ObjectIterator
+}
+
+func (it *GCSObjectIterator) Next() (elem string, err error) {
+	o, err := it.ObjectIterator.Next()
+	if errors.Is(err, iterator.Done) {
+		return "", ErrObjectIteratorDone
 	}
-	return r, err
+	if err != nil {
+		return "", err
+	}
+	return o.Name, nil
 }
 
-func (s *gcStore) List(ctx context.Context, prefix string) (*ObjectIterator, error) {
-	query := &storage.Query{Prefix: prefix}
-	it := s.bucket.Objects(ctx, query)
-	return &ObjectIterator{
-		Next: func() (string, error) {
-			attrs, err := it.Next()
-			if errors.Is(err, iterator.Done) {
-				return "", ErrObjectIteratorDone
-			}
-			if err != nil {
-				return "", err
-			}
-			return attrs.Name, nil
-		},
-	}, nil
+func (b *GCSBucket) URI() string {
+	return b.url
 }
 
-func (s *gcStore) Location() string {
-	return s.location
+type FSBucket struct {
+	dir, bucket, uri string
 }
 
-type fsStore struct {
-	dir, bucket, location string
-}
-
-// NewFSStore returns a store for that writes to a directory. If the directory does
-// not exist it will be created.
-func NewFSStore(ctx context.Context, dir, bucket string) (*fsStore, error) {
+func NewFSBucket(ctx context.Context, dir, bucket string) (BucketHandle, error) {
 	if err := os.MkdirAll(filepath.Join(dir, bucket), os.ModePerm); err != nil {
 		return nil, err
 	}
@@ -112,61 +121,71 @@ func NewFSStore(ctx context.Context, dir, bucket string) (*fsStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &fsStore{dir, bucket, uri}, nil
+	return &FSBucket{dir, bucket, uri}, nil
 }
 
-func (s *fsStore) Writer(ctx context.Context, object string) (io.WriteCloser, error) {
-	name := filepath.Join(s.dir, s.bucket, filepath.FromSlash(object))
-	if err := os.MkdirAll(filepath.Dir(name), os.ModePerm); err != nil {
-		return nil, err
-	}
-	return os.Create(name)
+func (b *FSBucket) Object(name string) ObjectHandle {
+	return NewFSObject(b, name)
 }
 
-func (s *fsStore) Reader(ctx context.Context, object string) (io.ReadCloser, error) {
-	r, err := os.Open(filepath.Join(s.dir, s.bucket, filepath.FromSlash(object)))
+type FSObject struct {
+	filename string
+}
+
+func NewFSObject(b *FSBucket, name string) ObjectHandle {
+	filename := filepath.Join(b.dir, b.bucket, filepath.FromSlash(name))
+	return &FSObject{filename}
+}
+
+func (o *FSObject) NewReader(ctx context.Context) (io.ReadCloser, error) {
+	r, err := os.Open(o.filename)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, ErrObjectNotExist
 	}
 	return r, err
 }
 
-func (s *fsStore) List(ctx context.Context, prefix string) (*ObjectIterator, error) {
-	var elems []string
-	if err := fs.WalkDir(
-		os.DirFS(filepath.Join(s.dir, s.bucket)),
+func (o *FSObject) NewWriter(ctx context.Context) (io.WriteCloser, error) {
+	if err := os.MkdirAll(filepath.Dir(o.filename), os.ModePerm); err != nil {
+		return nil, err
+	}
+	return os.Create(o.filename)
+}
+
+func (b *FSBucket) Objects(ctx context.Context, prefix string) ObjectIterator {
+	var names []string
+	err := fs.WalkDir(
+		os.DirFS(filepath.Join(b.dir, b.bucket)),
 		".",
 		func(path string, d fs.DirEntry, err error) error {
 			if d.IsDir() {
 				return nil
 			}
-			if strings.HasPrefix(path, prefix) {
-				elems = append(elems, path)
+			name := filepath.ToSlash(path)
+			if strings.HasPrefix(name, prefix) {
+				names = append(names, name)
 			}
 			return nil
-		}); err != nil {
-		return nil, err
-	}
-	i := 0
-	return &ObjectIterator{
-		Next: func() (string, error) {
-			if i >= len(elems) {
-				return "", ErrObjectIteratorDone
-			}
-			elem := elems[i]
-			i++
-			return elem, nil
 		},
-	}, nil
+	)
+	return &FSObjectIterator{names, err, 0}
 }
 
-func (s *fsStore) Location() string {
-	return s.location
+type FSObjectIterator struct {
+	names []string
+	err   error
+	index int
 }
 
-var ErrObjectIteratorDone = errors.New("object iterator done")
-var ErrObjectNotExist = errors.New("object does not exist")
+func (it *FSObjectIterator) Next() (name string, err error) {
+	if it.index >= len(it.names) {
+		return "", ErrObjectIteratorDone
+	}
+	name = it.names[it.index]
+	it.index++
+	return name, nil
+}
 
-type ObjectIterator struct {
-	Next func() (elem string, err error)
+func (b *FSBucket) URI() string {
+	return b.uri
 }

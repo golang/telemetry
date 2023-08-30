@@ -35,7 +35,7 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 	cfg := config.NewConfig()
-	buckets, err := buckets(ctx, cfg)
+	buckets, err := storage.NewAPI(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -67,18 +67,15 @@ func main() {
 }
 
 // TODO: monitor duration and processed data volume.
-func handleMerge(cfg *tconfig.Config, s *stores) content.HandlerFunc {
+func handleMerge(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		date := r.URL.Query().Get("date")
 		if _, err := time.Parse("2006-01-02", date); err != nil {
 			return content.Error(err, http.StatusBadRequest)
 		}
-		it, err := s.upload.List(ctx, date)
-		if err != nil {
-			return err
-		}
-		mergeWriter, err := s.merge.Writer(ctx, date+".json")
+		it := s.Upload.Objects(ctx, date)
+		mergeWriter, err := s.Merge.Object(date + ".json").NewWriter(ctx)
 		if err != nil {
 			return err
 		}
@@ -94,7 +91,7 @@ func handleMerge(cfg *tconfig.Config, s *stores) content.HandlerFunc {
 				return err
 			}
 			count++
-			reader, err := s.upload.Reader(ctx, obj)
+			reader, err := s.Upload.Object(obj).NewReader(ctx)
 			if err != nil {
 				return err
 			}
@@ -113,12 +110,12 @@ func handleMerge(cfg *tconfig.Config, s *stores) content.HandlerFunc {
 		if err := mergeWriter.Close(); err != nil {
 			return err
 		}
-		msg := fmt.Sprintf("merged %d reports into %s/%s", count, s.merge.Location(), date)
+		msg := fmt.Sprintf("merged %d reports into %s/%s", count, s.Merge.URI(), date)
 		return content.Text(w, msg, http.StatusOK)
 	}
 }
 
-func handleChart(cfg *tconfig.Config, s *stores) content.HandlerFunc {
+func handleChart(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		// TODO: use start date and end date to create a timeseries of data.
@@ -126,7 +123,7 @@ func handleChart(cfg *tconfig.Config, s *stores) content.HandlerFunc {
 		if _, err := time.Parse("2006-01-02", date); err != nil {
 			return content.Error(err, http.StatusBadRequest)
 		}
-		in, err := s.merge.Reader(ctx, date+".json")
+		in, err := s.Merge.Object(date + ".json").NewReader(ctx)
 		if errors.Is(err, storage.ErrObjectNotExist) {
 			return content.Error(err, http.StatusNotFound)
 		}
@@ -153,7 +150,7 @@ func handleChart(cfg *tconfig.Config, s *stores) content.HandlerFunc {
 		data := nest(reports)
 		charts := charts(cfg, date, data, xs)
 		obj := fmt.Sprintf("%s.json", date)
-		out, err := s.chart.Writer(ctx, obj)
+		out, err := s.Chart.Object(obj).NewWriter(ctx)
 		if err != nil {
 			return err
 		}
@@ -166,7 +163,7 @@ func handleChart(cfg *tconfig.Config, s *stores) content.HandlerFunc {
 			return err
 		}
 
-		msg := fmt.Sprintf("processed %d reports into %s", len(reports), s.chart.Location()+"/"+obj)
+		msg := fmt.Sprintf("processed %d reports into %s", len(reports), s.Chart.URI()+"/"+obj)
 		return content.Text(w, msg, http.StatusOK)
 	}
 }
@@ -458,50 +455,4 @@ func fsys(fromOS bool) fs.FS {
 		log.Fatal(err)
 	}
 	return f
-}
-
-type stores struct {
-	upload storage.Store
-	merge  storage.Store
-	chart  storage.Store
-}
-
-func buckets(ctx context.Context, cfg *config.Config) (*stores, error) {
-	if cfg.UseGCS && !cfg.OnCloudRun() {
-		if err := os.Setenv("STORAGE_EMULATOR_HOST", cfg.StorageEmulatorHost); err != nil {
-			return nil, err
-		}
-	}
-	var upload storage.Store
-	var merge storage.Store
-	var chart storage.Store
-	var err error
-	if cfg.UseGCS {
-		upload, err = storage.NewGCStore(ctx, cfg.ProjectID, cfg.UploadBucket)
-		if err != nil {
-			return nil, err
-		}
-		merge, err = storage.NewGCStore(ctx, cfg.ProjectID, cfg.MergedBucket)
-		if err != nil {
-			return nil, err
-		}
-		chart, err = storage.NewGCStore(ctx, cfg.ProjectID, cfg.ChartDataBucket)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		upload, err = storage.NewFSStore(ctx, cfg.LocalStorage, cfg.UploadBucket)
-		if err != nil {
-			return nil, err
-		}
-		merge, err = storage.NewFSStore(ctx, cfg.LocalStorage, cfg.MergedBucket)
-		if err != nil {
-			return nil, err
-		}
-		chart, err = storage.NewFSStore(ctx, cfg.LocalStorage, cfg.ChartDataBucket)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &stores{upload, merge, chart}, nil
 }

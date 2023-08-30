@@ -43,7 +43,7 @@ func TestGCStore(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	s, err := NewGCStore(ctx, "go-test-project", "test-bucket")
+	s, err := NewGCSBucket(ctx, "go-test-project", "test-bucket")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,14 +53,14 @@ func TestGCStore(t *testing.T) {
 
 func TestFSStore(t *testing.T) {
 	ctx := context.Background()
-	s, err := NewFSStore(ctx, t.TempDir(), "test-bucket")
+	s, err := NewFSBucket(ctx, t.TempDir(), "test-bucket")
 	if err != nil {
 		t.Fatal(err)
 	}
 	runTest(t, ctx, s)
 }
 
-func runTest(t *testing.T, ctx context.Context, s Store) {
+func runTest(t *testing.T, ctx context.Context, s BucketHandle) {
 	// write the object to store
 	if err := write(ctx, s, "prefix/test-object", writeData); err != nil {
 		t.Fatal(err)
@@ -79,10 +79,7 @@ func runTest(t *testing.T, ctx context.Context, s Store) {
 		t.Fatal(err)
 	}
 	// check that prefix matches single object
-	it, err := s.List(ctx, "prefix")
-	if err != nil {
-		t.Fatal(err)
-	}
+	it := s.Objects(ctx, "prefix")
 	var list1 []string
 	for {
 		elem, err := it.Next()
@@ -95,14 +92,11 @@ func runTest(t *testing.T, ctx context.Context, s Store) {
 		list1 = append(list1, elem)
 	}
 	if diff := cmp.Diff(list1, []string{"prefix/test-object"}); diff != "" {
-		t.Errorf("List() mismatch (-want +got):\n%s", diff)
+		t.Errorf("Objects() mismatch (-want +got):\n%s", diff)
 	}
 
 	// check that prefix matches with partial path and separator
-	it, err = s.List(ctx, "prefix/test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	it = s.Objects(ctx, "prefix/test")
 	var list2 []string
 	for {
 		elem, err := it.Next()
@@ -116,12 +110,12 @@ func runTest(t *testing.T, ctx context.Context, s Store) {
 	}
 
 	if diff := cmp.Diff(list2, []string{"prefix/test-object"}); diff != "" {
-		t.Errorf("List() mismatch (-want +got):\n%s", diff)
+		t.Errorf("Objects() mismatch (-want +got):\n%s", diff)
 	}
 }
 
-func write(ctx context.Context, s Store, object string, data any) error {
-	obj, err := s.Writer(ctx, "prefix/test-object")
+func write(ctx context.Context, s BucketHandle, object string, data any) error {
+	obj, err := s.Object("prefix/test-object").NewWriter(ctx)
 	if err != nil {
 		return err
 	}
@@ -131,8 +125,8 @@ func write(ctx context.Context, s Store, object string, data any) error {
 	return obj.Close()
 }
 
-func read(ctx context.Context, s Store, object string) (any, error) {
-	obj, err := s.Reader(ctx, "prefix/test-object")
+func read(ctx context.Context, s BucketHandle, object string) (any, error) {
+	obj, err := s.Object("prefix/test-object").NewReader(ctx)
 	if err != nil {
 		return nil, err
 	}
