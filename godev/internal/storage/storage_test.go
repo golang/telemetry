@@ -8,12 +8,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"testing"
 
-	"github.com/fullstorydev/emulators/storage/gcsemu"
 	"github.com/google/go-cmp/cmp"
-	"golang.org/x/telemetry/internal/testenv"
 )
 
 type jsondata struct {
@@ -26,29 +23,6 @@ var writeData = jsondata{
 	Tars: "foo",
 	Case: "bar",
 	Kipp: map[string]int{"plex": 0},
-}
-
-func TestGCStore(t *testing.T) {
-	testenv.NeedsLocalhostNet(t)
-
-	server, err := gcsemu.NewServer("localhost:0", gcsemu.Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server.Close()
-
-	addr := server.Addr
-	if err := os.Setenv("STORAGE_EMULATOR_HOST", addr); err != nil {
-		t.Fatal(err)
-	}
-
-	ctx := context.Background()
-	s, err := NewGCSBucket(ctx, "go-test-project", "test-bucket")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	runTest(t, ctx, s)
 }
 
 func TestFSStore(t *testing.T) {

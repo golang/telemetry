@@ -19,9 +19,6 @@ type Config struct {
 	// ProjectID is a GCP project ID.
 	ProjectID string
 
-	// StorageEmulatorHost is a network address for a Cloud Storage emulator.
-	StorageEmulatorHost string
-
 	// LocalStorage is a directory for storage I/O used when the using the filesystem
 	// or storage emulator modes.
 	LocalStorage string
@@ -76,18 +73,17 @@ var (
 func NewConfig() *Config {
 	environment := env("GO_TELEMETRY_ENV", "local")
 	return &Config{
-		Port:                env("PORT", ""),
-		ProjectID:           env("GO_TELEMETRY_PROJECT_ID", "go-telemetry"),
-		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
-		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
-		ChartDataBucket:     environment + "-telemetry-charted",
-		MergedBucket:        environment + "-telemetry-merged",
-		UploadBucket:        environment + "-telemetry-uploaded",
-		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "./config/config.json"),
-		MaxRequestBytes:     env("GO_TELEMETRY_MAX_REQUEST_BYTES", int64(100*1024)),
-		RequestTimeout:      10 * time.Duration(time.Minute),
-		UseGCS:              *useGCS,
-		DevMode:             *devMode,
+		Port:            env("PORT", ""),
+		ProjectID:       env("GO_TELEMETRY_PROJECT_ID", "go-telemetry"),
+		LocalStorage:    env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
+		ChartDataBucket: environment + "-telemetry-charted",
+		MergedBucket:    environment + "-telemetry-merged",
+		UploadBucket:    environment + "-telemetry-uploaded",
+		UploadConfig:    env("GO_TELEMETRY_UPLOAD_CONFIG", "./config/config.json"),
+		MaxRequestBytes: env("GO_TELEMETRY_MAX_REQUEST_BYTES", int64(100*1024)),
+		RequestTimeout:  10 * time.Duration(time.Minute),
+		UseGCS:          *useGCS,
+		DevMode:         *devMode,
 	}
 }
 

@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"os"
 
 	"golang.org/x/telemetry/godev/internal/config"
 )
@@ -14,11 +13,6 @@ type API struct {
 }
 
 func NewAPI(ctx context.Context, cfg *config.Config) (*API, error) {
-	if cfg.UseGCS && !cfg.OnCloudRun() {
-		if err := os.Setenv("STORAGE_EMULATOR_HOST", cfg.StorageEmulatorHost); err != nil {
-			return nil, err
-		}
-	}
 	upload, err := newBucket(ctx, cfg, cfg.UploadBucket)
 	if err != nil {
 		return nil, err

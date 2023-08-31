@@ -21,22 +21,25 @@ For local development, simply build and run. It serves on localhost:8082.
 
     go run ./godev/cmd/worker
 
-By default, the server will use the filesystem for storage object I/O. Run the
-cloud storage emulator and use the -gcs flag to use the Cloud Storage API.
+By default, the server will use the filesystem for storage object I/O. Use the
+-gcs flag to use the Cloud Storage API.
+
+    go run ./godev/cmd/worker --gcs
+
+Optionally, use the localstorage devtool the emulate the GCS server on your machine.
 
     ./godev/devtools/localstorage.sh
-    go run ./godev/cmd/worker --gcs
+    STORAGE_EMULATOR_HOST=localhost:8081 go run ./godev/cmd/worker --gcs
 
 ### Environment Variables
 
-| Name                               | Default               | Description                                               |
-| ---------------------------------- | --------------------- | --------------------------------------------------------- |
-| GO_TELEMETRY_PROJECT_ID            | go-telemetry          | GCP project ID                                            |
-| GO_TELEMETRY_STORAGE_EMULATOR_HOST | localhost:8081        | Host for the Cloud Storage emulator                       |
-| GO_TELEMETRY_LOCAL_STORAGE         | .localstorage         | Directory for storage emulator I/O or file system storage |
-| GO_TELEMETRY_UPLOAD_CONFIG         | ../config/config.json | Location of the upload config used for report validation  |
-| GO_TELEMETRY_MAX_REQUEST_BYTES     | 102400                | Maximum request body size the server allows               |
-| GO_TELEMETRY_ENV                   | local                 | Deployment environment (e.g. prod, dev, local, ... )      |
+| Name                           | Default               | Description                                               |
+| ------------------------------ | --------------------- | --------------------------------------------------------- |
+| GO_TELEMETRY_PROJECT_ID        | go-telemetry          | GCP project ID                                            |
+| GO_TELEMETRY_LOCAL_STORAGE     | .localstorage         | Directory for storage emulator I/O or file system storage |
+| GO_TELEMETRY_UPLOAD_CONFIG     | ../config/config.json | Location of the upload config used for report validation  |
+| GO_TELEMETRY_MAX_REQUEST_BYTES | 102400                | Maximum request body size the server allows               |
+| GO_TELEMETRY_ENV               | local                 | Deployment environment (e.g. prod, dev, local, ... )      |
 
 ## Testing
 
