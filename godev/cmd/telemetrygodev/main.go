@@ -212,7 +212,7 @@ func fsys(fromOS bool) fs.FS {
 	if fromOS {
 		f = os.DirFS(".")
 	}
-	f, err := unionfs.Sub(f, "content/telemetrygodev", "content/shared", "third_party")
+	f, err := unionfs.Sub(f, "content/telemetrygodev", "content/shared")
 	if err != nil {
 		log.Fatal(err)
 	}

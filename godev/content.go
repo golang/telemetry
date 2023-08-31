@@ -9,5 +9,5 @@ import (
 	"embed"
 )
 
-//go:embed content third_party
+//go:embed content
 var FS embed.FS
