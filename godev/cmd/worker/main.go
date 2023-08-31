@@ -30,8 +30,6 @@ import (
 	"golang.org/x/telemetry/internal/unionfs"
 )
 
-const defaultPort = "8082"
-
 func main() {
 	flag.Parse()
 	ctx := context.Background()
@@ -59,12 +57,8 @@ func main() {
 		middleware.Recover(),
 	)
 
-	port := cfg.Port
-	if port == "" {
-		port = defaultPort
-	}
-	fmt.Printf("server listening at http://localhost:%s\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, mw(mux)))
+	fmt.Printf("server listening at http://localhost:%s\n", cfg.WorkerPort)
+	log.Fatal(http.ListenAndServe(":"+cfg.WorkerPort, mw(mux)))
 }
 
 // TODO: monitor duration and processed data volume.

@@ -33,8 +33,6 @@ import (
 	"golang.org/x/telemetry/internal/unionfs"
 )
 
-const defaultPort = "8080"
-
 func main() {
 	flag.Parse()
 	ctx := context.Background()
@@ -61,12 +59,8 @@ func main() {
 		middleware.Recover(),
 	)
 
-	port := cfg.Port
-	if port == "" {
-		port = defaultPort
-	}
-	fmt.Printf("server listening at http://localhost:%s\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, mw(mux)))
+	fmt.Printf("server listening at http://localhost:%s\n", cfg.ServerPort)
+	log.Fatal(http.ListenAndServe(":"+cfg.ServerPort, mw(mux)))
 }
 
 type link struct {

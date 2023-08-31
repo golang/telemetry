@@ -26,7 +26,8 @@ By default, the server will use the filesystem for storage object I/O. Use the
 
     go run ./godev/cmd/worker --gcs
 
-Optionally, use the localstorage devtool the emulate the GCS server on your machine.
+Optionally, use the localstorage devtool the emulate the GCS server on your
+machine.
 
     ./godev/devtools/localstorage.sh
     STORAGE_EMULATOR_HOST=localhost:8081 go run ./godev/cmd/worker --gcs
@@ -40,6 +41,10 @@ Optionally, use the localstorage devtool the emulate the GCS server on your mach
 | GO_TELEMETRY_UPLOAD_CONFIG     | ../config/config.json | Location of the upload config used for report validation  |
 | GO_TELEMETRY_MAX_REQUEST_BYTES | 102400                | Maximum request body size the server allows               |
 | GO_TELEMETRY_ENV               | local                 | Deployment environment (e.g. prod, dev, local, ... )      |
+| GO_TELEMETRY_LOCATION_ID       |                       | GCP location of the service (e.g, us-east1)               |
+| GO_TELEMETRY_SERVICE_ACCOUNT   |                       | GCP service account used for queueing work tasks          |
+| GO_TELEMETRY_CLIENT_ID         |                       | GCP OAuth client used in authentication for queue tasks   |
+| GO_TELEMETRY_WORKER_URL        | http://localhost:8082 |                                                           |
 
 ## Testing
 

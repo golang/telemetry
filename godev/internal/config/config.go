@@ -13,11 +13,32 @@ import (
 )
 
 type Config struct {
-	// Port is the port your HTTP server should listen on.
-	Port string
+	// ServerPort is the port for the cmd/telemetrygodev.
+	ServerPort string
+
+	// WorkerPort is the port for the cmd/worker.
+	WorkerPort string
+
+	// WorkerURL is the location url of the worker used in queueing worker tasks.
+	WorkerURL string
 
 	// ProjectID is a GCP project ID.
 	ProjectID string
+
+	// LocationID is a GCP location ID.
+	LocationID string
+
+	// QueueID is the name of the queue for worker tasks.
+	QueueID string
+
+	// ServiceAccount is the service account used when queueing worker tasks.
+	ServiceAccount string
+
+	// ClientID is the OAuth client used in authentication for queue tasks.
+	ClientID string
+
+	// StorageEmulatorHost is a network address for a Cloud Storage emulator.
+	StorageEmulatorHost string
 
 	// LocalStorage is a directory for storage I/O used when the using the filesystem
 	// or storage emulator modes.
@@ -52,18 +73,6 @@ type Config struct {
 	DevMode bool
 }
 
-// OnCloudRun reports whether the current process is running on Cloud Run.
-func (c *Config) OnCloudRun() bool {
-	// Use the presence of the environment variables provided by Cloud Run.
-	// See https://cloud.google.com/run/docs/reference/container-contract.
-	for _, ev := range []string{"K_SERVICE", "K_REVISION", "K_CONFIGURATION"} {
-		if os.Getenv(ev) == "" {
-			return false
-		}
-	}
-	return true
-}
-
 var (
 	devMode = flag.Bool("dev", false, "load static content and templates from the filesystem")
 	useGCS  = flag.Bool("gcs", false, "use Cloud Storage for reading and writing storage objects")
@@ -73,17 +82,24 @@ var (
 func NewConfig() *Config {
 	environment := env("GO_TELEMETRY_ENV", "local")
 	return &Config{
-		Port:            env("PORT", ""),
-		ProjectID:       env("GO_TELEMETRY_PROJECT_ID", "go-telemetry"),
-		LocalStorage:    env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
-		ChartDataBucket: environment + "-telemetry-charted",
-		MergedBucket:    environment + "-telemetry-merged",
-		UploadBucket:    environment + "-telemetry-uploaded",
-		UploadConfig:    env("GO_TELEMETRY_UPLOAD_CONFIG", "./config/config.json"),
-		MaxRequestBytes: env("GO_TELEMETRY_MAX_REQUEST_BYTES", int64(100*1024)),
-		RequestTimeout:  10 * time.Duration(time.Minute),
-		UseGCS:          *useGCS,
-		DevMode:         *devMode,
+		ServerPort:          env("PORT", "8080"),
+		WorkerPort:          env("PORT", "8082"),
+		WorkerURL:           env("GO_TELEMETRY_WORKER_URL", "http://localhost:8082"),
+		ProjectID:           env("GO_TELEMETRY_PROJECT_ID", ""),
+		LocationID:          env("GO_TELEMETRY_LOCATION_ID", ""),
+		QueueID:             environment + "-worker-tasks",
+		ServiceAccount:      env("GO_TELEMETRY_SERVICE_ACCOUNT", ""),
+		ClientID:            env("GO_TELEMETRY_CLIENT_ID", ""),
+		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
+		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
+		ChartDataBucket:     environment + "-telemetry-charted",
+		MergedBucket:        environment + "-telemetry-merged",
+		UploadBucket:        environment + "-telemetry-uploaded",
+		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "./config/config.json"),
+		MaxRequestBytes:     env("GO_TELEMETRY_MAX_REQUEST_BYTES", int64(100*1024)),
+		RequestTimeout:      10 * time.Duration(time.Minute),
+		UseGCS:              *useGCS,
+		DevMode:             *devMode,
 	}
 }
 
