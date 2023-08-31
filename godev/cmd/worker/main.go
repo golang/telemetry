@@ -392,7 +392,7 @@ func fixCounter(prefix, counter string) string {
 	switch prefix {
 	case version:
 		if counter == "devel" {
-			return prefix + ":" + version
+			return prefix + ":" + counter
 		}
 		return prefix + ":" + semver.MajorMinor(counter)
 	case goos:
