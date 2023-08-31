@@ -3,6 +3,7 @@ module golang.org/x/telemetry/godev
 go 1.20
 
 require (
+	cloud.google.com/go/cloudtasks v1.10.0
 	cloud.google.com/go/storage v1.30.1
 	github.com/evanw/esbuild v0.17.19
 	github.com/google/go-cmp v0.5.9

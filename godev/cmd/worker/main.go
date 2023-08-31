@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
+	taskspb "cloud.google.com/go/cloudtasks/apiv2/cloudtaskspb"
 	"golang.org/x/exp/slog"
 	"golang.org/x/mod/semver"
 	"golang.org/x/telemetry"
@@ -49,6 +51,7 @@ func main() {
 	mux.Handle("/", cserv)
 	mux.Handle("/merge/", handleMerge(ucfg, buckets))
 	mux.Handle("/chart/", handleChart(ucfg, buckets))
+	mux.Handle("/queue-tasks/", handleTasks(cfg))
 
 	mw := middleware.Chain(
 		middleware.Log(slog.Default()),
@@ -59,6 +62,70 @@ func main() {
 
 	fmt.Printf("server listening at http://localhost:%s\n", cfg.WorkerPort)
 	log.Fatal(http.ListenAndServe(":"+cfg.WorkerPort, mw(mux)))
+}
+
+// handleTasks will populate the task queue that processes report
+// data. Cloud Scheduler will be instrumented to call this endpoint
+// daily to merge reports and generate chart data. The merge tasks
+// will merge the previous weeks reports and the chart tasks will do
+// the same minus one day.
+// TODO(golang/go#62575): adjust the date range to align with report
+// upload cutoff.
+func handleTasks(cfg *config.Config) content.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		now := time.Now().UTC()
+		for i := 7; i > 0; i-- {
+			date := now.AddDate(0, 0, -1*i).Format("2006-01-02")
+			url := cfg.WorkerURL + "/merge/?date=" + date
+			if _, err := createHTTPTask(cfg, url); err != nil {
+				return err
+			}
+		}
+		for i := 8; i > 1; i-- {
+			date := now.AddDate(0, 0, -1*i).Format("2006-01-02")
+			url := cfg.WorkerURL + "/chart/?date=" + date
+			if _, err := createHTTPTask(cfg, url); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+// createHTTPTask constructs a task with a authorization token
+// and HTTP target then adds it to a Queue.
+func createHTTPTask(cfg *config.Config, url string) (*taskspb.Task, error) {
+	ctx := context.Background()
+	client, err := cloudtasks.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cloudtasks.NewClient: %w", err)
+	}
+	defer client.Close()
+
+	queuePath := fmt.Sprintf("projects/%s/locations/%s/queues/%s", cfg.ProjectID, cfg.LocationID, cfg.QueueID)
+	req := &taskspb.CreateTaskRequest{
+		Parent: queuePath,
+		Task: &taskspb.Task{
+			MessageType: &taskspb.Task_HttpRequest{
+				HttpRequest: &taskspb.HttpRequest{
+					HttpMethod: taskspb.HttpMethod_POST,
+					Url:        url,
+					AuthorizationHeader: &taskspb.HttpRequest_OidcToken{
+						OidcToken: &taskspb.OidcToken{
+							ServiceAccountEmail: cfg.ServiceAccount,
+							Audience:            cfg.ClientID,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	createdTask, err := client.CreateTask(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("cloudtasks.CreateTask: %w", err)
+	}
+	return createdTask, nil
 }
 
 // TODO: monitor duration and processed data volume.
