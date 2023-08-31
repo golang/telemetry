@@ -31,8 +31,8 @@ type Config struct {
 	// QueueID is the name of the queue for worker tasks.
 	QueueID string
 
-	// ServiceAccount is the service account used when queueing worker tasks.
-	ServiceAccount string
+	// IAPServiceAccount is the service account used when queueing worker tasks.
+	IAPServiceAccount string
 
 	// ClientID is the OAuth client used in authentication for queue tasks.
 	ClientID string
@@ -88,7 +88,7 @@ func NewConfig() *Config {
 		ProjectID:           env("GO_TELEMETRY_PROJECT_ID", ""),
 		LocationID:          env("GO_TELEMETRY_LOCATION_ID", ""),
 		QueueID:             environment + "-worker-tasks",
-		ServiceAccount:      env("GO_TELEMETRY_SERVICE_ACCOUNT", ""),
+		IAPServiceAccount:   env("GO_TELEMETRY_IAP_SERVICE_ACCOUNT", ""),
 		ClientID:            env("GO_TELEMETRY_CLIENT_ID", ""),
 		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
 		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),

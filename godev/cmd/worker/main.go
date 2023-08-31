@@ -112,7 +112,7 @@ func createHTTPTask(cfg *config.Config, url string) (*taskspb.Task, error) {
 					Url:        url,
 					AuthorizationHeader: &taskspb.HttpRequest_OidcToken{
 						OidcToken: &taskspb.OidcToken{
-							ServiceAccountEmail: cfg.ServiceAccount,
+							ServiceAccountEmail: cfg.IAPServiceAccount,
 							Audience:            cfg.ClientID,
 						},
 					},

@@ -36,6 +36,8 @@ steps:
       - "gcr.io/$PROJECT_ID/telemetrygodev:$COMMIT_SHA"
       - "--region"
       - "us-central1"
+      - "--service-account"
+      - "$_RUN_SERVICE_ACCOUNT"
       - "--set-env-vars"
       - "GO_TELEMETRY_PROJECT_ID=$PROJECT_ID,GO_TELEMETRY_ENV=$_ENV"
 images:
