@@ -15,8 +15,13 @@ import (
 
 // time and date handling
 
-// another name for time.Now() to use for testing
-var now = time.Now
+// all the upload processing takes place (conceptually) at
+// a single instant. Most of the time this wouldn't matter
+// but it protects against time skew if time.Now
+// increases the day between calls, as might happen (rarely) by chance
+// or if there are long scheduling delays between calls.
+var thisInstant = time.Now().UTC()
+
 var distantPast = 21 * 24 * time.Hour
 
 // reports that are too old (21 days) are not uploaded
@@ -26,7 +31,8 @@ func tooOld(date string) bool {
 		logger.Printf("tooOld: %v", err)
 		return false
 	}
-	return now().Sub(t) > distantPast
+	age := thisInstant.Sub(t)
+	return age > distantPast
 }
 
 // return the expiry date of a countfile in YYYY-MM-DD format
@@ -57,14 +63,13 @@ func expiry(fname string) time.Time {
 		logger.Printf("time.Parse: %v for %s", err, fname)
 		return farFuture // don't process it, whatever it is
 	}
-	// TODO(pjw): check for off-by-one-day?
 	return expiry
 }
 
 // stillOpen returns true if the counter file might still be active
 func stillOpen(fname string) bool {
 	expiry := expiry(fname)
-	return expiry.After(now()) // TODO(pjw): off by one day?
+	return expiry.After(thisInstant)
 }
 
 // avoid parsing count files multiple times

@@ -11,9 +11,10 @@ import (
 	"golang.org/x/telemetry/internal/counter"
 )
 
-// this sends an empty valid report to the server
+// this sends an empty valid report to the real server
 func TestRun(t *testing.T) {
 	// don't run this test on the builders
+	// don't run this test with other tests
 	t.Skip("for manual testing only")
 
 	log.SetFlags(log.Lshortfile)
@@ -21,7 +22,7 @@ func TestRun(t *testing.T) {
 	c := counter.New("testing")
 
 	c.Inc()
-	now = future(15)
+	thisInstant = future(15)
 	finished() // for Windows
 
 	Run(nil)

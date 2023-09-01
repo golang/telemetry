@@ -29,10 +29,11 @@ func Run(c *telemetry.Control) {
 		}
 	}
 	todo := findWork(it.LocalDir, it.UploadDir)
-	if err := reports(todo); err != nil {
+	ready, err := reports(&todo)
+	if err != nil {
 		logger.Printf("reports: %v", err)
 	}
-	for _, f := range todo.readyfiles {
+	for _, f := range ready {
 		uploadReport(f)
 	}
 }

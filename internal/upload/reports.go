@@ -26,37 +26,36 @@ var (
 )
 
 // reports generates reports from inactive count files
-func reports(todo work) error {
+func reports(todo *work) ([]string, error) {
 	if it.Mode() == "off" {
-		return nil // no reports
+		return nil, nil // no reports
 	}
-	// lastWeek is needed for that field in reports
+	today := thisInstant.Format("2006-01-02")
 	lastWeek := latestReport(todo.uploaded)
+	if lastWeek >= today { //should never happen
+		lastWeek = ""
+	}
 	countFiles := make(map[string][]string) // date->filename
 	for _, f := range todo.countfiles {
-		countFiles[expiryDate(f)] = append(countFiles[expiryDate(f)], f)
+		exp := expiryDate(f)
+		if exp < today {
+			countFiles[exp] = append(countFiles[exp], f)
+		}
 	}
 	for k, v := range countFiles {
-		if notNeeded(k, todo) {
-			// the report already exists. There's another check in createReport.
+		if notNeeded(k, *todo) || tooOld(k) {
+			// Too old, or the report already exists.
+			// There's another check in createReport.
+			deleteFiles(v)
 			continue
 		}
 		fname, err := createReport(k, v, lastWeek)
 		if err != nil {
-			return err
-		}
-		// the report has been created, so delete the count files
-		for _, f := range v {
-			if err := os.Remove(f); err != nil {
-				// ignore. if this happens it's maybe a race
-				// which is mostly handled in createReport.
-				// Conversely, on Windows, err may be nil and
-				// the file not deleted if anyone has it open.
-			}
+			return nil, err
 		}
 		todo.readyfiles = append(todo.readyfiles, fname)
 	}
-	return nil
+	return todo.readyfiles, nil
 }
 
 // latestReport returns the YYYY-MM-DD of the last report uploaded
@@ -91,8 +90,19 @@ func notNeeded(date string, todo work) bool {
 	return false
 }
 
-// createReports for all the count files for the same date
-// it returns the absolute path name of the file containing the report
+func deleteFiles(files []string) {
+	for _, f := range files {
+		if err := os.Remove(f); err != nil {
+			// this could be a race condition.
+			// conversely, on Windows, err may be nil and
+			// the file not deleted if anyone has it open.
+			logger.Printf("%v failed to remove %s", err, f)
+		}
+	}
+}
+
+// createReports for all the count files for the same date.
+// returns the absolute path name of the file containing the report
 func createReport(date string, files []string, lastWeek string) (string, error) {
 	if uploadConfig == nil {
 		a, v, err := configstore.Download("latest", nil)
@@ -200,9 +210,11 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 	// if either file exists, someone has been here ahead of us
 	// (there is still a race, but this check shortens the open window)
 	if _, err := os.Stat(localFileName); err == nil {
+		deleteFiles(files)
 		return "", fmt.Errorf("report %s already exists", localFileName)
 	}
 	if _, err := os.Stat(uploadFileName); err == nil {
+		deleteFiles(files)
 		return "", fmt.Errorf("local report %s already exists", uploadFileName)
 	}
 	// write the uploadable file
@@ -221,6 +233,7 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 	if errUpload != nil {
 		return "", fmt.Errorf("failed to write upload file %s (%v)", uploadFileName, errUpload)
 	}
+	deleteFiles(files)
 	return uploadFileName, nil
 }
 

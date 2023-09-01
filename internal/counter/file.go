@@ -355,6 +355,7 @@ func Open() func() {
 	mainCounter.Add(1)
 	defaultFile.rotate()
 	return func() {
+		// Once this has been called, the defaultFile is no longer usable.
 		mf := defaultFile.current.Load()
 		if mf == nil {
 			// telemetry might have been off

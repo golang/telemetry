@@ -10,17 +10,27 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	it "golang.org/x/telemetry/internal/telemetry"
 )
 
-//var uploadURL = "https://exp-telemetry-l2wtsklj5q-uc.a.run.app/upload"
-
-// default for mode 'on'
+// default for mode 'on'. Overridden in tests.
 var uploadURL = "https://telemetry.go.dev/upload"
 
+var dateRE = regexp.MustCompile(`(\d\d\d\d-\d\d-\d\d)[.]json$`)
+
 func uploadReport(fname string) {
+	// first make sure it is not in the future
+	today := thisInstant.Format("2006-01-02")
+	match := dateRE.FindStringSubmatch(fname)
+	if match == nil || len(match) < 2 {
+		logger.Printf("report name seemed to have no date %q", filepath.Base(fname))
+	} else if match[1] > today {
+		logger.Printf("report %q is later than today %s", filepath.Base(fname), today)
+		return // report is in the future, which shouldn't happen
+	}
 	buf, err := os.ReadFile(fname)
 	if err != nil {
 		logger.Printf("%v reading %s", err, fname)

@@ -10,11 +10,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 
-	"golang.org/x/telemetry"
 	it "golang.org/x/telemetry/internal/telemetry"
 )
 
@@ -27,28 +27,58 @@ func setup(t *testing.T) {
 		addr := <-serverChan
 		uploadURL = addr.path
 		t.Logf("server started at %s", uploadURL)
+
+		logger = log.Default()
+		logger.SetFlags(log.Lshortfile)
+		dir := t.TempDir()
+		it.LocalDir = dir + "/local"
+		it.UploadDir = dir + "/upload"
+		os.MkdirAll(it.LocalDir, 0777)
+		os.MkdirAll(it.UploadDir, 0777)
+		it.ModeFile = it.ModeFilePath(dir + "/mode")
+		it.ModeFile.SetMode("on")
+		// set weekends?
 	}
-	logger = log.Default()
-	logger.SetFlags(log.Lshortfile)
-	dir := t.TempDir()
-	it.LocalDir = dir + "/local"
-	it.UploadDir = dir + "/upload"
+	// make sure they exist, in case the test cleanup removed them
+	// but Open() still can't be called twice
 	os.MkdirAll(it.LocalDir, 0777)
 	os.MkdirAll(it.UploadDir, 0777)
-	it.ModeFile = it.ModeFilePath(dir + "/mode")
-	it.ModeFile.SetMode("on")
-	it.SetMode(uploadURL)
 }
 
 func restore() {
-	now = time.Now
+	thisInstant = time.Now().UTC() // probably pointless
 }
 
-func future(days int) func() time.Time {
-	return func() time.Time {
-		x := time.Duration(days)
-		// make sure we're really x days in the future
-		return time.Now().Add(x*24*time.Hour + 1*time.Second)
+func future(days int) time.Time {
+
+	x := time.Duration(days)
+	// make sure we're really x days in the future
+	return time.Now().Add(x*24*time.Hour + 1*time.Second)
+
+}
+
+func setDay(d string) time.Time {
+	x, err := time.Parse("2006-01-02", d)
+	if err != nil {
+		log.Fatalf("couldn't parse time %s", d)
+	}
+	return x
+}
+
+func cleanDir(t *testing.T, test *Test, dir string) {
+	fis, err := os.ReadDir(dir)
+	if err != nil {
+		msg := "nil test"
+		if test != nil {
+			msg = test.name
+		}
+		t.Errorf("couldn't clean dir for test %s (%v), %s", msg, err, dir)
+	}
+	for _, f := range fis {
+		fname := filepath.Join(dir, f.Name())
+		if err := os.Remove(fname); err != nil {
+			t.Logf("%v removing %s", err, fname)
+		}
 	}
 }
 
@@ -96,87 +126,4 @@ func handlerFunc(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "read failed", http.StatusTeapot)
 	}
 	serverChan <- msg{path: r.URL.Path, length: len(buf)}
-}
-
-var testUploadConfig = &telemetry.UploadConfig{
-	GOOS: []string{
-		"android",
-		"darwin",
-		"dragonfly",
-		"freebsd",
-		"illumos",
-		"js",
-		"linux",
-		"nacl",
-		"netbsd",
-		"openbsd",
-		"plan9",
-		"solaris",
-		"windows",
-	},
-	GOARCH: []string{
-		"386",
-		"amd64",
-		"amd64p32",
-		"arm",
-		"armbe",
-		"arm64",
-		"arm64be",
-		"mips",
-		"mipsle",
-		"mips64",
-		"mips64le",
-		"mips64p32",
-		"mips64p32le",
-		"ppc64",
-		"ppc64le",
-		"riscv",
-		"riscv64",
-		"s390x",
-		"sparc",
-		"sparc64",
-		"wasm",
-	},
-	GoVersion: []string{
-		"go1.19",
-		"go1.20",
-		"go1.21",
-		"go1.22",
-	},
-	Programs: []*telemetry.ProgramConfig{
-		{
-			Name: "debug.test",
-			Counters: []telemetry.CounterConfig{
-				{
-					Name: "counter/main",
-					Rate: 1.0,
-				},
-			},
-		}, {
-			Name: "upload.test",
-			Counters: []telemetry.CounterConfig{
-				{
-					Name: "counter/main",
-					Rate: 1.0,
-				},
-			},
-		}, {
-			Name: "upload.test-devel",
-			Counters: []telemetry.CounterConfig{
-				{
-					Name: "counter/main",
-					Rate: 1.0,
-				},
-			},
-		},
-		{
-			Name: "test",
-			Counters: []telemetry.CounterConfig{
-				{
-					Name: "counter/main",
-					Rate: 1.0,
-				},
-			},
-		},
-	},
 }
