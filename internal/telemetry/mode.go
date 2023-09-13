@@ -41,7 +41,7 @@ func init() {
 }
 
 // SetMode updates the telemetry mode with the given mode.
-// Acceptable values for mode are "on", "off", "local", or https:// urls.
+// Acceptable values for mode are "on", "off", or "local".
 func SetMode(mode string) error {
 	return ModeFile.SetMode(mode)
 }
