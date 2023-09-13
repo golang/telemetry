@@ -1,10 +1,28 @@
-# Note: this is not an approved graph config, but merely demonstrates the
-# config generation feature during development.
+# Note: this is an approved graph config. This is embedded in the configgen program.
+# For the graph config file format, see golang.org/x/telemetry/internal/graphconfig.
 
 title: Editor Distribution
 counter: gopls/client:{vscode,vscodium,vscode-insiders,code-server,eglot,govim,neovim,coc.nvim,sublimetext,other}
 description: measure editor distribution for gopls users.
 type: partition
 issue: https://go.dev/issue/61038
+issue: https://go.dev/issue/62214 # add vscode-insiders
 program: golang.org/x/tools/gopls
 version: v0.13.0 # temporarily back-version to demonstrate config generation.
+---
+title: Go versions in use for gopls views
+counter: gopls/goversion:{1.16,1.17,1.18,1.19,1.20,1.21,1.22,1.23,1.24,1.25,1.26,1.27,1.28,1.29,1.30}
+description: measure go version usage distribution.
+type: partition
+issue: https://go.dev/issue/62248
+program: golang.org/x/tools/gopls
+version: v0.13.0
+---
+title: Number of bug report calls
+counter: gopls/bug
+description: count the bugs reported through gopls/internal/bug APIs.
+type: stack
+issue: https://go.dev/issue/62249
+program: golang.org/x/tools/gopls
+depth: 16
+version: v0.13.0

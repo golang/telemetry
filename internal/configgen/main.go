@@ -7,7 +7,8 @@
 //go:build go1.21
 
 // Package configgen generates the upload config file stored in the config.json
-// file of golang.org/x/telemetry/config.
+// file of golang.org/x/telemetry/config based on the graphconfig stored in
+// config.txt.
 package main
 
 import (
