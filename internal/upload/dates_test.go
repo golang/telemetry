@@ -54,7 +54,8 @@ func TestDates(t *testing.T) {
 			date:   "2020-01-01",
 			begins: "2020-01-01",
 			ends:   olderThan(t, today, distantPast, "oldcountfile"),
-			// locals, readys, uploads are empty, and there should be nothing left
+			// one local; readys, uploads are empty, and there should be nothing left
+			wantLocal: 1,
 		},
 		{ // test that a count file expiring today is left alone
 			name:       "todayscountfile",
@@ -113,7 +114,6 @@ func TestDates(t *testing.T) {
 		}
 		used[tx.name] = tx.name
 		used[tx.date] = tx.name
-		log.Printf("doing %s", tx.name)
 		doTest(t, &tx, cs)
 	}
 }

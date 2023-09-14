@@ -43,8 +43,8 @@ func reports(todo *work) ([]string, error) {
 		}
 	}
 	for k, v := range countFiles {
-		if notNeeded(k, *todo) || tooOld(k) {
-			// Too old, or the report already exists.
+		if notNeeded(k, *todo) {
+			// The report already exists.
 			// There's another check in createReport.
 			deleteFiles(v)
 			continue
