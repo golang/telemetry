@@ -299,10 +299,12 @@ func TestNewFile(t *testing.T) {
 }
 
 func TestWeekendsNewUser(t *testing.T) {
+	testenv.SkipIfUnsupportedPlatform(t)
 	commonWeekends(t, false)
 }
 
 func TestWeekendsOldUser(t *testing.T) {
+	testenv.SkipIfUnsupportedPlatform(t)
 	commonWeekends(t, true)
 }
 
