@@ -69,6 +69,14 @@ func TestBasic(t *testing.T) {
 	}
 }
 
+func TestMissingLocalDir(t *testing.T) {
+	err := os.RemoveAll(telemetry.LocalDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	TestBasic(t)
+}
+
 func TestParallel(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 

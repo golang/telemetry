@@ -203,10 +203,15 @@ func fileValidity(now time.Time) (int, error) {
 	weekends := filepath.Join(telemetry.LocalDir, "weekends")
 	day := fmt.Sprintf("%d\n", rand.Intn(7))
 	if _, err := os.ReadFile(weekends); err != nil {
+		if err := os.MkdirAll(telemetry.LocalDir, 0777); err != nil {
+			log.Printf("%v: could not create telemetry.LocalDir %s", err, telemetry.LocalDir)
+			return 0, err
+		}
 		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
 			return 0, err
 		}
 	}
+
 	// race is over, read the file
 	buf, err := os.ReadFile(weekends)
 	// There is no reasonable way of recovering from errors
