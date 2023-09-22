@@ -41,7 +41,7 @@ func init() {
 }
 
 // SetMode updates the telemetry mode with the given mode.
-// Acceptable values for mode are "on", "off", or "local".
+// Acceptable values for mode are "on" or "off".
 func SetMode(mode string) error {
 	return ModeFile.SetMode(mode)
 }
@@ -49,7 +49,7 @@ func SetMode(mode string) error {
 func (m ModeFilePath) SetMode(mode string) error {
 	mode = strings.TrimSpace(mode)
 	switch mode {
-	case "on", "off", "local":
+	case "on", "off":
 	default:
 		return fmt.Errorf("invalid telemetry mode: %q", mode)
 	}
@@ -76,7 +76,7 @@ func (m ModeFilePath) Mode() string {
 	}
 	data, err := os.ReadFile(fname)
 	if err != nil {
-		return "local" // default
+		return "off" // default
 	}
 	mode := string(data)
 	mode = strings.TrimSpace(mode)

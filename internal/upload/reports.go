@@ -27,9 +27,6 @@ var (
 
 // reports generates reports from inactive count files
 func reports(todo *work) ([]string, error) {
-	if it.Mode() == "off" {
-		return nil, nil // no reports
-	}
 	today := thisInstant.Format("2006-01-02")
 	lastWeek := latestReport(todo.uploaded)
 	if lastWeek >= today { //should never happen
@@ -113,7 +110,7 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 		configVersion = v
 	}
 	uploadOK := true
-	if uploadConfig == nil || it.Mode() == "local" {
+	if uploadConfig == nil || it.Mode() != "on" {
 		uploadOK = false // no config, nothing to upload
 	}
 	if tooOld(date) {

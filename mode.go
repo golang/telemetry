@@ -10,19 +10,16 @@ import (
 
 // Mode returns the current telemetry mode.
 //
-// The telemetry mode is a global value that controls both the collection and
-// uploading of telemetry data. When collection is enabled, telemetry counters
-// and stack information are written to the local file system and may be
-// inspected with the [gotelemetry] command. When uploading is enabled, this
-// anonymous data is periodically uploaded to remote servers.
+// The telemetry mode is a global value that controls the
+// uploading of telemetry data. Possible mode values are:
+//   - "on":    uploading is enabled
+//   - "off":   uploading is disabled
 //
-// Possible mode values are:
-//   - "on":    both collection and uploading are enabled
-//   - "local": telemetry collection is enabled, but uploading is disabled
-//   - "off":   both collection and uploading are disabled
+// When mode is "off", local data is still written to the local file system and
+// may be inspected with the [gotelemetry] command.
 //
 // If an error occurs while reading the telemetry mode from the file system,
-// Mode returns the default value "local".
+// Mode returns the default value "off".
 //
 // [gotelemetry]: https://pkg.go.dev/golang.org/x/telemetry/cmd/gotelemetry
 func Mode() string {

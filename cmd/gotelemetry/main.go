@@ -71,7 +71,7 @@ func usage() {
 	w := flag.CommandLine.Output()
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "\tgotelemetry")
-	fmt.Fprintln(w, "\tgotelemetry set <on|off|local>")
+	fmt.Fprintln(w, "\tgotelemetry set <on|off>")
 	fmt.Fprintln(w, "\tgotelemetry dump [file1 file2 ...]")
 	fmt.Fprintln(w, "\tgotelemetry view (runs web server)")
 	fmt.Fprintln(w, "\tgotelemetry csv (prints all known counters)")
