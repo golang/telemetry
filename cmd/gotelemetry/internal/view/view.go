@@ -9,7 +9,6 @@ package view
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"html"
 	"html/template"
@@ -34,20 +33,21 @@ import (
 	"golang.org/x/telemetry/internal/unionfs"
 )
 
-var (
-	addr     = flag.String("addr", "localhost:4040", "server listens on the given TCP network address")
-	dev      = flag.Bool("dev", false, "rebuild static assets on save")
-	fsConfig = flag.String("config", "", "load a config from the filesystem")
-	open     = flag.Bool("open", true, "open the browser to the server address")
-)
+type Server struct {
+	Addr     string
+	Dev      bool
+	FsConfig string
+	Open     bool
+}
 
-func Start() {
-	flag.Parse()
+// Serve starts the telemetry viewer and runs indefinitely.
+func (s *Server) Serve() {
 	var fsys fs.FS = contentfs.FS
-	if *dev {
+	if s.Dev {
 		fsys = os.DirFS("internal/content")
 		contentfs.WatchStatic()
 	}
+
 	var err error
 	fsys, err = unionfs.Sub(fsys, "gotelemetryview", "shared")
 	if err != nil {
@@ -55,14 +55,14 @@ func Start() {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/", handleIndex(fsys))
-	listener, err := net.Listen("tcp", *addr)
+	mux.Handle("/", s.handleIndex(fsys))
+	listener, err := net.Listen("tcp", s.Addr)
 	if err != nil {
 		log.Fatal(err)
 	}
 	addr := fmt.Sprintf("http://%s", listener.Addr())
 	fmt.Printf("server listening at %s\n", addr)
-	if *open {
+	if s.Open {
 		browser.Open(addr)
 	}
 	log.Fatal(http.Serve(listener, mux))
@@ -92,14 +92,14 @@ type page struct {
 }
 
 // TODO: filtering and pagination for date ranges
-func handleIndex(fsys fs.FS) handlerFunc {
+func (s *Server) handleIndex(fsys fs.FS) handlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.URL.Path != "/" {
 			http.FileServer(http.FS(fsys)).ServeHTTP(w, r)
 			return nil
 		}
 		requestedConfig := r.URL.Query().Get("config")
-		cfg, err := configAt(requestedConfig)
+		cfg, err := s.configAt(requestedConfig)
 		if err != nil {
 			return err
 		}
@@ -139,12 +139,12 @@ There is nothing to report.`, it.LocalDir)
 }
 
 // configAt gets the config at a given version.
-func configAt(version string) (ucfg *config.Config, err error) {
+func (s Server) configAt(version string) (ucfg *config.Config, err error) {
 	if version == "" || version == "empty" {
 		return config.NewConfig(&telemetry.UploadConfig{}), nil
 	}
-	if *fsConfig != "" {
-		ucfg, err = config.ReadConfig(*fsConfig)
+	if s.FsConfig != "" {
+		ucfg, err = config.ReadConfig(s.FsConfig)
 		if err != nil {
 			return nil, err
 		}

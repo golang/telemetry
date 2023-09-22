@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Gotelemetry provides utilities to manage telemetry collection settings.
+//go:generate go test -run=TestDocHelp -update
+
 package main
 
 import (
@@ -21,56 +22,170 @@ import (
 	it "golang.org/x/telemetry/internal/telemetry"
 )
 
-func main() {
-	log.SetFlags(0)
-	flag.Usage = usage
-	flag.Parse()
+type command struct {
+	usage   string
+	short   string
+	long    string
+	flags   *flag.FlagSet
+	hasArgs bool
+	run     func([]string)
+}
 
-	args := flag.Args()
-	if len(args) == 0 {
-		printSetting()
-		return
+func (c command) name() string {
+	name, _, _ := strings.Cut(c.usage, " ")
+	return name
+}
+
+var (
+	viewFlags      = flag.NewFlagSet("view", flag.ExitOnError)
+	viewServer     view.Server
+	normalCommands = []*command{
+		{
+			usage: "on",
+			short: "enable telemetry uploading",
+			long: `Gotelemetry on enables telemetry uploading.
+
+When telemetry is enabled, telemetry data is periodically sent to https://telemetry.go.dev/. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
+
+For more details, see https://telemetry.go.dev/privacy.
+This data is collected in accordance with the Google Privacy Policy (https://policies.google.com/privacy).
+
+To disable telemetry uploading, run “gotelemetry off”`,
+			run: runOn,
+		},
+		{
+			usage: "off",
+			short: "disable telemetry uploading",
+			long: `Gotelemetry off disables telemetry uploading.
+
+When telemetry uploading is off, local counters data will still be written to the local file system, but will not be uploaded to remove servers.
+
+To enable telemetry uploading, run “gotelemetry on”`,
+			run: runOff,
+		},
+		{
+			usage: "view [flags]",
+			short: "run a web viewer for local telemetry data",
+			long: `Gotelemetry view runs a web viewer for local telemetry data.
+
+This viewer displays charts for locally collected data, as well as information about the current upload configuration.`,
+			flags: viewFlags,
+			run:   runView,
+		},
+		{
+			usage: "env",
+			short: "print the current telemetry environment",
+			run:   runEnv,
+		},
 	}
-	switch cmd := args[0]; cmd {
-	case "on", "off":
-		if err := setMode(args); err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			usage()
-			os.Exit(1)
-		} else if cmd == "on" {
-			// We could perhaps only show the telemetry on message when the mode goes
-			// from off->on (i.e. check the previous state before calling setMode),
-			// but that seems like an unnecessary optimization.
-			fmt.Fprintln(os.Stderr, telemetryOnMessage())
+	experimentalCommands = []*command{
+		{
+			usage: "csv",
+			short: "print all known counters",
+			run:   runCSV,
+		},
+		{
+			usage:   "dump [files]",
+			short:   "view counter file data",
+			run:     runDump,
+			hasArgs: true,
+		},
+	}
+)
+
+func init() {
+	viewFlags.StringVar(&viewServer.Addr, "addr", "localhost:4040", "server listens on the given TCP network address")
+	viewFlags.BoolVar(&viewServer.Dev, "dev", false, "rebuild static assets on save")
+	viewFlags.StringVar(&viewServer.FsConfig, "config", "", "load a config from the filesystem")
+	viewFlags.BoolVar(&viewServer.Open, "open", true, "open the browser to the server address")
+
+	for _, cmd := range append(normalCommands, experimentalCommands...) {
+		name := cmd.name()
+		if cmd.flags == nil {
+			cmd.flags = flag.NewFlagSet(name, flag.ExitOnError)
 		}
-	case "dump":
-		counterDump(args[1:]...)
-	case "help":
-		flag.CommandLine.SetOutput(os.Stdout)
-		flag.Usage()
-	case "view":
-		view.Start()
-	case "csv":
-		csv.Csv()
-	default:
-		flag.Usage()
+		cmd.flags.Usage = func() {
+			help(name)
+		}
 	}
 }
 
-func printSetting() {
-	fmt.Println("[-h for help]")
-	fmt.Printf("mode: %s\n", it.Mode())
-	fmt.Println()
-	fmt.Println("modefile: ", it.ModeFile)
-	fmt.Println("localdir: ", it.LocalDir)
-	fmt.Println("uploaddir:", it.UploadDir)
+func output(msgs ...any) {
+	fmt.Fprintln(flag.CommandLine.Output(), msgs...)
 }
 
-func setMode(args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("expected 2 args for set, not %d", len(args))
+func usage() {
+	printCommand := func(cmd *command) {
+		output(fmt.Sprintf("\t%s\t%s", cmd.name(), cmd.short))
 	}
-	return it.SetMode(args[0])
+	output("Gotelemetry is a tool for managing Go telemetry data and settings.")
+	output()
+	output("Usage:")
+	output()
+	output("\tgotelemetry <command> [arguments]")
+	output()
+	output("The commands are:")
+	output()
+	for _, cmd := range normalCommands {
+		printCommand(cmd)
+	}
+	output()
+	output("Use \"gotelemetry help <command>\" for details about any command.")
+	output()
+	output("The following additional commands are available for diagnostic")
+	output("purposes, and may change or be removed in the future:")
+	output()
+	for _, cmd := range experimentalCommands {
+		printCommand(cmd)
+	}
+}
+
+func failf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, fmt.Sprintf(format, args...))
+	os.Exit(1)
+}
+
+func findCommand(name string) *command {
+	for _, cmd := range append(normalCommands, experimentalCommands...) {
+		if cmd.name() == name {
+			return cmd
+		}
+	}
+	return nil
+}
+
+func help(name string) {
+	cmd := findCommand(name)
+	if cmd == nil {
+		failf("unknown command %q", name)
+	}
+	output(fmt.Sprintf("Usage: gotelemetry %s", cmd.usage))
+	output()
+	if cmd.long != "" {
+		output(cmd.long)
+	} else {
+		output(fmt.Sprintf("Gotelemetry %s is used to %s.", cmd.name(), cmd.short))
+	}
+	anyflags := false
+	cmd.flags.VisitAll(func(*flag.Flag) {
+		anyflags = true
+	})
+	if anyflags {
+		output()
+		output("Flags:")
+		output()
+		cmd.flags.PrintDefaults()
+	}
+}
+
+func runOn(_ []string) {
+	if err := it.SetMode("on"); err != nil {
+		failf("Failed to enable telemetry: %v", err)
+	}
+	// We could perhaps only show the telemetry on message when the mode goes
+	// from off->on (i.e. check the previous state before calling setMode),
+	// but that seems like an unnecessary optimization.
+	fmt.Fprintln(os.Stderr, telemetryOnMessage())
 }
 
 func telemetryOnMessage() string {
@@ -83,21 +198,29 @@ This data is collected in accordance with the Google Privacy Policy (https://pol
 To disable telemetry uploading, run “gotelemetry off”`, reportDate)
 }
 
-func usage() {
-	w := flag.CommandLine.Output()
-	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintln(w, "\tgotelemetry")
-	fmt.Fprintln(w, "\tgotelemetry on")
-	fmt.Fprintln(w, "\tgotelemetry off")
-	fmt.Fprintln(w, "\tgotelemetry dump [file1 file2 ...]")
-	fmt.Fprintln(w, "\tgotelemetry view (runs web server)")
-	fmt.Fprintln(w, "\tgotelemetry csv (prints all known counters)")
-	fmt.Fprintln(w, "\tgotelemetry help")
-	fmt.Fprintln(w, "Flags:")
-	flag.CommandLine.PrintDefaults()
+func runOff(_ []string) {
+	if err := it.SetMode("off"); err != nil {
+		failf("Failed to disable telemetry: %v", err)
+	}
 }
 
-func counterDump(args ...string) {
+func runView(_ []string) {
+	viewServer.Serve()
+}
+
+func runEnv(_ []string) {
+	fmt.Println("mode:", it.Mode())
+	fmt.Println()
+	fmt.Println("modefile:", it.ModeFile)
+	fmt.Println("localdir:", it.LocalDir)
+	fmt.Println("uploaddir:", it.UploadDir)
+}
+
+func runCSV(args []string) {
+	csv.Csv()
+}
+
+func runDump(args []string) {
 	if len(args) == 0 {
 		localdir := it.LocalDir
 		fi, err := os.ReadDir(localdir)
@@ -129,4 +252,44 @@ func counterDump(args ...string) {
 		}
 		fmt.Printf("-- %v --\n%s\n", file, js)
 	}
+}
+
+func main() {
+	log.SetFlags(0)
+	flag.Usage = usage
+	flag.Parse()
+
+	args := flag.Args()
+	if flag.NArg() == 0 {
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	if args[0] == "help" {
+		flag.CommandLine.SetOutput(os.Stdout)
+		switch len(args) {
+		case 1:
+			flag.Usage()
+		case 2:
+			help(args[1])
+		default:
+			flag.Usage()
+			failf("too many arguments to \"help\"")
+		}
+		os.Exit(0)
+	}
+
+	cmd := findCommand(args[0])
+	if cmd == nil {
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	cmd.flags.Parse(args[1:]) // will exit on error
+	args = cmd.flags.Args()
+	if !cmd.hasArgs && len(args) > 0 {
+		help(cmd.name())
+		failf("command %s does not accept any arguments", cmd.name())
+	}
+	cmd.run(args)
 }
