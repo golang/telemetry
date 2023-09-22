@@ -111,6 +111,11 @@ func handleIndex(fsys fs.FS) handlerFunc {
 		if err != nil {
 			return err
 		}
+		if _, err := os.Stat(it.LocalDir); err != nil {
+			return fmt.Errorf(
+				`The telemetry dir %s does not exist.
+There is nothing to report.`, it.LocalDir)
+		}
 		reports, err := reports(it.LocalDir, cfg)
 		if err != nil {
 			return err
