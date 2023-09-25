@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	it "golang.org/x/telemetry/internal/telemetry"
 )
 
 // files to handle
@@ -29,6 +31,9 @@ func findWork(localdir, uploaddir string) work {
 		logger.Printf("could not read %s, progress impossible (%v)", localdir, err)
 		return ans
 	}
+
+	mode, asof := it.Mode()
+
 	// count files end in .v1.count
 	// reports end in .json. If they are not to be uploaded they
 	// start with local.
@@ -41,10 +46,29 @@ func findWork(localdir, uploaddir string) work {
 			ans.countfiles = append(ans.countfiles, fname)
 		} else if strings.HasPrefix(fi.Name(), "local.") {
 			// skip
-		} else if strings.HasSuffix(fi.Name(), ".json") {
-			ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
+		} else if strings.HasSuffix(fi.Name(), ".json") && mode == "on" {
+			// Collect reports that are ready for upload.
+			reportDate := uploadReportDate(fi.Name())
+			if !asof.IsZero() && !reportDate.IsZero() {
+				// If both the mode asof date and the report date are present, do the
+				// right thing...
+				//
+				// (see https://github.com/golang/go/issues/63142#issuecomment-1734025130)
+				if asof.AddDate(0, 0, 7).Before(reportDate) {
+					ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
+				}
+			} else {
+				// ...otherwise fall back on the old behavior of uploading all
+				// unuploaded files.
+				//
+				// TODO(rfindley): invert this logic following more testing. We
+				// should only upload if we know both the asof date and the report
+				// date, and they are acceptable.
+				ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
+			}
 		}
 	}
+
 	fis, err = os.ReadDir(uploaddir)
 	if err != nil {
 		os.MkdirAll(uploaddir, 0777)

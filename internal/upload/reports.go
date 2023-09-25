@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/configstore"
@@ -110,11 +111,25 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 		configVersion = v
 	}
 	uploadOK := true
-	if uploadConfig == nil || it.Mode() != "on" {
+	mode, asof := it.Mode()
+	if uploadConfig == nil || mode != "on" {
 		uploadOK = false // no config, nothing to upload
 	}
 	if tooOld(date) {
 		uploadOK = false
+	}
+	if uploadOK && !asof.IsZero() {
+		// If the mode is recorded with an asof date, don't upload if the asof date
+		// is too recent.
+		uploadOK = false
+		t, err := time.Parse("2006-01-02", date)
+		if err == nil {
+			if asof.AddDate(0, 0, 7).Before(t) {
+				uploadOK = true
+			}
+		} else {
+			logger.Printf("parsing report date: %v", err)
+		}
 	}
 	// should we check that all the x.Meta are consistent for GOOS, GOARCH, etc?
 	report := &telemetry.Report{

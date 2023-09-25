@@ -23,7 +23,8 @@ import (
 //
 // [gotelemetry]: https://pkg.go.dev/golang.org/x/telemetry/cmd/gotelemetry
 func Mode() string {
-	return it.Mode()
+	mode, _ := it.Mode()
+	return mode
 }
 
 // SetMode sets the global telemetry mode to the given value.

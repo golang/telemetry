@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // The followings are the process' default Settings.
@@ -42,11 +43,21 @@ func init() {
 
 // SetMode updates the telemetry mode with the given mode.
 // Acceptable values for mode are "on" or "off".
+//
+// SetMode always writes the mode file, and explicitly records the date at
+// which the modefile was updated. This means that calling SetMode with "on"
+// effectively resets the timeout before the next telemetry report is uploaded.
 func SetMode(mode string) error {
 	return ModeFile.SetMode(mode)
 }
 
 func (m ModeFilePath) SetMode(mode string) error {
+	return m.SetModeAsOf(mode, time.Now())
+}
+
+// SetModeAsOf is like SetMode, but accepts an explicit time to use to
+// back-date the mode state. This exists only for testing purposes.
+func (m ModeFilePath) SetModeAsOf(mode string, asofTime time.Time) error {
 	mode = strings.TrimSpace(mode)
 	switch mode {
 	case "on", "off":
@@ -60,25 +71,47 @@ func (m ModeFilePath) SetMode(mode string) error {
 	if err := os.MkdirAll(filepath.Dir(fname), 0755); err != nil {
 		return fmt.Errorf("cannot create a telemetry mode file: %w", err)
 	}
-	data := []byte(mode)
+
+	asof := asofTime.UTC().Format("2006-01-02")
+	// Defensively guarantee that we can parse the asof time.
+	if _, err := time.Parse("2006-01-02", asof); err != nil {
+		return fmt.Errorf("internal error: invalid mode date %q: %v", asof, err)
+	}
+
+	data := []byte(mode + " " + asof)
 	return os.WriteFile(fname, data, 0666)
 }
 
-// Mode returns the current telemetry mode.
-func Mode() string {
+// Mode returns the current telemetry mode, as well as the time that the mode
+// was effective.
+//
+// If there is no effective time, the second result is the zero time.
+func Mode() (string, time.Time) {
 	return ModeFile.Mode()
 }
 
-func (m ModeFilePath) Mode() string {
+func (m ModeFilePath) Mode() (string, time.Time) {
 	fname := string(m)
 	if fname == "" {
-		return "off" // it's likely LocalDir/UploadDir are empty too. Turn off telemetry.
+		return "off", time.Time{} // it's likely LocalDir/UploadDir are empty too. Turn off telemetry.
 	}
 	data, err := os.ReadFile(fname)
 	if err != nil {
-		return "off" // default
+		return "off", time.Time{} // default
 	}
 	mode := string(data)
 	mode = strings.TrimSpace(mode)
-	return mode
+
+	// Forward compatibility for https://go.dev/issue/63142#issuecomment-1734025130
+	//
+	// If the modefile contains a date, return it.
+	if idx := strings.Index(mode, " "); idx >= 0 {
+		d, err := time.Parse("2006-01-02", mode[idx+1:])
+		if err != nil {
+			d = time.Time{}
+		}
+		return mode[:idx], d
+	}
+
+	return mode, time.Time{}
 }

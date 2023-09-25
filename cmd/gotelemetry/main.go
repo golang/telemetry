@@ -209,7 +209,8 @@ func runView(_ []string) {
 }
 
 func runEnv(_ []string) {
-	fmt.Println("mode:", it.Mode())
+	m, t := it.Mode()
+	fmt.Printf("mode: %s %s\n", m, t)
 	fmt.Println()
 	fmt.Println("modefile:", it.ModeFile)
 	fmt.Println("localdir:", it.LocalDir)

@@ -232,6 +232,9 @@ func fileValidity(now time.Time) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	// TODO(rfindley): once we can rely on telemetry users setting a mode date,
+	// we don't need to implement this heuristic about the existing of json
+	// files.
 	for _, f := range fi {
 		if strings.HasSuffix(f.Name(), ".json") {
 			return int(incr), nil

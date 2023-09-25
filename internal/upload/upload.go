@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	it "golang.org/x/telemetry/internal/telemetry"
 )
@@ -19,9 +20,31 @@ import (
 // default for mode 'on'. Overridden in tests.
 var uploadURL = "https://telemetry.go.dev/upload"
 
-var dateRE = regexp.MustCompile(`(\d\d\d\d-\d\d-\d\d)[.]json$`)
+var (
+	dateRE     = regexp.MustCompile(`(\d\d\d\d-\d\d-\d\d)[.]json$`)
+	dateFormat = "2006-01-02"
+	// TODO(rfindley): use dateFormat throughout.
+)
+
+// uploadReportDate returns the date component of the upload file name, or "" if the
+// date was unmatched.
+func uploadReportDate(fname string) time.Time {
+	match := dateRE.FindStringSubmatch(fname)
+	if match == nil || len(match) < 2 {
+		logger.Printf("malformed report name: missing date: %q", filepath.Base(fname))
+		return time.Time{}
+	}
+	d, err := time.Parse(dateFormat, match[1])
+	if err != nil {
+		logger.Printf("malformed report name: bad date: %q", filepath.Base(fname))
+		return time.Time{}
+	}
+	return d
+}
 
 func uploadReport(fname string) {
+	// TODO(rfindley): use uploadReportDate here, once we've done a gopls release.
+
 	// first make sure it is not in the future
 	today := thisInstant.Format("2006-01-02")
 	match := dateRE.FindStringSubmatch(fname)

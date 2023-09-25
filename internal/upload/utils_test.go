@@ -18,7 +18,11 @@ import (
 	it "golang.org/x/telemetry/internal/telemetry"
 )
 
-func setup(t *testing.T) {
+func setup(t *testing.T, asof string) {
+	asofTime, err := time.Parse("2006-01-02", asof)
+	if err != nil {
+		t.Fatalf("parsing asof time %q: %v", asof, err)
+	}
 	if serverChan == nil {
 		// 10 is more uploads than a test will see
 		serverChan = make(chan msg, 10)
@@ -36,7 +40,7 @@ func setup(t *testing.T) {
 		os.MkdirAll(it.LocalDir, 0777)
 		os.MkdirAll(it.UploadDir, 0777)
 		it.ModeFile = it.ModeFilePath(dir + "/mode")
-		it.ModeFile.SetMode("on")
+		it.ModeFile.SetModeAsOf("on", asofTime)
 		// set weekends?
 	}
 	// make sure they exist, in case the test cleanup removed them

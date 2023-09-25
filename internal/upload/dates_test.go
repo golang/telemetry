@@ -25,7 +25,7 @@ import (
 // doing them subtest() checks the correctness of a single upload to the local server.
 func TestDates(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
-	setup(t)
+	setup(t, "2019-12-01") // back-date the telemetry acceptance
 	defer restore()
 	thisInstant = future(0)
 	finished := counter.Open()
@@ -45,9 +45,40 @@ func TestDates(t *testing.T) {
 	subtest(t) // do and check a report
 
 	// create a lot of tests, and run them
-	const today = "2020-01-24" // same for each test
+	const today = "2020-01-24"
 	const yesterday = "2020-01-23"
 	tests := []Test{ // each date must be different to subvert the parse cache
+		{ // test that existing counters and ready files are not uploaded if telemetry was recently enabled.
+			name:      "beforefirstupload",
+			today:     "2019-12-04",
+			date:      "2019-12-03",
+			begins:    "2019-12-01",
+			ends:      "2019-12-03",
+			readys:    []string{"2019-12-02"},
+			wantLocal: 1,
+			wantReady: 1,
+		},
+		{ // test that existing counters and ready files are not uploaded if telemetry was recently enabled.
+			name:          "oktoupload",
+			today:         "2019-12-10",
+			date:          "2019-12-09",
+			begins:        "2019-12-02",
+			ends:          "2019-12-09",
+			readys:        []string{"2019-12-07"},
+			wantLocal:     1,
+			wantReady:     1, // ready report is before the first upload time
+			wantUploadeds: 1, // ...but the new report is uploaded
+		},
+		{ // test that existing counters and ready files are not uploaded if telemetry was recently enabled.
+			name:          "uploadnewreport",
+			today:         "2019-12-14",
+			date:          "2019-12-12",
+			begins:        "2019-12-04",
+			ends:          "2019-12-12",
+			readys:        []string{"2019-12-13"},
+			wantLocal:     1,
+			wantUploadeds: 2, // ready report was uploaded
+		},
 		{ // test that an old countfile is removed and no reports generated
 			name:   "oldcountfile",
 			today:  today,
@@ -106,7 +137,8 @@ func TestDates(t *testing.T) {
 			wantReady:  1, // existing premature ready file
 		},
 	}
-	used := make(map[string]string) // dates have to be different, names should be
+	// Used maps ensures that test cases are for distinct dates.
+	used := make(map[string]string)
 	for _, tx := range tests {
 		if used[tx.name] != "" || used[tx.date] != "" {
 			t.Errorf("test %s reusing name or date. name:%s, date:%s",
@@ -172,17 +204,23 @@ func createUploadConfig(cfilename string) (*telemetry.UploadConfig, string) {
 	return &ans, strings.Join(flds[:4], "-") + "-"
 }
 
-// a single test
+// Test is a single test.
+//
+// All dates are in YYYY-MM-DD format.
 type Test struct {
-	name  string
-	today string
+	name  string // the test name; only used for descriptive output
+	today string // the date of the fake upload
 	// count file
-	date         string // in the name
-	begins, ends string // in the metadata
-	// reports in the local dir (entries are YYYY-MM-DD)
+	date         string // the date in of the upload file name; must be unique among tests
+	begins, ends string // the begin and end date stored in the counter metadata
+
+	// Dates of load reports in the local dir.
 	locals []string
+
+	// Dates of upload reports in the local dir.
 	readys []string
-	// already uploaded
+
+	// Dates of reports already uploaded.
 	uploads []string
 
 	// number of expected results

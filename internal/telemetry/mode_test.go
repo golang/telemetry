@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestTelemetryDefault(t *testing.T) {
@@ -27,6 +28,7 @@ func TestTelemetryDefault(t *testing.T) {
 		}
 	}
 }
+
 func TestTelemetryModeWithNoModeConfig(t *testing.T) {
 	tmp := t.TempDir()
 	tests := []struct {
@@ -37,14 +39,14 @@ func TestTelemetryModeWithNoModeConfig(t *testing.T) {
 		{"", "off"},
 	}
 	for _, tt := range tests {
-		if got := tt.modefile.Mode(); got != tt.want {
+		if got, _ := tt.modefile.Mode(); got != tt.want {
 			t.Logf("Mode file: %q", tt.modefile)
 			t.Errorf("Mode() = %v, want %v", got, tt.want)
 		}
 	}
 }
 
-func TestTelemetryMode(t *testing.T) {
+func TestSetMode(t *testing.T) {
 	tests := []struct {
 		in      string
 		wantErr bool // want error when setting.
@@ -68,8 +70,35 @@ func TestTelemetryMode(t *testing.T) {
 			if setErr != nil {
 				return
 			}
-			if got := modefile.Mode(); got != tt.in {
+			if got, _ := modefile.Mode(); got != tt.in {
 				t.Errorf("LookupMode() = %q, want %q", got, tt.in)
+			}
+		})
+	}
+}
+
+func TestMode(t *testing.T) {
+	tests := []struct {
+		in       string
+		wantMode string
+		wantTime time.Time
+	}{
+		{"on", "on", time.Time{}},
+		{"on 2023-09-26", "on", time.Date(2023, time.September, 26, 0, 0, 0, 0, time.UTC)},
+		{"off", "off", time.Time{}},
+		{"local", "local", time.Time{}},
+	}
+	tmp := t.TempDir()
+	for i, tt := range tests {
+		t.Run("mode="+tt.in, func(t *testing.T) {
+			fname := filepath.Join(tmp, fmt.Sprintf("modefile%d", i))
+			if err := os.WriteFile(fname, []byte(tt.in), 0666); err != nil {
+				t.Fatal(err)
+			}
+			// Note: the checks below intentionally do not use time.Equal:
+			// we want this exact representation of time.
+			if gotMode, gotTime := ModeFilePath(fname).Mode(); gotMode != tt.wantMode || gotTime != tt.wantTime {
+				t.Errorf("ModeFilePath(contents=%s).Mode() = %q, %v, want %q, %v", tt.in, gotMode, gotTime, tt.wantMode, tt.wantTime)
 			}
 		})
 	}
