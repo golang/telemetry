@@ -14,6 +14,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"golang.org/x/telemetry/internal/testenv"
 )
 
 var updateDocs = flag.Bool("update", false, "if set, update docs")
@@ -27,6 +29,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestDocHelp(t *testing.T) {
+	testenv.MustHaveExec(t)
+
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
