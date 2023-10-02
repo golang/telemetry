@@ -33,21 +33,27 @@ func reports(todo *work) ([]string, error) {
 	if lastWeek >= today { //should never happen
 		lastWeek = ""
 	}
-	countFiles := make(map[string][]string) // date->filename
+	countFiles := make(map[string][]string) // expiry date string->filenames
+	earliest := make(map[string]time.Time)  // earliest begin time for any counter
 	for _, f := range todo.countfiles {
-		exp := expiryDate(f)
-		if exp < today {
-			countFiles[exp] = append(countFiles[exp], f)
+		begin, end := counterDateSpan(f)
+
+		if end.Before(thisInstant) {
+			expiry := end.Format(dateFormat)
+			countFiles[expiry] = append(countFiles[expiry], f)
+			if earliest[expiry].IsZero() || earliest[expiry].After(begin) {
+				earliest[expiry] = begin
+			}
 		}
 	}
-	for k, v := range countFiles {
-		if notNeeded(k, *todo) {
+	for expiry, files := range countFiles {
+		if notNeeded(expiry, *todo) {
 			// The report already exists.
 			// There's another check in createReport.
-			deleteFiles(v)
+			deleteFiles(files)
 			continue
 		}
-		fname, err := createReport(k, v, lastWeek)
+		fname, err := createReport(earliest[expiry], expiry, files, lastWeek)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +107,7 @@ func deleteFiles(files []string) {
 
 // createReports for all the count files for the same date.
 // returns the absolute path name of the file containing the report
-func createReport(date string, files []string, lastWeek string) (string, error) {
+func createReport(start time.Time, expiryDate string, files []string, lastWeek string) (string, error) {
 	if uploadConfig == nil {
 		a, v, err := configstore.Download("latest", nil)
 		if err != nil {
@@ -115,27 +121,19 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 	if uploadConfig == nil || mode != "on" {
 		uploadOK = false // no config, nothing to upload
 	}
-	if tooOld(date) {
+	if tooOld(expiryDate) {
 		uploadOK = false
 	}
-	if uploadOK && !asof.IsZero() {
-		// If the mode is recorded with an asof date, don't upload if the asof date
-		// is too recent.
+	// If the mode is recorded with an asof date, don't upload if the report
+	// includes any data on or before the asof date.
+	if !asof.IsZero() && !asof.Before(start) {
 		uploadOK = false
-		t, err := time.Parse("2006-01-02", date)
-		if err == nil {
-			if asof.AddDate(0, 0, 7).Before(t) {
-				uploadOK = true
-			}
-		} else {
-			logger.Printf("parsing report date: %v", err)
-		}
 	}
 	// should we check that all the x.Meta are consistent for GOOS, GOARCH, etc?
 	report := &telemetry.Report{
 		Config:   configVersion,
 		X:        computeRandom(), // json encodes all the bits
-		Week:     date,
+		Week:     expiryDate,
 		LastWeek: lastWeek,
 	}
 	// X is not being used as a probability to decide which counters to upload,
@@ -217,8 +215,8 @@ func createReport(date string, files []string, lastWeek string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal upload report (%v)", err)
 	}
-	localFileName := filepath.Join(it.LocalDir, "local."+date+".json")
-	uploadFileName := filepath.Join(it.LocalDir, date+".json")
+	localFileName := filepath.Join(it.LocalDir, "local."+expiryDate+".json")
+	uploadFileName := filepath.Join(it.LocalDir, expiryDate+".json")
 	// if either file exists, someone has been here ahead of us
 	// (there is still a race, but this check shortens the open window)
 	if _, err := os.Stat(localFileName); err == nil {

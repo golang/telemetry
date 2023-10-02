@@ -294,7 +294,7 @@ func TestNewFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		days := (timeEnd.Sub(testStartTime)) / (24 * time.Hour)
-		if days <= 7 || days > 14 {
+		if days <= 0 || days > 7 {
 			timeBegin, _ := time.Parse(time.RFC3339, cf.Meta["TimeBegin"])
 			t.Logf("testStartTime: %v file: %v TimeBegin: %v TimeEnd: %v", testStartTime, fi[0].Name(), timeBegin, timeEnd)
 			t.Errorf("%d: days = %d, want 7 < days <= 14", i, days)
@@ -306,27 +306,14 @@ func TestNewFile(t *testing.T) {
 	}
 }
 
-func TestWeekendsNewUser(t *testing.T) {
+func TestWeekends(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
-	commonWeekends(t, false)
-}
 
-func TestWeekendsOldUser(t *testing.T) {
-	testenv.SkipIfUnsupportedPlatform(t)
-	commonWeekends(t, true)
-}
-
-func commonWeekends(t *testing.T, old bool) {
-	t.Helper()
 	setup(t)
 	// get all the 49 combinations of today and when the week ends
 	for i := 0; i < 7; i++ {
 		counterTime = future(i)
 		for index := range "0123456" {
-			if old {
-				// make it look like a report has been generated
-				os.WriteFile(filepath.Join(telemetry.LocalDir, "2000-00-00.json"), []byte("{}\n"), 0666)
-			}
 			os.WriteFile(filepath.Join(telemetry.LocalDir, "weekends"), []byte{byte(index + '0')}, 0666)
 			var f file
 			c := f.New("gophers")
@@ -361,9 +348,6 @@ func commonWeekends(t *testing.T, old bool) {
 			// if we're an old user, we should have a <=7 day report
 			// if we're a new user, we should have a <=7+7 day report
 			more := 0
-			if !old {
-				more = 7
-			}
 			if delta <= 0+more || delta > 7+more {
 				t.Errorf("delta %d, expected %d<delta<=%d",
 					delta, more, more+7)

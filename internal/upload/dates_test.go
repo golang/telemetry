@@ -48,17 +48,26 @@ func TestDates(t *testing.T) {
 	const today = "2020-01-24"
 	const yesterday = "2020-01-23"
 	tests := []Test{ // each date must be different to subvert the parse cache
-		{ // test that existing counters and ready files are not uploaded if telemetry was recently enabled.
-			name:      "beforefirstupload",
-			today:     "2019-12-04",
-			date:      "2019-12-03",
-			begins:    "2019-12-01",
-			ends:      "2019-12-03",
-			readys:    []string{"2019-12-02"},
+		{ // test that existing counters and ready files are not uploaded if they span data before telemetry was enabled
+			name:   "beforefirstupload",
+			today:  "2019-12-04",
+			date:   "2019-12-03",
+			begins: "2019-12-01",
+			ends:   "2019-12-03",
+			readys: []string{"2019-12-01", "2019-12-02"},
+			// We get one local report: the newly created report.
+			// It is not ready as it begins on the same day that telemetry was
+			// enabled, and we err on the side of assuming it holds data from before
+			// the user turned on uploading.
 			wantLocal: 1,
+			// The report for 2019-12-01 is still ready, because it was not uploaded.
+			// This could happen in practice if the user disabled and then reenabled
+			// telmetry.
 			wantReady: 1,
+			// The report for 2019-12-02 was uploaded.
+			wantUploadeds: 1,
 		},
-		{ // test that existing counters and ready files are not uploaded if telemetry was recently enabled.
+		{ // test that existing counters and ready files are uploaded they only contain data after telemetry was enabled
 			name:          "oktoupload",
 			today:         "2019-12-10",
 			date:          "2019-12-09",
@@ -66,18 +75,7 @@ func TestDates(t *testing.T) {
 			ends:          "2019-12-09",
 			readys:        []string{"2019-12-07"},
 			wantLocal:     1,
-			wantReady:     1, // ready report is before the first upload time
-			wantUploadeds: 1, // ...but the new report is uploaded
-		},
-		{ // test that existing counters and ready files are not uploaded if telemetry was recently enabled.
-			name:          "uploadnewreport",
-			today:         "2019-12-14",
-			date:          "2019-12-12",
-			begins:        "2019-12-04",
-			ends:          "2019-12-12",
-			readys:        []string{"2019-12-13"},
-			wantLocal:     1,
-			wantUploadeds: 2, // ready report was uploaded
+			wantUploadeds: 2, // Both new report and existing report are uploaded.
 		},
 		{ // test that an old countfile is removed and no reports generated
 			name:   "oldcountfile",

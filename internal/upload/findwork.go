@@ -54,7 +54,14 @@ func findWork(localdir, uploaddir string) work {
 				// right thing...
 				//
 				// (see https://github.com/golang/go/issues/63142#issuecomment-1734025130)
-				if asof.AddDate(0, 0, 7).Before(reportDate) {
+				if asof.Before(reportDate) {
+					// Note: since this report was created after telemetry was enabled,
+					// we can only assume that the process that created it checked that
+					// the counter data contained therein was all from after the asof
+					// date.
+					//
+					// TODO(rfindley): store the begin date in reports, so that we can
+					// verify this assumption.
 					ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
 				}
 			} else {

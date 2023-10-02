@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"golang.org/x/telemetry/cmd/gotelemetry/internal/csv"
 	"golang.org/x/telemetry/cmd/gotelemetry/internal/view"
@@ -189,13 +188,12 @@ func runOn(_ []string) {
 }
 
 func telemetryOnMessage() string {
-	reportDate := time.Now().AddDate(0, 0, 7).Format("2006-01-02")
-	return fmt.Sprintf(`Telemetry uploading is now enabled and may be sent to https://telemetry.go.dev/ starting %s. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
+	return fmt.Sprintf(`Telemetry uploading is now enabled and data will be periodically sent to https://telemetry.go.dev/. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
 
 For more details, see https://telemetry.go.dev/privacy.
 This data is collected in accordance with the Google Privacy Policy (https://policies.google.com/privacy).
 
-To disable telemetry uploading, run “gotelemetry off”`, reportDate)
+To disable telemetry uploading, run “gotelemetry off”.`)
 }
 
 func runOff(_ []string) {
