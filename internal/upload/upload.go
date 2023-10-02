@@ -6,7 +6,6 @@ package upload
 
 import (
 	"bytes"
-	"crypto/tls"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -70,12 +69,8 @@ func uploadReportContents(fname string, buf []byte) bool {
 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
 	fdate = fdate[len(fdate)-len("2006-01-02"):]
 	server := uploadURL + "/" + fdate
-	var client *http.Client
-	// this is temporary until certificates propagate (we hope)
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	client = &http.Client{}
 
-	resp, err := client.Post(server, "application/json", b)
+	resp, err := http.Post(server, "application/json", b)
 	if err != nil {
 		logger.Printf("error on Post: %v %q for %q", err, server, fname)
 		return false
