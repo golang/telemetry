@@ -95,3 +95,33 @@ func Test_summary(t *testing.T) {
 		})
 	}
 }
+
+func TestDomain(t *testing.T) {
+	tests := []struct {
+		weeks []string
+		want  [2]string
+	}{
+		{
+			[]string{"2023-10-03"},
+			[2]string{"2023-10-01", "2023-10-08"},
+		},
+		{
+			[]string{"2023-10-03", "2023-10-07"},
+			[2]string{"2023-10-01", "2023-10-08"},
+		},
+		{
+			[]string{"2023-10-03", "2023-10-08"},
+			[2]string{"2023-10-01", "2023-10-15"},
+		},
+		{
+			[]string{"2023-10-01", "2023-10-15"},
+			[2]string{"2023-10-01", "2023-10-22"},
+		},
+	}
+
+	for _, test := range tests {
+		if got := domain(test.weeks); got != test.want {
+			t.Errorf("domain(%v) = %v, want %v", test.weeks, got, test.want)
+		}
+	}
+}

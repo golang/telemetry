@@ -408,7 +408,7 @@ type datum struct {
 // to determine if the programs and counters are active.
 func charts(reports []*telemetryReport, cfg *config.Config) *chartdata {
 	data := grouped(reports)
-	result := &chartdata{DateRange: domain(reports)}
+	result := &chartdata{DateRange: reportsDomain(reports)}
 	for pg, pgdata := range data {
 		prog := &program{ID: "charts:" + pg.Name, Name: pg.Name, Active: cfg.HasProgram(pg.Name)}
 		result.Programs = append(result.Programs, prog)
@@ -439,13 +439,34 @@ func charts(reports []*telemetryReport, cfg *config.Config) *chartdata {
 	return result
 }
 
-func domain(reports []*telemetryReport) [2]string {
+// reportsDomain computes a common reportsDomain to use for all reports, assuming a week
+// centered around sunday (the default bin behavior in the observablehq
+// plotting library).
+//
+// TODO(rfindley): use the actual weekday file to compute better bins
+// right-aligned to the upload date, or figure something else out.
+func reportsDomain(reports []*telemetryReport) [2]string {
 	var weeks []string
 	for _, r := range reports {
 		weeks = append(weeks, r.Week)
 	}
 	sort.Strings(weeks)
-	return [2]string{weeks[0], weeks[len(weeks)-1]}
+	return domain(weeks)
+}
+
+func domain(weeks []string) [2]string {
+	start := weeks[0]
+	const timeFormat = "2006-01-02"
+	if st, err := time.Parse(timeFormat, start); err == nil {
+		st = st.AddDate(0, 0, -int(st.Weekday()-time.Sunday)) // adjust to preceding Sunday
+		start = st.Format(timeFormat)
+	}
+	end := weeks[len(weeks)-1]
+	if et, err := time.Parse(timeFormat, end); err == nil {
+		et = et.AddDate(0, 0, int(time.Sunday+7-et.Weekday()))
+		end = et.Format(timeFormat) // adjust to next Saturday
+	}
+	return [2]string{start, end}
 }
 
 type programKey struct {
@@ -509,7 +530,7 @@ func grouped(reports []*telemetryReport) map[programKey]map[counterKey][]*datum 
 func pending(files []*counterFile, cfg *config.Config) []*telemetryReport {
 	reports := make(map[string]*telemetry.Report)
 	for _, f := range files {
-		tb, _ := time.Parse(time.RFC3339, f.Meta["TimeBegin"])
+		tb, _ := time.Parse(time.RFC3339, f.Meta["TimeEnd"])
 		week := tb.Format("2006-01-02")
 		if _, ok := reports[week]; !ok {
 			reports[week] = &telemetry.Report{Week: week}

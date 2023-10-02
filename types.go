@@ -38,7 +38,7 @@ type CounterConfig struct {
 type Report struct {
 	Week     string  // first day this report covers (YYYY-MM-DD)
 	LastWeek string  // Week field from latest previous report uploaded
-	X        float64 // A random proability used to determine which counters are uploaded
+	X        float64 // A random probability used to determine which counters are uploaded
 	Programs []*ProgramReport
 	Config   string // version of UploadConfig used
 }
