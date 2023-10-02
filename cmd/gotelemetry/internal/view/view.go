@@ -45,7 +45,7 @@ func (s *Server) Serve() {
 	var fsys fs.FS = contentfs.FS
 	if s.Dev {
 		fsys = os.DirFS("internal/content")
-		contentfs.WatchStatic()
+		contentfs.RunESBuild(true)
 	}
 
 	var err error

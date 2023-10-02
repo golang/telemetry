@@ -206,7 +206,7 @@ func fsys(fromOS bool) fs.FS {
 	var f fs.FS = contentfs.FS
 	if fromOS {
 		f = os.DirFS("internal/content")
-		contentfs.WatchStatic()
+		contentfs.RunESBuild(true)
 	}
 	f, err := unionfs.Sub(f, "telemetrygodev", "shared")
 	if err != nil {
