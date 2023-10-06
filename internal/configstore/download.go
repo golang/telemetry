@@ -49,12 +49,19 @@ func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, str
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		var info struct {
+			Error string
+		}
+		if err := json.Unmarshal(stdout.Bytes(), &info); err == nil && info.Error != "" {
+			return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module: %v", info.Error)
+		}
 		return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module: %w\n%s", err, &stderr)
 	}
 
 	var info struct {
 		Dir     string
 		Version string
+		Error   string
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &info); err != nil || info.Dir == "" {
 		return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module (invalid JSON): %w", err)

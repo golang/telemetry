@@ -99,9 +99,13 @@ func (s *Server) handleIndex(fsys fs.FS) handlerFunc {
 			return nil
 		}
 		requestedConfig := r.URL.Query().Get("config")
+		if requestedConfig == "" {
+			requestedConfig = "latest"
+		}
 		cfg, err := s.configAt(requestedConfig)
 		if err != nil {
-			return err
+			log.Printf("Falling back to empty config: %v", err)
+			cfg, _ = s.configAt("empty")
 		}
 		cfgVersionList, err := configVersions()
 		if err != nil {
@@ -161,7 +165,7 @@ func (s Server) configAt(version string) (ucfg *config.Config, err error) {
 // configVersions is the set of config versions the user may select from the UI.
 // TODO: get the list of versions available from the proxy.
 func configVersions() ([]string, error) {
-	v := []string{"empty", "latest", "master"}
+	v := []string{"latest"}
 	return v, nil
 }
 

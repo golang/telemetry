@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"strings"
 	"testing"
 
 	"golang.org/x/telemetry"
@@ -22,7 +23,7 @@ func TestDownload(t *testing.T) {
 	tmpdir := t.TempDir()
 	defer cleanModuleCache(t, tmpdir)
 
-	configVersion := "v0.0.0-20230526221463-e8d11ddaba41"
+	configVersion := "v0.1.0"
 	in := telemetry.UploadConfig{
 		GOOS:      []string{"darwin"},
 		GOARCH:    []string{"amd64", "arm64"},
@@ -44,15 +45,36 @@ func TestDownload(t *testing.T) {
 
 	opts := testDownloadOption(proxyURI, tmpdir)
 
-	got, _, err := Download("latest", opts)
-	if err != nil {
-		t.Fatal("failed to download the latest version:", err)
+	testCases := []struct {
+		version string
+		want    telemetry.UploadConfig
+	}{
+		{version: configVersion, want: in},
+		{version: "latest", want: in},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.version, func(t *testing.T) {
+			got, _, err := Download(tc.version, opts)
+			if err != nil {
+				t.Fatal("failed to download:", err)
+			}
+
+			want := tc.want
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("Download(latest, _) = %v\nwant %v", stringify(got), stringify(want))
+			}
+		})
 	}
 
-	want := in
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Download(latest, _) = %v\nwant %v", stringify(got), stringify(want))
-	}
+	t.Run("invalidversion", func(t *testing.T) {
+		got, ver, err := Download("nonexisting", opts)
+		if err == nil {
+			t.Fatalf("download succeeded unexpectedly: %v %+v", ver, got)
+		}
+		if !strings.Contains(err.Error(), "invalid version") {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
 }
 
 func stringify(x any) string {
