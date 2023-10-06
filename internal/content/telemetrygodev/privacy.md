@@ -74,7 +74,7 @@ You can find the set of approved counters as a Go module at
 ## IDE Integration
 
 If you're using an integrated development environment (IDE) like Visual Studio Code,
-Future versions (perhaps starting with v0.14.0) of [gopls](https://go.dev/s/gopls) 
+future versions (perhaps starting with v0.14.0) of [gopls](https://go.dev/s/gopls) 
 will collect telemetry data. As described above,
 data is only uploaded after you have opted in, either by using the command
 [`gotelemetry on`](#command) as
