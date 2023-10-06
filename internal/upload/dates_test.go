@@ -30,8 +30,9 @@ func TestDates(t *testing.T) {
 	thisInstant = future(0)
 	finished := counter.Open()
 	c := counter.New("testing")
-
 	c.Inc()
+	x := counter.NewStack("aStack", 4)
+	x.Inc()
 	thisInstant = future(15) // so it creates the count file
 	// Windows will not be able to remove the count file if it is still open
 	// (in non-test situations it would have been rotated out and closed)
@@ -193,7 +194,13 @@ func createUploadConfig(cfilename string) (*telemetry.UploadConfig, string) {
 				Versions: []string{progVers},
 				Counters: []telemetry.CounterConfig{
 					{
-						Name: "counter/main", // for the subtest
+						Name: "counter/{foo,main}", //  file.go:334 has counter/main
+					},
+				},
+				Stacks: []telemetry.CounterConfig{
+					{
+						Name:  "aStack",
+						Depth: 4,
 					},
 				},
 			},
@@ -423,6 +430,8 @@ func subtest(t *testing.T) {
 		t.Fatalf("expected to find %q in %q", want, localFile)
 	}
 
+	// all the counters except for 'testing' should be in the upload file
+	// (counter/main and the stack counter)
 	if string(uploadFile) != string(localFile[:found[0]])+string(localFile[found[1]:]) {
 		t.Fatalf("got\n%q expected\n%q", uploadFile,
 			string(localFile[:found[0]])+string(localFile[found[1]:]))

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"golang.org/x/telemetry"
+	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/configstore"
 	it "golang.org/x/telemetry/internal/telemetry"
 )
@@ -172,6 +173,7 @@ func createReport(start time.Time, expiryDate string, files []string, lastWeek s
 		return "", fmt.Errorf("failed to unmarshal local report (%v)", err)
 	}
 	// 2. create the uploadable version
+	cfg := config.NewConfig(uploadConfig)
 	upload := &telemetry.Report{
 		Week:     report.Week,
 		LastWeek: report.LastWeek,
@@ -182,35 +184,34 @@ func createReport(start time.Time, expiryDate string, files []string, lastWeek s
 		// does the uploadConfig want this program?
 		// if so, copy over the Stacks and Counters
 		// that the uploadConfig mentions.
-		if progConfig, found := findUploadProg(p); found {
-			x := &telemetry.ProgramReport{
-				Program:   p.Program,
-				Version:   p.Version,
-				GOOS:      p.GOOS,
-				GOARCH:    p.GOARCH,
-				GoVersion: p.GoVersion,
-				Counters:  make(map[string]int64),
-				Stacks:    make(map[string]int64),
+		if !cfg.HasProgram(p.Program) || !cfg.HasVersion(p.Program, p.Version) {
+			continue
+		}
+		x := &telemetry.ProgramReport{
+			Program:   p.Program,
+			Version:   p.Version,
+			GOOS:      p.GOOS,
+			GOARCH:    p.GOARCH,
+			GoVersion: p.GoVersion,
+			Counters:  make(map[string]int64),
+			Stacks:    make(map[string]int64),
+		}
+		upload.Programs = append(upload.Programs, x)
+		for k, v := range p.Counters {
+			if cfg.HasCounter(p.Program, k) {
+				x.Counters[k] = v
 			}
-			upload.Programs = append(upload.Programs, x)
-			// for each Counter found in uploadp, add it to x.Counters
-			for _, c := range progConfig.Counters {
-				if v, found := p.Counters[c.Name]; found {
-					x.Counters[c.Name] = v
-				}
-			}
-			// and the same for Stacks
-			for _, s := range progConfig.Stacks {
-				// this can be made more efficient, when it matters
-				for k, v := range p.Stacks {
-					before, _, _ := strings.Cut(k, "\n")
-					if before == s.Name {
-						x.Stacks[k] = v
-					}
-				}
+		}
+		// and the same for Stacks
+		// this can be made more efficient, when it matters
+		for k, v := range p.Stacks {
+			before, _, _ := strings.Cut(k, "\n")
+			if cfg.HasStack(p.Program, before) {
+				x.Stacks[k] = v
 			}
 		}
 	}
+
 	uploadContents, err := json.MarshalIndent(upload, "", " ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal upload report (%v)", err)
