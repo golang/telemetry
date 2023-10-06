@@ -12,7 +12,7 @@ Go Telemetry is a way for Go toolchain programs to collect data about their
 performance and usage. This data can help developers improve the language and
 tools.
 
-## What Go Telemetry Records
+## What Go Telemetry Records {#collection}
 
 Go toolchain programs, such as the `go` command and `gopls`, record certain information
 about their own execution. This data is stored in local files on your computer,
@@ -28,7 +28,7 @@ are used.
 Importantly, these files do not contain personal or other
 identifying information about you or your system.
 
-## Data Privacy
+## Data Privacy {#data-privacy}
 
 By default, the data collected by Go Telemetry is kept only locally on your computer.
 
@@ -65,13 +65,13 @@ For the complete usage documentation of the gotelemetry command line tool, visit
 [golang.org/x/telemetry/cmd/gotelemetry](https://golang.org/x/telemetry/cmd/gotelemetry).
 
 
-## Approved Counters
+## Approved Counters {#config}
 
 Go Telemetry only uploads counters that have been approved through the public proposal process.
 You can find the set of approved counters as a Go module at
 [golang.org/x/telemetry/config](https://go.googlesource.com/telemetry/+/refs/heads/master/config/config.json).
 
-## IDE Integration
+## IDE Integration {#integration}
 
 If you're using an integrated development environment (IDE) like Visual Studio Code,
 future versions (perhaps starting with v0.14.0) of [gopls](https://go.dev/s/gopls) 
