@@ -4,6 +4,8 @@
 
 //go:build go1.21
 
+// require go1.21 due to the use of testing.Testing
+
 // countertest provides testing utilities for counters.
 // This package cannot be used except for testing.
 package countertest
