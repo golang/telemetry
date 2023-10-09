@@ -246,7 +246,11 @@ func (f *file) rotate() {
 
 func nop() {}
 
-var counterTime = time.Now().UTC // can be changed for tests
+// counterTime returns the current UTC time.
+// Mutable for testing.
+var counterTime = func() time.Time {
+	return time.Now().UTC()
+}
 
 func (f *file) rotate1() (expire time.Time, cleanup func()) {
 	f.mu.Lock()
