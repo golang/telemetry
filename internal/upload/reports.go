@@ -184,7 +184,7 @@ func createReport(start time.Time, expiryDate string, files []string, lastWeek s
 		// does the uploadConfig want this program?
 		// if so, copy over the Stacks and Counters
 		// that the uploadConfig mentions.
-		if !cfg.HasProgram(p.Program) || !cfg.HasVersion(p.Program, p.Version) {
+		if !cfg.HasGoVersion(p.GoVersion) || !cfg.HasProgram(p.Program) || !cfg.HasVersion(p.Program, p.Version) {
 			continue
 		}
 		x := &telemetry.ProgramReport{
