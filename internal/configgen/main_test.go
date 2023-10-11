@@ -39,7 +39,7 @@ version: v0.14.0
 	want := telemetry.UploadConfig{
 		GOOS:      goos(),
 		GOARCH:    goarch(),
-		GoVersion: []string{"go1.20", "go1.21.0"},
+		GoVersion: []string{"go1.20", "go1.21.0", "devel"},
 		Programs: []*telemetry.ProgramConfig{{
 			Name: "golang.org/x/tools/gopls",
 			Versions: []string{

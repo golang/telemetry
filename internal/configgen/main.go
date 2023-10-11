@@ -350,6 +350,8 @@ func goVersions() ([]string, error) {
 		vers = append(vers, v)
 	}
 	sort.Sort(byGoVersion(vers))
+	// TODO(golang/go#62271): temporarily monitor 'devel'.
+	vers = append(vers, "devel")
 	return vers, nil
 }
 
