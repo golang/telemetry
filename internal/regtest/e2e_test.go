@@ -21,9 +21,11 @@ import (
 	"golang.org/x/telemetry/counter"
 	"golang.org/x/telemetry/internal/config"
 	icounter "golang.org/x/telemetry/internal/counter"
+	"golang.org/x/telemetry/internal/testenv"
 )
 
 func TestRunProg(t *testing.T) {
+	testenv.MustHaveExec(t)
 	telemetryDir := t.TempDir()
 	fmt.Println("START")
 	t.Run("prog1", func(t *testing.T) {
@@ -46,6 +48,7 @@ func TestRunProg(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
+	testenv.MustHaveExec(t)
 	telemetryDir := t.TempDir()
 
 	goVers, progVers, progName := ProgInfo(t)
