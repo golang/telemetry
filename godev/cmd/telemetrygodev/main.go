@@ -49,6 +49,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle("/", handleRoot(fsys, ucfg, buckets))
+	mux.Handle("/config", handleConfig(fsys, ucfg))
 	mux.Handle("/upload/", handleUpload(ucfg, buckets))
 	mux.Handle("/charts/", handleChart(fsys, ucfg, buckets))
 
@@ -214,4 +215,24 @@ func fsys(fromOS bool) fs.FS {
 		log.Fatal(err)
 	}
 	return f
+}
+
+func handleConfig(fsys fs.FS, ucfg *tconfig.Config) content.HandlerFunc {
+	cfg := ucfg.UploadConfig
+	version := "default"
+
+	return func(w http.ResponseWriter, r *http.Request) error {
+		cfgJSON, err := json.MarshalIndent(cfg, "", "\t")
+		if err != nil {
+			cfgJSON = []byte("unknown")
+		}
+		data := struct {
+			Version      string
+			PrettyConfig string
+		}{
+			Version:      version,
+			PrettyConfig: string(cfgJSON),
+		}
+		return content.Template(w, fsys, "config.html", data, http.StatusOK)
+	}
 }

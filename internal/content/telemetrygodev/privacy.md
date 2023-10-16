@@ -67,9 +67,9 @@ For the complete usage documentation of the gotelemetry command line tool, visit
 
 ## Approved Counters {#config}
 
-Go Telemetry only uploads counters that have been approved through the public proposal process.
+Go Telemetry only uploads counters that have been approved through the [public proposal process](https://github.com/orgs/golang/projects/29).
 You can find the set of approved counters as a Go module at
-[golang.org/x/telemetry/config](https://go.googlesource.com/telemetry/+/refs/heads/master/config/config.json).
+[golang.org/x/telemetry/config](https://go.googlesource.com/telemetry/+/refs/heads/master/config/config.json) and the [current config in use](https://telemetry.go.dev/config). 
 
 ## IDE Integration {#integration}
 

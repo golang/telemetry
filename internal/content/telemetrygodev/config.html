@@ -1,0 +1,25 @@
+<!--
+  Copyright 2023 The Go Authors. All rights reserved.
+  Use of this source code is governed by a BSD-style
+  license that can be found in the LICENSE file.
+-->
+
+{{template "base" .}}
+
+{{define "title"}}Go Telemetry Config{{end}}
+
+{{define "content"}}
+<main id="main">
+    <section class="Config">
+        <h2 id="config">Config</h2>
+        <p>
+          The config contains the list of active counters for each program
+          and allowed report metadata.
+        </p>
+        <label>
+            Version: {{.Version}}
+        </label>
+        <pre style="max-height: 100rem">{{.PrettyConfig}}</pre>
+      </section>
+</main>
+{{end}}
