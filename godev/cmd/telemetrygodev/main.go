@@ -194,7 +194,8 @@ func validate(r *telemetry.Report, cfg *tconfig.Config) error {
 			}
 		}
 		for s := range p.Stacks {
-			if !cfg.HasStack(p.Program, s) {
+			prefix, _, _ := strings.Cut(s, "\n")
+			if !cfg.HasStack(p.Program, prefix) {
 				return fmt.Errorf("unknown stack %s", s)
 			}
 		}

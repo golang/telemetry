@@ -58,7 +58,27 @@ func TestValidate(t *testing.T) {
 				},
 				Config: "v0.0.1-test",
 			},
-			wantErr: false,
+		},
+		{
+			name: "valid report with a stack counter",
+			report: &telemetry.Report{
+				Week:     "2023-06-15",
+				LastWeek: "",
+				X:        1.0,
+				Programs: []*telemetry.ProgramReport{
+					{
+						Program:   "golang.org/x/tools/gopls",
+						Version:   "v0.10.1",
+						GoVersion: "go1.20.1",
+						GOOS:      "linux",
+						GOARCH:    "arm64",
+						Stacks: map[string]int64{
+							"gopls/bug\ngolang.org/x/tools/gopls/internal/bug.report:35\ngolang.org/x/tools/gopls/internal/bug.Errorf:2\ngolang.org/x/tools/gopls/internal/lsp.(*Server).SignatureHelp:1\nruntime.goexit:0": 1,
+						},
+					},
+				},
+				Config: "v0.0.1-test",
+			},
 		},
 	}
 	for _, tt := range tests {

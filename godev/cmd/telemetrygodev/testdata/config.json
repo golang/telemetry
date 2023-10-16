@@ -24,7 +24,14 @@
           "Name": "editor:{emacs,vim,vscode,other}",
           "Rate": 0.01
         }
-      ]
+      ],
+      "Stacks": [
+				{
+					"Name": "gopls/bug",
+					"Rate": 1,
+					"Depth": 16
+				}
+			]
     },
     {
       "Name": "cmd/go",
