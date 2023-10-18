@@ -186,7 +186,7 @@ func validate(r *telemetry.Report, cfg *tconfig.Config) error {
 			!cfg.HasGoVersion(p.GoVersion) ||
 			!cfg.HasProgram(p.Program) ||
 			!cfg.HasVersion(p.Program, p.Version) {
-			return fmt.Errorf("unknown program build %s@%s %s %s/%s", p.Program, p.Version, p.GoVersion, p.GOOS, p.GOARCH)
+			return fmt.Errorf("unknown program build %s@%q %q %s/%s", p.Program, p.Version, p.GoVersion, p.GOOS, p.GOARCH)
 		}
 		for c := range p.Counters {
 			if !cfg.HasCounter(p.Program, c) {
