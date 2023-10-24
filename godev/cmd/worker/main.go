@@ -25,6 +25,7 @@ import (
 	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/godev/internal/config"
 	"golang.org/x/telemetry/godev/internal/content"
+	ilog "golang.org/x/telemetry/godev/internal/log"
 	"golang.org/x/telemetry/godev/internal/middleware"
 	"golang.org/x/telemetry/godev/internal/storage"
 	tconfig "golang.org/x/telemetry/internal/config"
@@ -36,6 +37,11 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 	cfg := config.NewConfig()
+
+	if cfg.UseGCS {
+		slog.SetDefault(slog.New(ilog.NewGCPLogHandler()))
+	}
+
 	buckets, err := storage.NewAPI(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)

@@ -46,7 +46,6 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
-	"golang.org/x/exp/slog"
 )
 
 // contentServer serves requests for a given file system and renders html
@@ -241,12 +240,6 @@ func handleErr(w http.ResponseWriter, req *http.Request, err error, code int) {
 	} else {
 		http.Error(w, err.Error(), code)
 	}
-	slog.Error("request error",
-		slog.String("method", req.Method),
-		slog.String("uri", req.RequestURI),
-		slog.Int("status", code),
-		slog.String("error", err.Error()),
-	)
 }
 
 // markdown renders a markdown template as html.

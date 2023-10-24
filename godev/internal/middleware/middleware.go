@@ -40,15 +40,25 @@ func Log(logger *slog.Logger) Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			ctx := r.Context()
-			logger.InfoContext(ctx, "request start",
+			l := logger.With(
 				slog.String("method", r.Method),
 				slog.String("uri", r.RequestURI),
+				// TODO(hyangah): set trace context from X-Cloud-Trace-Context
 			)
+			l.InfoContext(ctx, "request start")
 			w2 := &statusRecorder{w, 200}
 			h.ServeHTTP(w2, r)
-			logger.InfoContext(ctx, "request end",
-				slog.String("method", r.Method),
-				slog.String("uri", r.RequestURI),
+			level := slog.LevelInfo
+			msg := "request end"
+			switch w2.status / 100 {
+			case 5:
+				level = slog.LevelError // 5XX error
+				msg = "request error"
+			case 4:
+				level = slog.LevelWarn // 4XX error
+				msg = "request rejected"
+			}
+			l.Log(ctx, level, msg,
 				slog.Int("status", w2.status),
 				slog.Duration("duration", time.Since(start)),
 			)
