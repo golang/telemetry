@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.21
-
 // Package regtest provides helpers for end-to-end testing
-// involving counter and upload packages. This package requires go1.21 or newer.
+// involving counter and upload packages.
 package regtest
 
 import (

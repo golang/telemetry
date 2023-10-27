@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.21
-
-// require go1.21 due to the use of testing.Testing
-
 // countertest provides testing utilities for counters.
 // This package cannot be used except for testing.
 package countertest
@@ -14,17 +10,10 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
-	"testing"
 
 	"golang.org/x/telemetry/internal/counter"
 	"golang.org/x/telemetry/internal/telemetry"
 )
-
-func init() {
-	if !testing.Testing() {
-		panic("use of this package is disallowed in non-testing code")
-	}
-}
 
 var (
 	openedMu sync.Mutex
