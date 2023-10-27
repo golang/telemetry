@@ -18,20 +18,14 @@ import (
 	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/configstore"
-	it "golang.org/x/telemetry/internal/telemetry"
-)
-
-// the upload configuration
-var (
-	uploadConfig  *telemetry.UploadConfig
-	configVersion string
 )
 
 // reports generates reports from inactive count files
-func reports(todo *work) ([]string, error) {
-	if mode, _ := it.Mode(); mode == "off" {
+func (u *Uploader) reports(todo *work) ([]string, error) {
+	if mode, _ := u.ModeFilePath.Mode(); mode == "off" {
 		return nil, nil // no reports
 	}
+	thisInstant := u.StartTime
 	today := thisInstant.Format("2006-01-02")
 	lastWeek := latestReport(todo.uploaded)
 	if lastWeek >= today { //should never happen
@@ -41,7 +35,7 @@ func reports(todo *work) ([]string, error) {
 	countFiles := make(map[string][]string) // expiry date string->filenames
 	earliest := make(map[string]time.Time)  // earliest begin time for any counter
 	for _, f := range todo.countfiles {
-		begin, end := counterDateSpan(f)
+		begin, end := u.counterDateSpan(f)
 
 		if end.Before(thisInstant) {
 			expiry := end.Format(dateFormat)
@@ -59,7 +53,7 @@ func reports(todo *work) ([]string, error) {
 			deleteFiles(files)
 			continue
 		}
-		fname, err := createReport(earliest[expiry], expiry, files, lastWeek)
+		fname, err := u.createReport(earliest[expiry], expiry, files, lastWeek)
 		if err != nil {
 			return nil, err
 		}
@@ -113,22 +107,22 @@ func deleteFiles(files []string) {
 
 // createReports for all the count files for the same date.
 // returns the absolute path name of the file containing the report
-func createReport(start time.Time, expiryDate string, files []string, lastWeek string) (string, error) {
-	if uploadConfig == nil {
+func (u *Uploader) createReport(start time.Time, expiryDate string, files []string, lastWeek string) (string, error) {
+	if u.Config == nil {
 		a, v, err := configstore.Download("latest", nil)
 		if err != nil {
 			logger.Print(err) // or something (e.g., panic(err))
 		}
-		uploadConfig = &a
-		configVersion = v
+		u.Config = &a
+		u.ConfigVersion = v
 	}
 	uploadOK := true
-	mode, asof := it.Mode()
-	if uploadConfig == nil || mode != "on" {
+	mode, asof := u.ModeFilePath.Mode()
+	if u.Config == nil || mode != "on" {
 		logger.Printf("no upload config or mode %q is not 'on'", mode)
 		uploadOK = false // no config, nothing to upload
 	}
-	if tooOld(expiryDate) {
+	if tooOld(expiryDate, u.StartTime) {
 		logger.Printf("expiryDate %s is too old", expiryDate)
 		uploadOK = false
 	}
@@ -140,7 +134,7 @@ func createReport(start time.Time, expiryDate string, files []string, lastWeek s
 	}
 	// should we check that all the x.Meta are consistent for GOOS, GOARCH, etc?
 	report := &telemetry.Report{
-		Config:   configVersion,
+		Config:   u.ConfigVersion,
 		X:        computeRandom(), // json encodes all the bits
 		Week:     expiryDate,
 		LastWeek: lastWeek,
@@ -149,7 +143,7 @@ func createReport(start time.Time, expiryDate string, files []string, lastWeek s
 	// but it could be.
 	var succeeded bool
 	for _, f := range files {
-		x, err := parse(string(f))
+		x, err := u.parse(string(f))
 		if err != nil {
 			logger.Printf("unparseable (%v) %s", err, f)
 			continue
@@ -181,7 +175,7 @@ func createReport(start time.Time, expiryDate string, files []string, lastWeek s
 		return "", fmt.Errorf("failed to unmarshal local report (%v)", err)
 	}
 	// 2. create the uploadable version
-	cfg := config.NewConfig(uploadConfig)
+	cfg := config.NewConfig(u.Config)
 	upload := &telemetry.Report{
 		Week:     report.Week,
 		LastWeek: report.LastWeek,
@@ -224,8 +218,8 @@ func createReport(start time.Time, expiryDate string, files []string, lastWeek s
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal upload report (%v)", err)
 	}
-	localFileName := filepath.Join(it.LocalDir, "local."+expiryDate+".json")
-	uploadFileName := filepath.Join(it.LocalDir, expiryDate+".json")
+	localFileName := filepath.Join(u.LocalDir, "local."+expiryDate+".json")
+	uploadFileName := filepath.Join(u.LocalDir, expiryDate+".json")
 	// if either file exists, someone has been here ahead of us
 	// (there is still a race, but this check shortens the open window)
 	if _, err := os.Stat(localFileName); err == nil {
@@ -299,25 +293,4 @@ func computeRandom() float64 {
 		frac, _ := math.Frexp(x) // 52 bits of randomness
 		return frac*2 - 1
 	}
-}
-
-func findUploadProg(p *telemetry.ProgramReport) (*telemetry.ProgramConfig, bool) {
-	for _, u := range uploadConfig.Programs {
-		if u.Name != p.Program {
-			continue
-		}
-		if len(u.Versions) == 0 || isIn(p.Version, u.Versions) {
-			return u, true
-		}
-	}
-	return nil, false
-}
-
-func isIn(x string, l []string) bool {
-	for _, s := range l {
-		if x == s {
-			return true
-		}
-	}
-	return false
 }

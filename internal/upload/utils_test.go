@@ -15,9 +15,13 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/telemetry"
 	it "golang.org/x/telemetry/internal/telemetry"
 )
 
+// setup overwrites the system default telemetry configuration
+// including the global variables defined in internal/telemetry.
+// It also starts a test upload server.
 func setup(t *testing.T, asof string) {
 	asofTime, err := time.Parse("2006-01-02", asof)
 	if err != nil {
@@ -29,8 +33,8 @@ func setup(t *testing.T, asof string) {
 		go testServer(serverChan)
 		// wait for the server to start
 		addr := <-serverChan
-		uploadURL = addr.path
-		t.Logf("server started at %s", uploadURL)
+		serverURL = addr.path
+		t.Logf("server started at %s", serverURL)
 
 		logger = log.Default()
 		logger.SetFlags(log.Lshortfile)
@@ -47,26 +51,6 @@ func setup(t *testing.T, asof string) {
 	// but Open() still can't be called twice
 	os.MkdirAll(it.LocalDir, 0777)
 	os.MkdirAll(it.UploadDir, 0777)
-}
-
-func restore() {
-	thisInstant = time.Now().UTC() // probably pointless
-}
-
-func future(days int) time.Time {
-
-	x := time.Duration(days)
-	// make sure we're really x days in the future
-	return time.Now().Add(x*24*time.Hour + 1*time.Second)
-
-}
-
-func setDay(d string) time.Time {
-	x, err := time.Parse("2006-01-02", d)
-	if err != nil {
-		log.Fatalf("couldn't parse time %s", d)
-	}
-	return x
 }
 
 func cleanDir(t *testing.T, test *Test, dir string) {
@@ -105,7 +89,10 @@ type msg struct {
 	length int
 }
 
-var serverChan chan msg
+var (
+	serverChan chan msg
+	serverURL  string
+)
 
 // a test server. it is started once
 func testServer(started chan msg) {
@@ -130,4 +117,13 @@ func handlerFunc(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "read failed", http.StatusTeapot)
 	}
 	serverChan <- msg{path: r.URL.Path, length: len(buf)}
+}
+
+func NewTestUploader(t *testing.T, cfg *telemetry.UploadConfig) *Uploader {
+	u := NewUploader(cfg)
+	if serverURL == "" {
+		t.Fatal("testServer is not running yet")
+	}
+	u.UploadServerURL = serverURL
+	return u
 }

@@ -7,6 +7,7 @@ package upload
 import (
 	"io"
 	"log"
+	"time"
 
 	"golang.org/x/telemetry"
 	it "golang.org/x/telemetry/internal/telemetry"
@@ -18,22 +19,54 @@ func init() {
 	logger = log.New(io.Discard, "", 0)
 }
 
-// Run generates and uploads reports
-func Run(c *telemetry.Control) {
-	if c != nil {
-		if c.UploadConfig != nil {
-			uploadConfig = c.UploadConfig()
-		}
-		if c.Logging != nil {
-			logger.SetOutput(c.Logging)
-		}
+// SetLogOutput sets the default logger's output destination.
+func SetLogOutput(logging io.Writer) {
+	if logging != nil {
+		logger.SetOutput(logging)
 	}
-	todo := findWork(it.LocalDir, it.UploadDir)
-	ready, err := reports(&todo)
+}
+
+// Uploader carries parameters needed for upload.
+type Uploader struct {
+	// Config is used to select counters to upload.
+	Config *telemetry.UploadConfig
+	// ConfigVersion is the version of the config.
+	ConfigVersion string
+
+	// LocalDir is where the local counter files are.
+	LocalDir string
+	// UploadDir is where uploader leaves the copy of uploaded data.
+	UploadDir string
+	// ModeFilePath is the file.
+	ModeFilePath it.ModeFilePath
+
+	UploadServerURL string
+	StartTime       time.Time
+
+	cache parsedCache
+}
+
+// NewUploader creates a default uploader.
+func NewUploader(config *telemetry.UploadConfig) *Uploader {
+	return &Uploader{
+		Config:          config,
+		ConfigVersion:   "custom",
+		LocalDir:        it.LocalDir,
+		UploadDir:       it.UploadDir,
+		ModeFilePath:    it.ModeFile,
+		UploadServerURL: "https://telemetry.go.dev/upload",
+		StartTime:       time.Now().UTC(),
+	}
+}
+
+// Run generates and uploads reports
+func (u *Uploader) Run() {
+	todo := u.findWork()
+	ready, err := u.reports(&todo)
 	if err != nil {
 		logger.Printf("reports: %v", err)
 	}
 	for _, f := range ready {
-		uploadReport(f)
+		u.uploadReport(f)
 	}
 }

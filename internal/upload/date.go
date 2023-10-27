@@ -15,23 +15,16 @@ import (
 
 // time and date handling
 
-// all the upload processing takes place (conceptually) at
-// a single instant. Most of the time this wouldn't matter
-// but it protects against time skew if time.Now
-// increases the day between calls, as might happen (rarely) by chance
-// or if there are long scheduling delays between calls.
-var thisInstant = time.Now().UTC()
-
 var distantPast = 21 * 24 * time.Hour
 
 // reports that are too old (21 days) are not uploaded
-func tooOld(date string) bool {
+func tooOld(date string, uploadStartTime time.Time) bool {
 	t, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		logger.Printf("tooOld: %v", err)
 		return false
 	}
-	age := thisInstant.Sub(t)
+	age := uploadStartTime.Sub(t)
 	return age > distantPast
 }
 
@@ -44,8 +37,8 @@ var farFuture = time.UnixMilli(1 << 62)
 // like they can be used.
 //
 // TODO(rfindley): just return an error to make this explicit.
-func counterDateSpan(fname string) (begin, end time.Time) {
-	parsed, err := parse(fname)
+func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time) {
+	parsed, err := u.parse(fname)
 	if err != nil {
 		logger.Printf("expiry Parse: %v for %s", err, fname)
 		return time.Time{}, farFuture
@@ -64,9 +57,9 @@ func counterDateSpan(fname string) (begin, end time.Time) {
 }
 
 // stillOpen returns true if the counter file might still be active
-func stillOpen(fname string) bool {
-	_, expiry := counterDateSpan(fname)
-	return expiry.After(thisInstant)
+func (u *Uploader) stillOpen(fname string) bool {
+	_, expiry := u.counterDateSpan(fname)
+	return expiry.After(u.StartTime)
 }
 
 // avoid parsing count files multiple times
@@ -75,15 +68,13 @@ type parsedCache struct {
 	m  map[string]*counter.File
 }
 
-var cache parsedCache
-
-func parse(fname string) (*counter.File, error) {
-	cache.mu.Lock()
-	defer cache.mu.Unlock()
-	if cache.m == nil {
-		cache.m = make(map[string]*counter.File)
+func (u *Uploader) parse(fname string) (*counter.File, error) {
+	u.cache.mu.Lock()
+	defer u.cache.mu.Unlock()
+	if u.cache.m == nil {
+		u.cache.m = make(map[string]*counter.File)
 	}
-	if f, ok := cache.m[fname]; ok {
+	if f, ok := u.cache.m[fname]; ok {
 		return f, nil
 	}
 	buf, err := os.ReadFile(fname)
@@ -95,6 +86,6 @@ func parse(fname string) (*counter.File, error) {
 
 		return nil, fmt.Errorf("parse Parse: %v for %s", err, fname)
 	}
-	cache.m[fname] = f
+	u.cache.m[fname] = f
 	return f, nil
 }

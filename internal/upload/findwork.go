@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	it "golang.org/x/telemetry/internal/telemetry"
 )
 
 // files to handle
@@ -24,7 +22,8 @@ type work struct {
 // find all the files that look like counter files or reports
 // that need to be uploaded. (There may be unexpected leftover files
 // and uploading is supposed to be idempotent.)
-func findWork(localdir, uploaddir string) work {
+func (u *Uploader) findWork() work {
+	localdir, uploaddir := u.LocalDir, u.UploadDir
 	var ans work
 	fis, err := os.ReadDir(localdir)
 	if err != nil {
@@ -32,7 +31,7 @@ func findWork(localdir, uploaddir string) work {
 		return ans
 	}
 
-	mode, asof := it.Mode()
+	mode, asof := u.ModeFilePath.Mode()
 	logger.Printf("mode %s, asof %s", mode, asof)
 
 	// count files end in .v1.count
@@ -41,7 +40,7 @@ func findWork(localdir, uploaddir string) work {
 	for _, fi := range fis {
 		if strings.HasSuffix(fi.Name(), ".v1.count") {
 			fname := filepath.Join(localdir, fi.Name())
-			if stillOpen(fname) {
+			if u.stillOpen(fname) {
 				logger.Printf("still active: %s", fname)
 				continue
 			}

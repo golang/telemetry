@@ -12,12 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	it "golang.org/x/telemetry/internal/telemetry"
 )
-
-// default for mode 'on'. Overridden in tests.
-var uploadURL = "https://telemetry.go.dev/upload"
 
 var (
 	dateRE     = regexp.MustCompile(`(\d\d\d\d-\d\d-\d\d)[.]json$`)
@@ -41,7 +36,8 @@ func uploadReportDate(fname string) time.Time {
 	return d
 }
 
-func uploadReport(fname string) {
+func (u *Uploader) uploadReport(fname string) {
+	thisInstant := u.StartTime
 	// TODO(rfindley): use uploadReportDate here, once we've done a gopls release.
 
 	// first make sure it is not in the future
@@ -58,17 +54,17 @@ func uploadReport(fname string) {
 		logger.Printf("%v reading %s", err, fname)
 		return
 	}
-	if uploadReportContents(fname, buf) {
+	if u.uploadReportContents(fname, buf) {
 		// anything left to do?
 	}
 }
 
 // try to upload the report, 'true' if successful
-func uploadReportContents(fname string, buf []byte) bool {
+func (u *Uploader) uploadReportContents(fname string, buf []byte) bool {
 	b := bytes.NewReader(buf)
 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
 	fdate = fdate[len(fdate)-len("2006-01-02"):]
-	server := uploadURL + "/" + fdate
+	server := u.UploadServerURL + "/" + fdate
 
 	resp, err := http.Post(server, "application/json", b)
 	if err != nil {
@@ -80,7 +76,7 @@ func uploadReportContents(fname string, buf []byte) bool {
 		return false
 	}
 	// put a copy in the uploaded directory
-	newname := filepath.Join(it.UploadDir, fdate+".json")
+	newname := filepath.Join(u.UploadDir, fdate+".json")
 	if err := os.WriteFile(newname, buf, 0644); err == nil {
 		os.Remove(fname) // if it exists
 	}

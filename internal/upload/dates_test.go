@@ -26,14 +26,11 @@ import (
 func TestDates(t *testing.T) {
 	skipIfUnsupportedPlatform(t)
 	setup(t, "2019-12-01") // back-date the telemetry acceptance
-	defer restore()
-	thisInstant = future(0)
 	finished := counter.Open()
 	c := counter.New("testing")
 	c.Inc()
 	x := counter.NewStack("aStack", 4)
 	x.Inc()
-	thisInstant = future(15) // so it creates the count file
 	// Windows will not be able to remove the count file if it is still open
 	// (in non-test situations it would have been rotated out and closed)
 	finished() // for Windows
@@ -41,9 +38,10 @@ func TestDates(t *testing.T) {
 	// compute the UploadConfig and remmember information about
 	// the counter file before the subtest uses it
 	cs, uc := createcounterStuff(t)
-	uploadConfig = uc
 
-	subtest(t) // do and check a report
+	t.Run("basic", func(t *testing.T) {
+		subtest(t, uc) // do and check a report
+	})
 
 	// create a lot of tests, and run them
 	const today = "2020-01-24"
@@ -139,14 +137,26 @@ func TestDates(t *testing.T) {
 	// Used maps ensures that test cases are for distinct dates.
 	used := make(map[string]string)
 	for _, tx := range tests {
-		if used[tx.name] != "" || used[tx.date] != "" {
-			t.Errorf("test %s reusing name or date. name:%s, date:%s",
-				tx.name, used[tx.name], used[tx.date])
-		}
-		used[tx.name] = tx.name
-		used[tx.date] = tx.name
-		doTest(t, &tx, cs)
+		t.Run(tx.name, func(t *testing.T) {
+			if used[tx.name] != "" || used[tx.date] != "" {
+				t.Errorf("test %s reusing name or date. name:%s, date:%s",
+					tx.name, used[tx.name], used[tx.date])
+			}
+			used[tx.name] = tx.name
+			used[tx.date] = tx.name
+			u := NewTestUploader(t, uc)
+			u.StartTime = mustParseDate(tx.today)
+			doTest(t, u, &tx, cs)
+		})
 	}
+}
+
+func mustParseDate(d string) time.Time {
+	x, err := time.Parse("2006-01-02", d)
+	if err != nil {
+		log.Fatalf("couldn't parse time %s", d)
+	}
+	return x
 }
 
 // return a day more than 'old' before 'today'
@@ -287,9 +297,7 @@ func createcounterStuff(t *testing.T) (*countFileInfo, *telemetry.UploadConfig) 
 	return &ans, uc
 }
 
-func doTest(t *testing.T, doing *Test, known *countFileInfo) {
-	// setup
-	thisInstant = setDay(doing.today)
+func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) {
 	contents := bytes.Join([][]byte{
 		known.buf[:known.beginOffset],
 		[]byte(doing.begins),
@@ -322,7 +330,7 @@ func doTest(t *testing.T, doing *Test, known *countFileInfo) {
 	}
 
 	// run
-	Run(nil)
+	u.Run()
 
 	// check results
 	var cfiles, rfiles, lfiles, ufiles int
@@ -373,10 +381,13 @@ func doTest(t *testing.T, doing *Test, known *countFileInfo) {
 	cleanDir(t, doing, it.UploadDir)
 }
 
-func subtest(t *testing.T) {
-	t.Helper()
+func subtest(t *testing.T, c *telemetry.UploadConfig) {
+	u := NewTestUploader(t, c)
+	// make sure we're really in the future.
+	u.StartTime = u.StartTime.Add(15*24*time.Hour + 1*time.Second)
+
 	// check state before generating report
-	work := findWork(it.LocalDir, it.UploadDir)
+	work := u.findWork()
 	// expect one count file and nothing else
 	if len(work.countfiles) != 1 {
 		t.Errorf("expected one countfile, got %d", len(work.countfiles))
@@ -388,11 +399,11 @@ func subtest(t *testing.T) {
 		t.Errorf("expected no uploadedfiles, got %d", len(work.uploaded))
 	}
 	// generate reports
-	if _, err := reports(&work); err != nil {
+	if _, err := u.reports(&work); err != nil {
 		t.Fatal(err)
 	}
 	// expect a single report and nothing else
-	got := findWork(it.LocalDir, it.UploadDir)
+	got := u.findWork()
 	if len(got.countfiles) != 0 {
 		t.Errorf("expected no countfiles, got %d", len(got.countfiles))
 	}
@@ -437,7 +448,7 @@ func subtest(t *testing.T) {
 			string(localFile[:found[0]])+string(localFile[found[1]:]))
 	}
 	// and try uploading to the test
-	uploadReport(got.readyfiles[0])
+	u.uploadReport(got.readyfiles[0])
 	x := <-serverChan
 	if x.length != len(uploadFile) {
 		t.Errorf("%v %d", x, len(uploadFile))

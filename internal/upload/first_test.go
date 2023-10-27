@@ -16,8 +16,7 @@ import (
 // but it also checks that uploads and reads from the channel are matched
 func TestSimpleServer(t *testing.T) {
 	setup(t, "2023-01-01")
-	defer restore()
-	url := uploadURL
+	url := serverURL
 	resp, err := http.Post(url+"/foo", "text/plain", strings.NewReader("hello"))
 	if err != nil {
 		t.Fatal(err)
