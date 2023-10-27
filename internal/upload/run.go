@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 
+	"golang.org/x/telemetry"
 	it "golang.org/x/telemetry/internal/telemetry"
 )
 
@@ -17,8 +18,8 @@ func init() {
 	logger = log.New(io.Discard, "", 0)
 }
 
-// run generates and uploads reports
-func run(c *Control) {
+// Run generates and uploads reports
+func Run(c *telemetry.Control) {
 	if c != nil {
 		if c.UploadConfig != nil {
 			uploadConfig = c.UploadConfig()

@@ -4,6 +4,10 @@
 
 package telemetry
 
+import (
+	"io"
+)
+
 // Common types and directories used by multiple packages.
 
 // An UploadConfig controls what data is uploaded.
@@ -47,4 +51,18 @@ type ProgramReport struct {
 	GOARCH    string
 	Counters  map[string]int64
 	Stacks    map[string]int64
+}
+
+// A Control allows the user to override various default
+// reporting and uploading choices.
+// Future versions may also allow the user to set the upload URL.
+type Control struct {
+	// UploadConfig provides the telemetry UploadConfig used to
+	// decide which counters get uploaded. nil is legal, and
+	// means the code will use the latest version of the module
+	// golang.org/x/telemetry/config.
+	UploadConfig func() *UploadConfig
+	// Logging provides a io.Writer for error messages during uploading
+	// nil is legal and no log messages get generated
+	Logging io.Writer
 }
