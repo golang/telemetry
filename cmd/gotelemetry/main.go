@@ -41,25 +41,39 @@ var (
 	normalCommands = []*command{
 		{
 			usage: "on",
-			short: "enable telemetry uploading",
-			long: `Gotelemetry on enables telemetry uploading.
+			short: "enable telemetry collection and uploading",
+			long: `Gotelemetry on enables telemetry collection and uploading.
 
-When telemetry is enabled, telemetry data is periodically sent to https://telemetry.go.dev/. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
+When telemetry is enabled, telemetry data is written to the local file system and periodically sent to https://telemetry.go.dev/. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
 
 For more details, see https://telemetry.go.dev/privacy.
 This data is collected in accordance with the Google Privacy Policy (https://policies.google.com/privacy).
 
-To disable telemetry uploading, run “gotelemetry off”`,
+To disable telemetry uploading, but keep local data collection, run “gotelemetry local”.
+To disable both collection and uploading, run “gotelemetry off“.
+`,
 			run: runOn,
 		},
 		{
+			usage: "local",
+			short: "enable telemetry collection but disable uploading",
+			long: `Gotelemetry local enables telemetry collection but not uploading.
+
+When telemetry is in local mode, counter data is written to the local file system, but will not be uploaded to remote servers.
+
+To enable telemetry uploading, run “gotelemetry on”.
+To disable both collection and uploading, run “gotelemetry off”`,
+			run: runLocal,
+		},
+		{
 			usage: "off",
-			short: "disable telemetry uploading",
-			long: `Gotelemetry off disables telemetry uploading.
+			short: "disable telemetry collection and uploading",
+			long: `Gotelemetry off disables telemetry collection and uploading.
 
-When telemetry uploading is off, local counters data will still be written to the local file system, but will not be uploaded to remove servers.
+When telemetry is disabled, local counter data is neither collected nor uploaded.
 
-To enable telemetry uploading, run “gotelemetry on”`,
+To enable local collection (but not uploading) of telemetry data, run “gotelemetry local“.
+To enable both collection and uploading, run “gotelemetry on”.`,
 			run: runOff,
 		},
 		{
@@ -197,6 +211,15 @@ For more details, see https://telemetry.go.dev/privacy.
 This data is collected in accordance with the Google Privacy Policy (https://policies.google.com/privacy).
 
 To disable telemetry uploading, run “gotelemetry off”.`
+}
+
+func runLocal(_ []string) {
+	if old, _ := it.Mode(); old == "local" {
+		return
+	}
+	if err := it.SetMode("local"); err != nil {
+		failf("Failed to set the telemetry mode to local: %v", err)
+	}
 }
 
 func runOff(_ []string) {

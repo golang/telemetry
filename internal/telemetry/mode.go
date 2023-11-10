@@ -42,7 +42,7 @@ func init() {
 }
 
 // SetMode updates the telemetry mode with the given mode.
-// Acceptable values for mode are "on" or "off".
+// Acceptable values for mode are "on", "off", or "local".
 //
 // SetMode always writes the mode file, and explicitly records the date at
 // which the modefile was updated. This means that calling SetMode with "on"
@@ -60,7 +60,7 @@ func (m ModeFilePath) SetMode(mode string) error {
 func (m ModeFilePath) SetModeAsOf(mode string, asofTime time.Time) error {
 	mode = strings.TrimSpace(mode)
 	switch mode {
-	case "on", "off":
+	case "on", "off", "local":
 	default:
 		return fmt.Errorf("invalid telemetry mode: %q", mode)
 	}
@@ -97,7 +97,7 @@ func (m ModeFilePath) Mode() (string, time.Time) {
 	}
 	data, err := os.ReadFile(fname)
 	if err != nil {
-		return "off", time.Time{} // default
+		return "local", time.Time{} // default
 	}
 	mode := string(data)
 	mode = strings.TrimSpace(mode)

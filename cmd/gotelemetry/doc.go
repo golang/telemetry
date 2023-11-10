@@ -12,8 +12,9 @@
 //
 // The commands are:
 //
-//	on	enable telemetry uploading
-//	off	disable telemetry uploading
+//	on	enable telemetry collection and uploading
+//	local	enable telemetry collection but disable uploading
+//	off	disable telemetry collection and uploading
 //	view	run a web viewer for local telemetry data
 //	env	print the current telemetry environment
 //

@@ -35,7 +35,7 @@ func TestTelemetryModeWithNoModeConfig(t *testing.T) {
 		modefile ModeFilePath
 		want     string
 	}{
-		{ModeFilePath(filepath.Join(tmp, "mode")), "off"},
+		{ModeFilePath(filepath.Join(tmp, "mode")), "local"},
 		{"", "off"},
 	}
 	for _, tt := range tests {
@@ -53,7 +53,7 @@ func TestSetMode(t *testing.T) {
 	}{
 		{"on", false},
 		{"off", false},
-		{"local", true}, // golang/go#63143: local mode is no longer supported
+		{"local", false},
 		{"https://mytelemetry.com", true},
 		{"http://insecure.com", true},
 		{"bogus", true},

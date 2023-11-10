@@ -29,6 +29,9 @@ var (
 
 // reports generates reports from inactive count files
 func reports(todo *work) ([]string, error) {
+	if mode, _ := it.Mode(); mode == "off" {
+		return nil, nil // no reports
+	}
 	today := thisInstant.Format("2006-01-02")
 	lastWeek := latestReport(todo.uploaded)
 	if lastWeek >= today { //should never happen

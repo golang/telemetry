@@ -111,6 +111,9 @@ func (f *file) lookup(name string) counterPtr {
 	return counterPtr{current, ptr}
 }
 
+// ErrDisabled is the error returned when telemetry is disabled.
+var ErrDisabled = errors.New("counter: disabled by GOTELEMETRY=off")
+
 var (
 	errNoBuildInfo = errors.New("counter: missing build info")
 	errCorrupt     = errors.New("counter: corrupt counter file")
@@ -120,6 +123,10 @@ func (f *file) init(begin, end time.Time) {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		f.err = errNoBuildInfo
+		return
+	}
+	if mode, _ := telemetry.Mode(); mode == "off" {
+		f.err = ErrDisabled
 		return
 	}
 	dir := telemetry.LocalDir
