@@ -38,7 +38,7 @@ type file struct {
 	namePrefix string
 	err        error
 	meta       string
-	current    atomic.Pointer[mappedFile] // can be read without holding mu
+	current    atomic.Pointer[mappedFile] // can be read without holding mu, but may be nil
 }
 
 var defaultFile file
@@ -350,6 +350,11 @@ var mainCounter = New("counter/main")
 // any reports are generated.
 // (Otherwise expired count files will not be deleted on Windows.)
 func Open() func() {
+	if mode, _ := telemetry.Mode(); mode == "off" {
+		// Don't open the file when telemetry is off.
+		defaultFile.err = ErrDisabled
+		return func() {} // No need to clean up.
+	}
 	debugPrintf("Open")
 	mainCounter.Add(1)
 	defaultFile.rotate()

@@ -67,10 +67,13 @@ func NewStack(name string, depth int) *StackCounter {
 	return counter.NewStack(name, depth)
 }
 
-// Open opens the counter file on disk and starts to mmap telemetry
-// counters to the file. Open also persists counters created and
-// incremented before it is called.
-// Programs are supposed to call this once.
+// Open prepares telemetry counters for recording to the file system.
+//
+// If the telemetry mode is "off", Open is a no-op. Otherwise, it opens the
+// counter file on disk and starts to mmap telemetry counters to the file.
+// Open also persists any counters already created in the current process.
+//
+// Programs using telemetry should call Open exactly once.
 func Open() {
 	counter.Open()
 }

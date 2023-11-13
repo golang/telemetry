@@ -101,6 +101,9 @@ func TestParallel(t *testing.T) {
 		t.Fatal(f.err)
 	}
 	current := f.current.Load()
+	if current == nil {
+		t.Fatal("no mapped file")
+	}
 	name := current.f.Name()
 	t.Logf("wrote %s:\n%s", name, hexDump(current.mapping.Data))
 
@@ -499,7 +502,11 @@ func TestStack(t *testing.T) {
 		}
 	}
 	// check that Parse expands compressed counter names
-	data := f.current.Load().mapping.Data
+	current := f.current.Load()
+	if current == nil {
+		t.Fatal("no mapped file")
+	}
+	data := current.mapping.Data
 	fname := "2023-01-01.v1.count" // bogus file name required by Parse.
 	theFile, err := Parse(fname, data)
 	if err != nil {
@@ -547,8 +554,8 @@ func setup(t *testing.T) {
 	telemetry.UploadDir = tmpDir + "/upload"
 	os.MkdirAll(telemetry.LocalDir, 0777)
 	os.MkdirAll(telemetry.UploadDir, 0777)
+	telemetry.ModeFile = telemetry.ModeFilePath(filepath.Join(tmpDir, "mode"))
 	// os.UserConfigDir() is "" in tests so no point in looking at it
-
 }
 
 func restore() {

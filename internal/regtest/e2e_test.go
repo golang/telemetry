@@ -21,30 +21,89 @@ import (
 	"golang.org/x/telemetry/counter"
 	"golang.org/x/telemetry/internal/config"
 	icounter "golang.org/x/telemetry/internal/counter"
+	it "golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/testenv"
 )
+
+// programs to run
+const (
+	progIncCounters = "inccounters"
+	prog1           = "prog1"
+	prog2           = "prog2"
+)
+
+func TestMain(m *testing.M) {
+	Main(m, map[string]func() int{
+		progIncCounters: func() int {
+			counter.Inc("counter")
+			counter.Inc("counter:surprise")
+			counter.New("gopls/editor:expected").Inc()
+			counter.New("gopls/editor:surprise").Inc()
+			counter.NewStack("stack/expected", 1).Inc()
+			counter.NewStack("stack-surprise", 1).Inc()
+			return 0
+		},
+		prog1: func() int {
+			fmt.Println("FuncB")
+			return 0
+		},
+		prog2: func() int {
+			fmt.Println("FuncC")
+			return 1
+		},
+	})
+}
 
 func TestRunProg(t *testing.T) {
 	testenv.MustHaveExec(t)
 	telemetryDir := t.TempDir()
-	fmt.Println("START")
 	t.Run("prog1", func(t *testing.T) {
-		if out, err := RunProg(t, telemetryDir, func() int {
-			fmt.Println("FuncB")
-			return 0
-		}); err != nil || !bytes.Contains(out, []byte("START")) || !bytes.Contains(out, []byte("FuncB")) {
-			t.Errorf("first RunProg = (%s, %v), want 'START', 'FuncB', and succeed", out, err)
+		if out, err := RunProg(telemetryDir, prog1); err != nil || !bytes.Contains(out, []byte("FuncB")) || bytes.Contains(out, []byte("FuncC")) {
+			t.Errorf("first RunProg = (%s, %v), want FuncB' and succeed", out, err)
 		}
 	})
-	fmt.Println("MIDDLE")
 	t.Run("prog2", func(t *testing.T) {
-		if out, err := RunProg(t, telemetryDir, func() int {
-			fmt.Println("FuncC")
-			return 1
-		}); err == nil || !bytes.Contains(out, []byte("START")) || bytes.Contains(out, []byte("FuncB")) || !bytes.Contains(out, []byte("MIDDLE")) || !bytes.Contains(out, []byte("FuncC")) {
-			t.Errorf("second RunProg = (%s, %v), want 'START', 'MIDDLE', 'FuncC' (but no 'FuncB') and fail", out, err)
+		if out, err := RunProg(telemetryDir, prog2); err == nil || bytes.Contains(out, []byte("FuncB")) || !bytes.Contains(out, []byte("FuncC")) {
+			t.Errorf("second RunProg = (%s, %v), want 'FuncC' and fail", out, err)
 		}
 	})
+}
+
+func TestE2E_off(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	tests := []struct {
+		mode         string // if empty, don't set the mode
+		wantLocalDir bool
+	}{
+		{"", true},
+		{"local", true},
+		{"on", true},
+		{"off", false},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("mode=%s", test.mode), func(t *testing.T) {
+			telemetryDir := t.TempDir()
+			if test.mode != "" {
+				if err := it.ModeFilePath(filepath.Join(telemetryDir, "mode")).SetMode(test.mode); err != nil {
+					t.Fatalf("SetMode failed: %v", err)
+				}
+			}
+			out, err := RunProg(telemetryDir, progIncCounters)
+			if err != nil {
+				t.Fatalf("program failed unexpectedly (%v)\n%s", err, out)
+			}
+			localDir := filepath.Join(telemetryDir, "local")
+			_, err = os.Stat(localDir)
+			if err != nil && !os.IsNotExist(err) {
+				t.Fatalf("os.Stat(%q): unexpected error: %v", localDir, err)
+			}
+			if gotLocalDir := err == nil; gotLocalDir != test.wantLocalDir {
+				t.Errorf("got /local dir: %v, want %v; out:\n%s", gotLocalDir, test.wantLocalDir, string(out))
+			}
+		})
+	}
 }
 
 func TestE2E(t *testing.T) {
@@ -53,15 +112,7 @@ func TestE2E(t *testing.T) {
 
 	goVers, progVers, progName := ProgInfo(t)
 
-	out, err := RunProg(t, telemetryDir, func() int {
-		counter.Inc("counter")
-		counter.Inc("counter:surprise")
-		counter.New("gopls/editor:expected").Inc()
-		counter.New("gopls/editor:surprise").Inc()
-		counter.NewStack("stack/expected", 1).Inc()
-		counter.NewStack("stack-surprise", 1).Inc()
-		return 0
-	})
+	out, err := RunProg(telemetryDir, progIncCounters)
 	if err != nil {
 		t.Fatalf("program failed unexpectedly (%v)\n%s", err, out)
 	}
