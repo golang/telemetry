@@ -37,6 +37,7 @@ func reports(todo *work) ([]string, error) {
 	if lastWeek >= today { //should never happen
 		lastWeek = ""
 	}
+	logger.Printf("lastWeek %q, today %s", lastWeek, today)
 	countFiles := make(map[string][]string) // expiry date string->filenames
 	earliest := make(map[string]time.Time)  // earliest begin time for any counter
 	for _, f := range todo.countfiles {
@@ -52,6 +53,7 @@ func reports(todo *work) ([]string, error) {
 	}
 	for expiry, files := range countFiles {
 		if notNeeded(expiry, *todo) {
+			logger.Printf("files for %s not needed, deleting %v", expiry, files)
 			// The report already exists.
 			// There's another check in createReport.
 			deleteFiles(files)
@@ -123,14 +125,17 @@ func createReport(start time.Time, expiryDate string, files []string, lastWeek s
 	uploadOK := true
 	mode, asof := it.Mode()
 	if uploadConfig == nil || mode != "on" {
+		logger.Printf("no upload config or mode %q is not 'on'", mode)
 		uploadOK = false // no config, nothing to upload
 	}
 	if tooOld(expiryDate) {
+		logger.Printf("expiryDate %s is too old", expiryDate)
 		uploadOK = false
 	}
 	// If the mode is recorded with an asof date, don't upload if the report
 	// includes any data on or before the asof date.
 	if !asof.IsZero() && !asof.Before(start) {
+		logger.Printf("asof %s is not before start %s", asof, start)
 		uploadOK = false
 	}
 	// should we check that all the x.Meta are consistent for GOOS, GOARCH, etc?
@@ -247,6 +252,7 @@ func createReport(start time.Time, expiryDate string, files []string, lastWeek s
 	if errUpload != nil {
 		return "", fmt.Errorf("failed to write upload file %s (%v)", uploadFileName, errUpload)
 	}
+	logger.Printf("created %s, deleting %v", uploadFileName, files)
 	deleteFiles(files)
 	return uploadFileName, nil
 }

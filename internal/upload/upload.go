@@ -84,5 +84,6 @@ func uploadReportContents(fname string, buf []byte) bool {
 	if err := os.WriteFile(newname, buf, 0644); err == nil {
 		os.Remove(fname) // if it exists
 	}
+	logger.Printf("uploaded %s to %q", fdate+".json", server)
 	return true
 }

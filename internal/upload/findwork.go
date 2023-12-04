@@ -33,6 +33,7 @@ func findWork(localdir, uploaddir string) work {
 	}
 
 	mode, asof := it.Mode()
+	logger.Printf("mode %s, asof %s", mode, asof)
 
 	// count files end in .v1.count
 	// reports end in .json. If they are not to be uploaded they
@@ -41,6 +42,7 @@ func findWork(localdir, uploaddir string) work {
 		if strings.HasSuffix(fi.Name(), ".v1.count") {
 			fname := filepath.Join(localdir, fi.Name())
 			if stillOpen(fname) {
+				logger.Printf("still active: %s", fname)
 				continue
 			}
 			ans.countfiles = append(ans.countfiles, fname)
@@ -62,6 +64,7 @@ func findWork(localdir, uploaddir string) work {
 					//
 					// TODO(rfindley): store the begin date in reports, so that we can
 					// verify this assumption.
+					logger.Printf("uploadable %s", fi.Name())
 					ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
 				}
 			} else {
@@ -71,6 +74,7 @@ func findWork(localdir, uploaddir string) work {
 				// TODO(rfindley): invert this logic following more testing. We
 				// should only upload if we know both the asof date and the report
 				// date, and they are acceptable.
+				logger.Printf("uploadable anyway %s", fi.Name())
 				ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
 			}
 		}
