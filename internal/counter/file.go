@@ -21,6 +21,7 @@ import (
 	"time"
 	"unsafe"
 
+	"golang.org/x/mod/module"
 	"golang.org/x/telemetry/internal/mmap"
 	"golang.org/x/telemetry/internal/telemetry"
 )
@@ -136,19 +137,7 @@ func (f *file) init(begin, end time.Time) {
 		return
 	}
 
-	goVers := info.GoVersion
-	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
-		goVers = "devel"
-	}
-	progPkgPath := info.Path
-	if progPkgPath == "" {
-		progPkgPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
-	}
-	prog := path.Base(progPkgPath)
-	progVers := info.Main.Version
-	if strings.Contains(progVers, "devel") || strings.Contains(progVers, "-") {
-		progVers = "devel"
-	}
+	goVers, progPkgPath, prog, progVers := programInfo(info)
 	f.meta = fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
 		begin.Format(time.RFC3339), end.Format(time.RFC3339),
 		progPkgPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
@@ -161,6 +150,24 @@ func (f *file) init(begin, end time.Time) {
 	}
 	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", prog, progVers, goVers, runtime.GOOS, runtime.GOARCH)
 	f.namePrefix = filepath.Join(dir, prefix)
+}
+
+func programInfo(info *debug.BuildInfo) (goVers, progPkgPath, prog, progVers string) {
+	goVers = info.GoVersion
+	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
+		goVers = "devel"
+	}
+	progPkgPath = info.Path
+	if progPkgPath == "" {
+		progPkgPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+	}
+	prog = path.Base(progPkgPath)
+	progVers = info.Main.Version
+	if strings.Contains(progVers, "devel") || module.IsPseudoVersion(progVers) {
+		// we don't want to track pseudo versions, but may want to track prereleases.
+		progVers = "devel"
+	}
+	return goVers, progPkgPath, prog, progVers
 }
 
 // filename returns the name of the file to use for f,
