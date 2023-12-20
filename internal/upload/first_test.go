@@ -5,8 +5,8 @@
 package upload
 
 import (
-	"log"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -15,17 +15,20 @@ import (
 // In practice this test runs last, so is somewhat superfluous,
 // but it also checks that uploads and reads from the channel are matched
 func TestSimpleServer(t *testing.T) {
-	setup(t, "2023-01-01")
-	url := serverURL
-	resp, err := http.Post(url+"/foo", "text/plain", strings.NewReader("hello"))
+	srv, uploaded := createTestUploadServer(t)
+	defer srv.Close()
+
+	url := srv.URL
+	resp, err := http.Post(url, "text/plain", strings.NewReader("hello"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("%#v", resp.StatusCode)
+		t.Errorf("%#v", resp.StatusCode)
 	}
-	got := <-serverChan
-	if got != (msg{"/foo", 5}) {
-		t.Errorf("got %v", got)
+	got := uploaded()
+	want := [][]byte{[]byte("hello")}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %s, want %s", got, want)
 	}
 }
