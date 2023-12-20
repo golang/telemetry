@@ -349,8 +349,6 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 	return v, cleanup
 }
 
-var mainCounter = New("counter/main")
-
 // Open associates counting with the defaultFile.
 // The returned function is for testing only, and should
 // be called after all Inc()s are finished, but before
@@ -363,7 +361,6 @@ func Open() func() {
 		return func() {} // No need to clean up.
 	}
 	debugPrintf("Open")
-	mainCounter.Add(1)
 	defaultFile.rotate()
 	return func() {
 		// Once this has been called, the defaultFile is no longer usable.

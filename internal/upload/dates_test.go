@@ -43,7 +43,7 @@ func TestUploadBasic(t *testing.T) {
 	if out, err := regtest.RunProg(t, telemetryDir, prog); err != nil {
 		t.Fatalf("failed to run program: %s", out)
 	}
-	uc := createTestUploadConfig(t, []string{"knownCounter", "counter/main"}, []string{"aStack"})
+	uc := createTestUploadConfig(t, []string{"knownCounter"}, []string{"aStack"})
 
 	// Start upload server
 	srv, uploaded := createTestUploadServer(t)

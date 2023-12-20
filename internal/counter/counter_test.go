@@ -516,8 +516,7 @@ func TestStack(t *testing.T) {
 	// although line numbers outside our control might change.
 	// A less fragile test would just check that " doesn't appear
 	known := map[string]bool{
-		"counter/main": true,
-		"foo":          true,
+		"foo": true,
 		"golang.org/x/telemetry/internal/counter.fn":        true,
 		"golang.org/x/telemetry/internal/counter.TestStack": true,
 		"runtime.goexit":  true,
