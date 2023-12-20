@@ -9,7 +9,6 @@
 package regtest
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,37 +25,64 @@ const (
 	entryPointEnvVar   = "_COUNTERTEST_ENTRYPOINT"
 )
 
-// Main is a test main function for use in TestMain, which runs one of the
-// given programs when invoked as a separate process via RunProg.
+var (
+	telemetryDirEnvVarValue = os.Getenv(telemetryDirEnvVar)
+	entryPointEnvVarValue   = os.Getenv(entryPointEnvVar)
+)
+
+// Program is a value that can be used to identify a program in the test.
+type Program string
+
+// NewProgram returns a Program value that can be used to identify a program
+// to run by RunProg. The program must be registered with NewProgram before
+// the first call to RunProg in the test function.
 //
-// The return value of each program is the exit code of the process.
-func Main(m *testing.M, programs map[string]func() int) {
-	if d := os.Getenv(telemetryDirEnvVar); d != "" {
-		countertest.Open(d)
+// RunProg runs this binary in a separate process with special environment
+// variables that specify the entry point. When this binary runs with the
+// environment variables that match the specified name, NewProgram calls
+// the given fn and exits with the return value. Note that all the code
+// before NewProgram is executed in both the main process and the subprocess.
+func NewProgram(t *testing.T, name string, fn func() int) Program {
+	if telemetryDirEnvVarValue != "" && entryPointEnvVarValue == name {
+		// We are running the separate process that was spawned by RunProg.
+		fmt.Fprintf(os.Stderr, "running program %q\n", name)
+		countertest.Open(telemetryDirEnvVarValue)
+		os.Exit(fn())
 	}
-	if e, ok := os.LookupEnv(entryPointEnvVar); ok {
-		if prog, ok := programs[e]; ok {
-			os.Exit(prog())
-		}
-		fmt.Fprintf(os.Stderr, "unknown program %q", e)
-		os.Exit(2)
+
+	testName, _, _ := strings.Cut(t.Name(), "/")
+	registered, ok := registeredPrograms[testName]
+	if !ok {
+		registered = make(map[string]bool)
 	}
-	flag.Parse()
-	os.Exit(m.Run())
+	if registered[name] {
+		t.Fatalf("program %q was already registered", name)
+	}
+	registered[name] = true
+	return Program(name)
 }
 
-// RunProg runs the named program in a separate process with the specified
-// telemetry directory, where prog is one of the programs passed to Main (which
-// must be invoked by TestMain).
-func RunProg(telemetryDir string, prog string) ([]byte, error) {
+// registeredPrograms stores all registered program names to detect duplicate registrations.
+var registeredPrograms = make(map[string]map[string]bool) // test name -> program name -> exist
+
+// RunProg runs the program prog in a separate process with the specified
+// telemetry directory. RunProg can be called multiple times in the same test,
+// but all the programs must be registered with NewProgram before the first
+// call to RunProg.
+func RunProg(t *testing.T, telemetryDir string, prog Program) ([]byte, error) {
+	if telemetryDirEnvVarValue != "" {
+		fmt.Fprintf(os.Stderr, "unknown program %q\n %s %s", prog, telemetryDirEnvVarValue, entryPointEnvVarValue)
+		os.Exit(2)
+	}
+	testName, _, _ := strings.Cut(t.Name(), "/")
 	testBin, err := os.Executable()
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine the current process's executable name: %v", err)
 	}
 
-	// Spawn a subprocess to run the `prog`, by setting subprocessKeyEnvVar and telemetryDirEnvVar.
-	cmd := exec.Command(testBin)
-	cmd.Env = append(cmd.Env, telemetryDirEnvVar+"="+telemetryDir, entryPointEnvVar+"="+prog)
+	// Spawn a subprocess to run the 'prog' by setting telemetryDirEnvVar.
+	cmd := exec.Command(testBin, "-test.run", fmt.Sprintf("^%s$", testName))
+	cmd.Env = append(cmd.Env, telemetryDirEnvVar+"="+telemetryDir, entryPointEnvVar+"="+string(prog))
 	return cmd.CombinedOutput()
 }
 
