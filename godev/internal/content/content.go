@@ -70,7 +70,7 @@ func (f HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // first by appending .md, .html, /index.md, and /index.html to the
 // requested url path.
 //
-// The default behavior of looking for templates within fsys can be overriden
+// The default behavior of looking for templates within fsys can be overridden
 // by using an optional set of content handlers.
 //
 // For example, a server can be constructed for a file system with a single
@@ -303,7 +303,7 @@ func stat(fsys fs.FS, urlPath string) (string, error) {
 	return p, err
 }
 
-// tmplPatters generates a slice of file patterns to use in template.ParseFS.
+// tmplPatterns generates a slice of file patterns to use in template.ParseFS.
 func tmplPatterns(fsys fs.FS, tmplPath string) ([]string, error) {
 	var patterns []string
 	globs := []string{"*.tmpl", path.Join(path.Dir(tmplPath), "*.tmpl")}

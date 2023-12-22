@@ -599,7 +599,7 @@ func renderTemplate(w http.ResponseWriter, fsys fs.FS, tmplPath string, data any
 	return nil
 }
 
-// tmplPatters generates a slice of file patterns to use in template.ParseFS.
+// tmplPatterns generates a slice of file patterns to use in template.ParseFS.
 func tmplPatterns(fsys fs.FS, tmplPath string) ([]string, error) {
 	var patterns []string
 	globs := []string{"*.tmpl", path.Join(path.Dir(tmplPath), "*.tmpl")}

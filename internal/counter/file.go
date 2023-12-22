@@ -384,7 +384,7 @@ type mappedFile struct {
 	mapping   *mmap.Data
 }
 
-// exising should be nil the first time this is called for a file,
+// existing should be nil the first time this is called for a file,
 // and when remapping, should be the previous mappedFile.
 func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, err error) {
 	hdr, err := mappedHeader(meta)

@@ -105,7 +105,7 @@ func deleteFiles(files []string) {
 	}
 }
 
-// createReports for all the count files for the same date.
+// createReport for all the count files for the same date.
 // returns the absolute path name of the file containing the report
 func (u *Uploader) createReport(start time.Time, expiryDate string, files []string, lastWeek string) (string, error) {
 	if u.Config == nil {
