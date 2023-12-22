@@ -90,6 +90,17 @@ This viewer displays charts for locally collected data, as well as information a
 			short: "print the current telemetry environment",
 			run:   runEnv,
 		},
+		{
+			usage: "clean",
+			short: "remove all local telemetry data",
+			long: `Gotelemetry clean removes locally collected counters and reports.
+
+Removing counter files that are currently in use may fail on some operating
+systems.
+
+Gotelemetry clean does not affect the current telemetry mode.`,
+			run: runClean,
+		},
 	}
 	experimentalCommands = []*command{
 		{
@@ -154,8 +165,12 @@ func usage() {
 }
 
 func failf(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, fmt.Sprintf(format, args...))
+	fmt.Fprintf(os.Stderr, format, args...)
 	os.Exit(1)
+}
+
+func warnf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "Warning: "+format+"\n", args...)
 }
 
 func findCommand(name string) *command {
@@ -210,7 +225,8 @@ func telemetryOnMessage() string {
 For more details, see https://telemetry.go.dev/privacy.
 This data is collected in accordance with the Google Privacy Policy (https://policies.google.com/privacy).
 
-To disable telemetry uploading, run “gotelemetry off”.`
+To disable telemetry uploading, but keep local data collection, run “gotelemetry local”.
+To disable both collection and uploading, run “gotelemetry off“.`
 }
 
 func runLocal(_ []string) {
@@ -244,7 +260,42 @@ func runEnv(_ []string) {
 	fmt.Println("uploaddir:", it.UploadDir)
 }
 
-func runCSV(args []string) {
+func runClean(_ []string) {
+	// For now, be careful to only remove counter files and reports.
+	// It would probably be OK to just remove everything, but it may
+	// be useful to preserve the weekends file.
+	for dir, suffixes := range map[string][]string{
+		it.LocalDir:  {"." + counter.FileVersion + ".count", ".json"},
+		it.UploadDir: {".json"},
+	} {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				warnf("failed to read telemetry dir: %v", err)
+			}
+			continue
+		}
+		for _, entry := range entries {
+			// TODO: use slices.ContainsFunc once it is available in all supported Go
+			// versions.
+			remove := false
+			for _, suffix := range suffixes {
+				if strings.HasSuffix(entry.Name(), suffix) {
+					remove = true
+					break
+				}
+			}
+			if remove {
+				path := filepath.Join(dir, entry.Name())
+				if err := os.Remove(path); err != nil {
+					warnf("failed to remove %s: %v", path, err)
+				}
+			}
+		}
+	}
+}
+
+func runCSV(_ []string) {
 	csv.Csv()
 }
 

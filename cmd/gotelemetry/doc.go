@@ -17,6 +17,7 @@
 //	off	disable telemetry collection and uploading
 //	view	run a web viewer for local telemetry data
 //	env	print the current telemetry environment
+//	clean	remove all local telemetry data
 //
 // Use "gotelemetry help <command>" for details about any command.
 //

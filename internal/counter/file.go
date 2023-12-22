@@ -196,7 +196,7 @@ func (f *file) filename(now time.Time) (name string, expire time.Time, err error
 		return "", time.Time{}, f.err
 	}
 
-	name = f.namePrefix + now.Format("2006-01-02") + "." + fileVersion + ".count"
+	name = f.namePrefix + now.Format("2006-01-02") + "." + FileVersion + ".count"
 	return name, end, nil
 }
 
@@ -451,8 +451,8 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, 
 }
 
 const (
-	fileVersion = "v1"
-	hdrPrefix   = "# telemetry/counter file " + fileVersion + "\n"
+	FileVersion = "v1"
+	hdrPrefix   = "# telemetry/counter file " + FileVersion + "\n"
 	recordUnit  = 32
 	maxMetaLen  = 512
 	numHash     = 512 // 2kB for hash table
