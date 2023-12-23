@@ -78,11 +78,10 @@ func (f *file) register(c *Counter) {
 }
 
 // invalidateCounters marks as invalid all the pointers
-// held by f's counters (because they point into m),
-// and then closes prev.
+// held by f's counters and then refreshes them.
 //
 // invalidateCounters cannot be called while holding f.mu,
-// because a counter invalidation may call f.lookup.
+// because a counter refresh may call f.lookup.
 func (f *file) invalidateCounters() {
 	// Mark every counter as needing to refresh its count pointer.
 	if head := f.counters.Load(); head != nil {
@@ -178,9 +177,8 @@ func (f *file) filename(now time.Time) (name string, expire time.Time, err error
 	now = now.UTC()
 	year, month, day := now.Date()
 	begin := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
-	// files always begin today, but expire on the day of the week
-	// from the 'weekends' file. The actual day is the next day, except
-	// first-time users have no files expiring in less than 7 days.
+	// files always begin today, but expire on the next day of the week
+	// from the 'weekends' file.
 	incr, err := fileValidity(now)
 	if err != nil {
 		return "", time.Time{}, err
@@ -201,8 +199,7 @@ func (f *file) filename(now time.Time) (name string, expire time.Time, err error
 }
 
 // fileValidity returns the number of days that a file is valid for.
-// It is either the number of days to the next day of the week from the
-// 'weekends' file, or 7 more than that for new users.
+// It is the number of days to the next day of the week from the 'weekends' file.
 func fileValidity(now time.Time) (int, error) {
 	// If there is no 'weekends' file create it and initialize it
 	// to a random day of the week. There is a short interval for
@@ -212,10 +209,10 @@ func fileValidity(now time.Time) (int, error) {
 	if _, err := os.ReadFile(weekends); err != nil {
 		if err := os.MkdirAll(telemetry.LocalDir, 0777); err != nil {
 			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.LocalDir)
-			return 0, err
+			return 7, err
 		}
 		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
-			return 0, err
+			return 7, err
 		}
 	}
 
@@ -224,11 +221,11 @@ func fileValidity(now time.Time) (int, error) {
 	// There is no reasonable way of recovering from errors
 	// so we just fail
 	if err != nil {
-		return 0, err
+		return 7, err
 	}
 	buf = bytes.TrimSpace(buf)
 	if len(buf) == 0 {
-		return 0, fmt.Errorf("empty weekends file")
+		return 7, err
 	}
 	dayofweek := time.Weekday(buf[0] - '0') // 0 is Sunday
 	// paranoia to make sure the value is legal
@@ -270,51 +267,58 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	// TODO(hyangah): shouldn't we close the current one if f.current.Load() != nil
-	// but f.filename fails to return a valid name for the next counter file?
+	var previous *mappedFile
+	cleanup = func() {
+		// convert counters to new mapping (or nil)
+		// from old mapping (or nil)
+		f.invalidateCounters()
+		if previous == nil {
+			// no old mapping to worry about
+			return
+		}
+		// now it is safe to clean up the old mapping
+		if err := previous.f.Close(); err != nil {
+			log.Print(err)
+		}
+		if err := munmap(previous.mapping); err != nil {
+			log.Print(err)
+		}
+	}
+
 	name, expire, err := f.filename(counterTime())
 	if err != nil {
+		// This could be mode == "off" (when rotate is called for the first time)
+		ret := nop
+		if previous = f.current.Load(); previous != nil {
+			// or it could be some strange error
+			f.current.Store(nil)
+			ret = cleanup
+		}
 		debugPrintf("rotate: %v\n", err)
-		return time.Time{}, nop
-	}
-	if name == "" {
-		return time.Time{}, nop
+		return time.Time{}, ret
 	}
 
-	current := f.current.Load()
-	if current != nil && name == current.f.Name() {
+	previous = f.current.Load()
+	if previous != nil && name == previous.f.Name() {
+		// the existing file is fine
 		return expire, nop
-	}
-
-	if current != nil {
-		if err := current.f.Close(); err != nil {
-			log.Print(err)
-		}
-		if err := munmap(current.mapping); err != nil {
-			log.Print(err)
-		}
-		// TODO(hyangah): Ask pjw/rsc:
-		// Lookup accesses f.current.Load without lock.
-		// Why is it ok to munmap here?
-		// pjw: i think current.mapping can't be what we
-		// want; we're discarding it.
 	}
 
 	m, err := openMapped(name, f.meta, nil)
 	if err != nil {
+		// Mapping failed:
+		// If there used to be a mapped file, after cleanup
+		// incrementing counters will only change their internal state.
+		// (before cleanup the existing mapped file would be updated)
+		f.current.Store(nil) // invalidate the current mapping
 		debugPrintf("rotate: openMapped: %v\n", err)
-		if current != nil {
-			// TODO(hyangah): Didn't we just munmap current.mapping?
-			if v, _, _, _ := current.lookup("counter/rotate-error"); v != nil {
-				v.Add(1)
-			}
-		}
-		return expire, nop
+		return time.Time{}, cleanup
 	}
 
 	debugPrintf("using %v", m.f.Name())
 	f.current.Store(m)
-	return expire, f.invalidateCounters
+
+	return expire, cleanup
 }
 
 func (f *file) newCounter(name string) *atomic.Uint64 {

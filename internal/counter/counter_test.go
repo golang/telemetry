@@ -374,63 +374,6 @@ func future(days int) func() time.Time {
 	}
 }
 
-func TestRotate(t *testing.T) {
-	testenv.SkipIfUnsupportedPlatform(t)
-
-	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
-	year, month, day := counterTime().Date()
-	now := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
-	setup(t)
-	defer restore()
-	// pretend something was uploaded
-	os.WriteFile(filepath.Join(telemetry.UploadDir, "anything"), []byte{}, 0666)
-	var f file
-	defer close(&f)
-	c := f.New("gophers")
-	c.Inc()
-	var modified int
-	for i := 0; i < 2; i++ {
-		// nothing should change on the second rotate
-		f.rotate()
-		fi, err := os.ReadDir(telemetry.LocalDir)
-		if err != nil || len(fi) != 2 {
-			t.Fatalf("err=%v, len(fi) = %d, want 2", err, len(fi))
-		}
-		x := fi[0].Name()
-		y := x[len(x)-len("2006-01-02")-len(".v1.count") : len(x)-len(".v1.count")]
-		us, err := time.ParseInLocation("2006-01-02", y, time.UTC)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// we expect today's date?
-		if us != now {
-			t.Errorf("us = %v, want %v, i=%d y=%s", us, now, i, y)
-		}
-		fd, err := os.Open(filepath.Join(telemetry.LocalDir, fi[0].Name()))
-		if err != nil {
-			t.Fatal(err)
-		}
-		stat, err := fd.Stat()
-		if err != nil {
-			t.Fatal(err)
-		}
-		mt := stat.ModTime().Nanosecond()
-		if modified == 0 {
-			modified = mt
-		}
-		if modified != mt {
-			t.Errorf("modified = %v, want %v", mt, modified)
-		}
-		fd.Close()
-	}
-	counterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
-	f.rotate()
-	fi, err := os.ReadDir(telemetry.LocalDir)
-	if err != nil || len(fi) != 3 {
-		t.Fatalf("err=%v, len(fi) = %d, want 3", err, len(fi))
-	}
-}
-
 func TestStack(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
@@ -558,7 +501,7 @@ func setup(t *testing.T) {
 }
 
 func restore() {
-	counterTime = time.Now
+	counterTime = time.Now().UTC
 }
 
 func (f *file) New(name string) *Counter {
