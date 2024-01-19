@@ -19,6 +19,7 @@ import (
 	"golang.org/x/telemetry/cmd/gotelemetry/internal/view"
 	"golang.org/x/telemetry/internal/counter"
 	it "golang.org/x/telemetry/internal/telemetry"
+	"golang.org/x/telemetry/upload"
 )
 
 type command struct {
@@ -113,6 +114,11 @@ Gotelemetry clean does not affect the current telemetry mode.`,
 			short:   "view counter file data",
 			run:     runDump,
 			hasArgs: true,
+		},
+		{
+			usage: "upload",
+			short: "run upload with logging enabled",
+			run:   runUpload,
 		},
 	}
 )
@@ -331,6 +337,12 @@ func runDump(args []string) {
 		}
 		fmt.Printf("-- %v --\n%s\n", file, js)
 	}
+}
+
+func runUpload(_ []string) {
+	upload.Run(&upload.Control{
+		Logging: os.Stderr,
+	})
 }
 
 func main() {

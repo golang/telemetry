@@ -26,4 +26,5 @@
 //
 //	csv	print all known counters
 //	dump	view counter file data
+//	upload	run upload with logging enabled
 package main
