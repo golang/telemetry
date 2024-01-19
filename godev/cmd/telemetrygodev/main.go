@@ -44,6 +44,13 @@ func main() {
 		slog.SetDefault(slog.New(ilog.NewGCPLogHandler()))
 	}
 
+	handler := newHandler(ctx, cfg)
+
+	fmt.Printf("server listening at http://localhost:%s\n", cfg.ServerPort)
+	log.Fatal(http.ListenAndServe(":"+cfg.ServerPort, handler))
+}
+
+func newHandler(ctx context.Context, cfg *config.Config) http.Handler {
 	buckets, err := storage.NewAPI(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -55,10 +62,10 @@ func main() {
 	fsys := fsys(cfg.DevMode)
 	mux := http.NewServeMux()
 
-	mux.Handle("/", handleRoot(fsys, ucfg, buckets))
+	mux.Handle("/", handleRoot(fsys, buckets))
 	mux.Handle("/config", handleConfig(fsys, ucfg))
 	mux.Handle("/upload/", handleUpload(ucfg, buckets))
-	mux.Handle("/charts/", handleChart(fsys, ucfg, buckets))
+	mux.Handle("/charts/", handleChart(fsys, buckets))
 
 	mw := middleware.Chain(
 		middleware.Log(slog.Default()),
@@ -66,9 +73,7 @@ func main() {
 		middleware.RequestSize(cfg.MaxRequestBytes),
 		middleware.Recover(),
 	)
-
-	fmt.Printf("server listening at http://localhost:%s\n", cfg.ServerPort)
-	log.Fatal(http.ListenAndServe(":"+cfg.ServerPort, mw(mux)))
+	return mw(mux)
 }
 
 type link struct {
@@ -80,7 +85,7 @@ type indexPage struct {
 	Reports []*link
 }
 
-func handleRoot(fsys fs.FS, ucfg *tconfig.Config, buckets *storage.API) content.HandlerFunc {
+func handleRoot(fsys fs.FS, buckets *storage.API) content.HandlerFunc {
 	cserv := content.Server(fsys)
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.URL.Path != "/" {
@@ -118,7 +123,7 @@ type chartPage struct {
 	Charts map[string]any
 }
 
-func handleChart(fsys fs.FS, ucfg *tconfig.Config, buckets *storage.API) content.HandlerFunc {
+func handleChart(fsys fs.FS, buckets *storage.API) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/charts/")

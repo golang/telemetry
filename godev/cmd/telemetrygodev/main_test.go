@@ -5,12 +5,89 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	_ "embed"
+	"flag"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"golang.org/x/telemetry"
+	"golang.org/x/telemetry/godev/internal/config"
 	tconfig "golang.org/x/telemetry/internal/config"
 )
+
+// If telemetry_url is configured, TestPaths may be used as a basic push test.
+var telemetryURL = flag.String("telemetry_url", "", "url of the telemetry instance to test")
+
+func TestPaths(t *testing.T) {
+	rootURL := *telemetryURL
+	if rootURL == "" {
+		ctx := context.Background()
+		cfg := config.NewConfig()
+		cfg.LocalStorage = t.TempDir()
+		// NewConfig assumes that the command is run from the repo root, but tests
+		// run from their test directory. We should fix this, but for now just
+		// fix up the config path.
+		// TODO(rfindley): fix this.
+		cfg.UploadConfig = filepath.Join("..", "..", "..", "config", "config.json")
+		handler := newHandler(ctx, cfg)
+		ts := httptest.NewServer(handler)
+		defer ts.Close()
+		rootURL = ts.URL
+	}
+
+	tests := []struct {
+		method    string
+		path      string
+		body      string
+		code      int
+		fragments []string
+	}{
+		{"GET", "/", "", 200, []string{"Overview"}},
+		{
+			"POST",
+			"/upload/2023-01-01/123.json",
+			`{"Week":"2023-01-01","LastWeek":"2022-12-25","X":0.123,"Programs":null,"Config":"v0.0.0-20230822160736-17171dbf1d76"}`,
+			200,
+			nil, // the body returned by /upload doesn't matter
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.method+" "+test.path, func(t *testing.T) {
+			url := strings.TrimRight(rootURL, "/") + test.path
+			r := strings.NewReader(test.body)
+			req, err := http.NewRequest(test.method, url, r)
+			if err != nil {
+				t.Fatalf("NewRequest failed: %v", err)
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("request failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != test.code {
+				t.Errorf("status code = %d, want %d", resp.StatusCode, test.code)
+			}
+
+			content, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("reading body: %v", err)
+			}
+			for _, fragment := range test.fragments {
+				if !bytes.Contains(content, []byte(fragment)) {
+					t.Errorf("missing fragment %q", fragment)
+				}
+			}
+		})
+	}
+}
 
 func TestValidate(t *testing.T) {
 	cfg, err := tconfig.ReadConfig("testdata/config.json")
