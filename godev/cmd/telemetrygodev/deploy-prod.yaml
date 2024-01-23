@@ -1,0 +1,70 @@
+# Copyright 2023 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+steps:
+  # Build the container image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/telemetrygodev:$COMMIT_SHA"
+      - "-f"
+      - "godev/cmd/telemetrygodev/Dockerfile"
+      - "."
+  # Push the container image to Container Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "gcr.io/$PROJECT_ID/telemetrygodev:$COMMIT_SHA"
+  # Acquire the deployment lock
+  - name: golang
+    args:
+      - "go"
+      - "run"
+      - "golang.org/x/website/cmd/locktrigger@latest"
+      - "--project=$PROJECT_ID"
+      - "--build=$BUILD_ID"
+      - "--repo=https://go.googlesource.com/telemetry"
+  # Deploy container image to dev Cloud Run service
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "dev-telemetry"
+      - "--image"
+      - "gcr.io/$PROJECT_ID/telemetrygodev:$COMMIT_SHA"
+      - "--region"
+      - "us-central1"
+      - "--service-account"
+      - "$_RUN_SERVICE_ACCOUNT"
+      - "--set-env-vars"
+      - "GO_TELEMETRY_PROJECT_ID=$PROJECT_ID,GO_TELEMETRY_ENV=dev"
+  # Run push tests
+  - name: "golang"
+    entrypoint: sh
+    args:
+      - "-c"
+      - "go"
+      - "test"
+      - "./godev/cmd/telemetrygodev"
+      - "-run=TestPaths"
+      - "-telemetry_url=https://dev-telemetry.go.dev"
+  # Deploy container image to prod Cloud Run service
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "prod-telemetry"
+      - "--image"
+      - "gcr.io/$PROJECT_ID/telemetrygodev:$COMMIT_SHA"
+      - "--region"
+      - "us-central1"
+      - "--service-account"
+      - "$_RUN_SERVICE_ACCOUNT"
+      - "--set-env-vars"
+      - "GO_TELEMETRY_PROJECT_ID=$PROJECT_ID,GO_TELEMETRY_ENV=prod"
+images:
+  - "gcr.io/$PROJECT_ID/telemetrygodev:$COMMIT_SHA"
