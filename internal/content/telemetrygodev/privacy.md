@@ -5,8 +5,7 @@ Layout: base.html
 
 # Privacy Policy
 
-_Last updated: September 22, 2023_
-
+_Last updated: January 24, 2024_
 
 Go Telemetry is a way for Go toolchain programs to collect data about their
 performance and usage. This data can help developers improve the language and
@@ -50,9 +49,9 @@ how the Go toolchain is used and if it is performing as expected.
 
 ## Using the `gotelemetry` Command Line Tool {#command}
 
-To manage Go Telemetry, you can use the `gotelemetry`` command line tool.
+To manage Go Telemetry, you can use the `gotelemetry` command line tool.
 
-	`go install golang.org/x/telemetry/cmd/gotelemetry@latest`
+	go install golang.org/x/telemetry/cmd/gotelemetry@latest
 
 Here are some useful commands:
 
@@ -73,14 +72,16 @@ You can find the set of approved counters as a Go module at
 
 ## IDE Integration {#integration}
 
-If you're using an integrated development environment (IDE) like Visual Studio Code,
-future versions (perhaps starting with v0.14.0) of [gopls](https://go.dev/s/gopls) 
-will collect telemetry data. As described above,
-data is only uploaded after you have opted in, either by using the command
-[`gotelemetry on`](#command) as
-described above or by accepting a dialog in the IDE.
+If you're using an integrated development environment (IDE) like Visual Studio
+Code, versions
+[`v0.14.0`](https://github.com/golang/tools/releases/tag/gopls%2Fv0.14.0) and
+later of the Go language server [gopls](https://go.dev/s/gopls) collect
+telemetry data. As described above, data is only uploaded after you have opted
+in, either by using the command [`gotelemetry on`](#command) as described above
+or by accepting a dialog in the IDE.
 
-You can always opt out at any time by using the [`gotelemetry off`](#command) command.
+You can always opt out of uploading at any time by using the
+[`gotelemetry local`](#command) or [`gotelemetry off`](#command) commands.
 
 By sharing performance statistics, usage information, and crash reports with Go Telemetry,
 you can help improve the Go programming language and its tools while also ensuring
