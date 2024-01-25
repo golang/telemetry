@@ -46,11 +46,7 @@ steps:
     entrypoint: sh
     args:
       - "-c"
-      - "go"
-      - "test"
-      - "./godev/cmd/telemetrygodev"
-      - "-run=TestPaths"
-      - "-telemetry_url=https://dev-telemetry.go.dev"
+      - "go test ./godev/cmd/telemetrygodev -run=TestPaths -telemetry_url=https://dev-telemetry.go.dev"
   # Deploy container image to prod Cloud Run service
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
