@@ -8,10 +8,11 @@ package telemetry
 
 // An UploadConfig controls what data is uploaded.
 type UploadConfig struct {
-	GOOS      []string
-	GOARCH    []string
-	GoVersion []string
-	Programs  []*ProgramConfig
+	GOOS       []string
+	GOARCH     []string
+	GoVersion  []string
+	SampleRate float64
+	Programs   []*ProgramConfig
 }
 
 type ProgramConfig struct {

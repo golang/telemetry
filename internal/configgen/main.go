@@ -35,6 +35,9 @@ import (
 var (
 	write = flag.Bool("w", false, "if set, write the config file; otherwise, print to stdout")
 	force = flag.Bool("f", false, "if set, force the write of the config file even if the current content is still valid")
+
+	// SamplingRate is the fraction of otherwise uploadable reports that will be uploaded
+	SamplingRate = 1.0
 )
 
 //go:embed config.txt
@@ -141,6 +144,8 @@ func generate(graphConfig []byte, padding padding) (*telemetry.UploadConfig, err
 	ucfg := &telemetry.UploadConfig{
 		GOOS:   goos(),
 		GOARCH: goarch(),
+		// the probability of uploading a report
+		SampleRate: SamplingRate,
 	}
 	var err error
 	ucfg.GoVersion, err = goVersions()
