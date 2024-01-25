@@ -44,9 +44,10 @@ steps:
   # Run push tests
   - name: "golang"
     entrypoint: sh
+    dir: "godev"
     args:
       - "-c"
-      - "go test ./godev/cmd/telemetrygodev -run=TestPaths -telemetry_url=https://dev-telemetry.go.dev"
+      - "go test ./cmd/telemetrygodev -run=TestPaths -telemetry_url=https://dev-telemetry.go.dev"
   # Deploy container image to prod Cloud Run service
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
