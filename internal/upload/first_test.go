@@ -32,3 +32,23 @@ func TestSimpleServer(t *testing.T) {
 		t.Errorf("got %s, want %s", got, want)
 	}
 }
+
+// make sure computeRandom() gets enough small values
+// in case SamplingRate is as small as .001
+func TestRandom(t *testing.T) {
+	const N = 102400 // 35msec on an M1 mac
+	cnt := 0
+	for i := 0; i < N; i++ {
+		if computeRandom() < 1.0/1024 {
+			cnt++
+		}
+	}
+	// cnt has a binomial distribution. The normal
+	// approximation has mu=N*p=100, sigma=sqrt(N*p*(1-p))=10
+	// We reject if cnt is off by 45, which happens about 1/300,000
+	// if the computeRandom() is truly uniform. That is, the
+	// test will be flaky about 3 times in a million.
+	if cnt < 55 || cnt > 145 {
+		t.Errorf("cnt %d more than 4.5 sigma(10) from mean(100)", cnt)
+	}
+}

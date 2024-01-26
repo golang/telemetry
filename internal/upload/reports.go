@@ -139,8 +139,10 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
 		Week:     expiryDate,
 		LastWeek: lastWeek,
 	}
-	// X is not being used as a probability to decide which counters to upload,
-	// but it could be.
+	if report.X > u.Config.SampleRate && u.Config.SampleRate > 0 {
+		logger.Printf("X:%f > SampleRate:%f, not uploadable", report.X, u.Config.SampleRate)
+		uploadOK = false
+	}
 	var succeeded bool
 	for _, f := range files {
 		x, err := u.parse(string(f))

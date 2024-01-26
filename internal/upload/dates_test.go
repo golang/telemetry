@@ -118,10 +118,11 @@ func createTestUploadConfig(t *testing.T, counterNames, stackCounterNames []stri
 		programConfig.Stacks = append(programConfig.Stacks, telemetry.CounterConfig{Name: c, Depth: 16})
 	}
 	return &telemetry.UploadConfig{
-		GOOS:      []string{GOOS},
-		GOARCH:    []string{GOARCH},
-		GoVersion: []string{goVersion},
-		Programs:  []*telemetry.ProgramConfig{programConfig},
+		GOOS:       []string{GOOS},
+		GOARCH:     []string{GOARCH},
+		SampleRate: 1.0,
+		GoVersion:  []string{goVersion},
+		Programs:   []*telemetry.ProgramConfig{programConfig},
 	}
 }
 
