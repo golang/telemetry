@@ -12,20 +12,17 @@ import (
 )
 
 // Run generates and uploads reports, as allowed by the mode file.
-// A nil Control is legal and uses the latest version of the module
-// golang.org/x/telemetry/config and the derault upload URL
-// (presently https://telemetry.go.dev/upload).
+// A nil Control is legal.
 func Run(c *Control) {
-	upload.SetLogOutput(c.Logging)
+	if c != nil && c.Logging != nil {
+		upload.SetLogOutput(c.Logging)
+	}
 
 	defer func() {
 		if err := recover(); err != nil {
 			log.Printf("upload recover: %v", err)
 		}
 	}()
-	if c == nil {
-		c = &Control{}
-	}
 	upload.NewUploader(nil).Run()
 }
 
