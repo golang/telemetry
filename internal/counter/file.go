@@ -401,7 +401,7 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, 
 		return nil, err
 	}
 	// Note: using local variable m here, not return value,
-	// so that reutrn nil, err does not set m = nil and break the code in the defer.
+	// so that return nil, err does not set m = nil and break the code in the defer.
 	m := &mappedFile{
 		f:    f,
 		meta: meta,
