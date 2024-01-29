@@ -17,6 +17,8 @@ func Run(c *Control) {
 	if c != nil && c.Logging != nil {
 		upload.SetLogOutput(c.Logging)
 	}
+	// ignore error: failed logging should not block uploads
+	upload.LogIfDebug("")
 
 	defer func() {
 		if err := recover(); err != nil {

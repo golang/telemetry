@@ -5,8 +5,14 @@
 package upload
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"os"
+	"path"
+	"path/filepath"
+	"runtime/debug"
+	"strings"
 	"time"
 
 	"golang.org/x/telemetry"
@@ -19,11 +25,66 @@ func init() {
 	logger = log.New(io.Discard, "", 0)
 }
 
+// keep track of what SetLogOutput has seen
+var seenlogwriters []io.Writer
+
 // SetLogOutput sets the default logger's output destination.
 func SetLogOutput(logging io.Writer) {
-	if logging != nil {
-		logger.SetOutput(logging)
+	if logging == nil {
+		return
 	}
+	logger.SetOutput(logging) // the common case
+	seenlogwriters = append(seenlogwriters, logging)
+	if len(seenlogwriters) > 1 {
+		// The client asked for logging, and there is also a debug dir
+		logger.SetOutput(io.MultiWriter(seenlogwriters...))
+	}
+}
+
+// LogIfDebug arranges to write a log file in the directory
+// dirname, if it exists. If dirname is the empty string,
+// the function tries the directory it.Localdir/debug.
+func LogIfDebug(dirname string) error {
+	dname := filepath.Join(it.LocalDir, "debug")
+	if dirname != "" {
+		dname = dirname
+	}
+	fd, err := os.Stat(dname)
+	if err == os.ErrExist || !fd.IsDir() {
+		// debug doesn't exist or isn't a directory
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return fmt.Errorf("no build info")
+	}
+	year, month, day := time.Now().UTC().Date()
+	goVers := info.GoVersion
+	// E.g.,  goVers:"go1.22-20240109-RC01 cl/597041403 +dcbe772469 X:loopvar"
+	words := strings.Fields(goVers)
+	goVers = words[0]
+	progPkgPath := info.Path
+	if progPkgPath == "" {
+		progPkgPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+	}
+	prog := path.Base(progPkgPath)
+	progVers := info.Main.Version
+	fname := filepath.Join(dname, fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log",
+		prog, progVers, goVers, year, month, day, os.Getpid()))
+	fname = strings.ReplaceAll(fname, " ", "")
+	if _, err := os.Stat(fname); err == nil {
+		// This process previously called upload.Run
+		return nil
+	}
+	logfd, err := os.Create(fname)
+	if err != nil {
+		return err
+	}
+	SetLogOutput(logfd)
+	return nil
 }
 
 // Uploader carries parameters needed for upload.

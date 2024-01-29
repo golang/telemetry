@@ -363,7 +363,11 @@ func readCountFileInfo(t *testing.T, localDir string) *countFileInfo {
 }
 
 func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) int {
-	os.MkdirAll(u.LocalDir, 0777)
+	dbg := filepath.Join(u.LocalDir, "debug")
+	os.MkdirAll(dbg, 0777)
+	if err := LogIfDebug(dbg); err != nil {
+		t.Errorf("debug logging: %v", err)
+	}
 	if len(doing.uploads) > 0 {
 		os.MkdirAll(u.UploadDir, 0777)
 	}
@@ -402,7 +406,7 @@ func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) int {
 	u.Run()
 
 	// check results
-	var cfiles, rfiles, lfiles, ufiles int
+	var cfiles, rfiles, lfiles, ufiles, logcnt int
 	fis, err := os.ReadDir(u.LocalDir)
 	if err != nil {
 		t.Errorf("%v reading localdir %s", err, u.LocalDir)
@@ -417,9 +421,19 @@ func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) int {
 			lfiles++
 		case strings.HasSuffix(f.Name(), ".json"):
 			rfiles++
+		case f.Name() == "debug":
+			dbgname := filepath.Join(u.LocalDir, "debug")
+			logs, err := os.ReadDir(dbgname)
+			if err != nil {
+				break
+			}
+			logcnt += len(logs)
 		default:
 			t.Errorf("for %s, unexpected local file %s", doing.name, f.Name())
 		}
+	}
+	if logcnt != 1 {
+		t.Errorf("expected 1 log file, got %d", logcnt)
 	}
 	fis, err = os.ReadDir(u.UploadDir)
 	if err != nil {
@@ -439,6 +453,14 @@ func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) int {
 	if doing.wantUploadeds != ufiles {
 		t.Errorf("%s: got %d uploaded files, wanted %d", doing.name, ufiles, doing.wantUploadeds)
 	}
+	// close all loggers, so Windows can clean up the test
+	for _, lw := range seenlogwriters {
+		if fd, ok := lw.(*os.File); ok {
+			fd.Close()
+		}
+	}
+	// and let the next test start in a clean state
+	seenlogwriters = []io.Writer{}
 	return ufiles - len(doing.uploads)
 }
 
