@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/telemetry/internal/mmap"
 	"golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/testenv"
 )
@@ -70,6 +69,7 @@ func TestBasic(t *testing.T) {
 }
 
 func TestMissingLocalDir(t *testing.T) {
+	testenv.SkipIfUnsupportedPlatform(t)
 	err := os.RemoveAll(telemetry.LocalDir)
 	if err != nil {
 		t.Fatal(err)
@@ -130,8 +130,7 @@ func close(f *file) {
 		// telemetry might have been off
 		return
 	}
-	mmap.Munmap(mf.mapping)
-	mf.f.Close()
+	mf.close()
 }
 
 func TestLarge(t *testing.T) {
