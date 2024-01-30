@@ -11,7 +11,11 @@ package counter
 // TODO(hyangah): use of type aliases prevents nice documentation
 // rendering in go doc or pkgsite. Fix this either by avoiding
 // type aliasing or restructuring the internal/counter package.
-import "golang.org/x/telemetry/internal/counter"
+import (
+	"flag"
+
+	"golang.org/x/telemetry/internal/counter"
+)
 
 // Inc increments the counter with the given name.
 func Inc(name string) {
@@ -76,4 +80,15 @@ func NewStack(name string, depth int) *StackCounter {
 // Programs using telemetry should call Open exactly once.
 func Open() {
 	counter.Open()
+}
+
+// CountFlags creates a counter for every flag that is set
+// and increments the counter. The name of the counter is
+// the concatenation of prefix and the flag name.
+//
+//	For instance, CountFlags("gopls:flag-", flag.CommandLine)
+func CountFlags(prefix string, fs flag.FlagSet) {
+	fs.Visit(func(f *flag.Flag) {
+		New(prefix + f.Name).Inc()
+	})
 }
