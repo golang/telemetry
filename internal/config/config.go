@@ -26,6 +26,7 @@ type Config struct {
 	pgcounter       map[pgkey]bool
 	pgcounterprefix map[pgkey]bool
 	pgstack         map[pgkey]bool
+	rate            map[pgkey]float64
 }
 
 type pgkey struct {
@@ -54,6 +55,7 @@ func NewConfig(cfg *telemetry.UploadConfig) *Config {
 	ucfg.pgcounter = make(map[pgkey]bool, len(ucfg.Programs))
 	ucfg.pgcounterprefix = make(map[pgkey]bool, len(ucfg.Programs))
 	ucfg.pgstack = make(map[pgkey]bool, len(ucfg.Programs))
+	ucfg.rate = make(map[pgkey]float64)
 	for _, p := range ucfg.Programs {
 		ucfg.program[p.Name] = true
 		for _, v := range p.Versions {
@@ -62,6 +64,7 @@ func NewConfig(cfg *telemetry.UploadConfig) *Config {
 		for _, c := range p.Counters {
 			for _, e := range Expand(c.Name) {
 				ucfg.pgcounter[pgkey{p.Name, e}] = true
+				ucfg.rate[pgkey{p.Name, e}] = c.Rate
 			}
 			prefix, _, found := strings.Cut(c.Name, ":")
 			if found {
@@ -70,6 +73,7 @@ func NewConfig(cfg *telemetry.UploadConfig) *Config {
 		}
 		for _, s := range p.Stacks {
 			ucfg.pgstack[pgkey{p.Name, s.Name}] = true
+			ucfg.rate[pgkey{p.Name, s.Name}] = s.Rate
 		}
 	}
 	return &ucfg
@@ -105,6 +109,10 @@ func (r *Config) HasCounterPrefix(program, prefix string) bool {
 
 func (r *Config) HasStack(program, stack string) bool {
 	return r.pgstack[pgkey{program, stack}]
+}
+
+func (r *Config) Rate(program, name string) float64 {
+	return r.rate[pgkey{program, name}]
 }
 
 func set(slice []string) map[string]bool {

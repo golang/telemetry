@@ -249,7 +249,7 @@ func files(dir string, cfg *config.Config) ([]*counterFile, error) {
 	}
 	var files []*counterFile
 	for _, e := range entries {
-		if err != nil || e.IsDir() || path.Ext(e.Name()) != ".count" {
+		if e.IsDir() || path.Ext(e.Name()) != ".count" {
 			continue
 		}
 		data, err := fs.ReadFile(fsys, e.Name())

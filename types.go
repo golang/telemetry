@@ -27,7 +27,7 @@ type ProgramConfig struct {
 
 type CounterConfig struct {
 	Name  string
-	Rate  float64 // If X < Rate, report this counter
+	Rate  float64 // If X <= Rate, report this counter
 	Depth int     `json:",omitempty"` // for stack counters
 }
 

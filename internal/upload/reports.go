@@ -202,7 +202,7 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
 		}
 		upload.Programs = append(upload.Programs, x)
 		for k, v := range p.Counters {
-			if cfg.HasCounter(p.Program, k) {
+			if cfg.HasCounter(p.Program, k) && report.X <= cfg.Rate(p.Program, k) {
 				x.Counters[k] = v
 			}
 		}
@@ -210,7 +210,7 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
 		// this can be made more efficient, when it matters
 		for k, v := range p.Stacks {
 			before, _, _ := strings.Cut(k, "\n")
-			if cfg.HasStack(p.Program, before) {
+			if cfg.HasStack(p.Program, before) && report.X <= cfg.Rate(p.Program, before) {
 				x.Stacks[k] = v
 			}
 		}
