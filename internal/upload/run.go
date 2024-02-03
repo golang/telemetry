@@ -64,7 +64,7 @@ func NewUploader(config *telemetry.UploadConfig) *Uploader {
 // due to bugs in the current platform.
 const disabledOnPlatform = false ||
 	runtime.GOOS == "openbsd" || // #60614
-	runtime.GOOS == "js" || // TODO: should telemetry be enabled on js/wasm?
+	runtime.GOOS == "js" || // #60971
 	runtime.GOOS == "wasip1" || // #60971
 	runtime.GOOS == "solaris" || // #60968 #60970
 	runtime.GOOS == "android" || // #60967
