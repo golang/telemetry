@@ -112,7 +112,7 @@ func (f *file) lookup(name string) counterPtr {
 }
 
 // ErrDisabled is the error returned when telemetry is disabled.
-var ErrDisabled = errors.New("counter: disabled by GOTELEMETRY=off")
+var ErrDisabled = errors.New("counter: disabled as Go telemetry is off")
 
 var (
 	errNoBuildInfo = errors.New("counter: missing build info")
