@@ -74,9 +74,9 @@ func TestViaStderr(t *testing.T) {
 	got = sanitize(counter.DecodeStack(got))
 	want := "crash/crash\n" +
 		"runtime.gopanic:--\n" +
-		"golang.org/x/telemetry/crashmonitor.grandchild:1\n" +
-		"golang.org/x/telemetry/crashmonitor.child:2\n" +
-		"golang.org/x/telemetry/crashmonitor.TestMain:9\n" +
+		"golang.org/x/telemetry/crashmonitor.grandchild:+1\n" +
+		"golang.org/x/telemetry/crashmonitor.child:+2\n" +
+		"golang.org/x/telemetry/crashmonitor.TestMain:+9\n" +
 		"main.main:--\n" +
 		"runtime.main:--\n" +
 		"runtime.goexit:--"
@@ -113,9 +113,9 @@ func TestStart(t *testing.T) {
 		got := sanitize(counter.DecodeStack(string(data)))
 		want := "crash/crash\n" +
 			"runtime.gopanic:--\n" +
-			"golang.org/x/telemetry/crashmonitor.grandchild:1\n" +
-			"golang.org/x/telemetry/crashmonitor.child:2\n" +
-			"golang.org/x/telemetry/crashmonitor.TestMain.func2:1\n" +
+			"golang.org/x/telemetry/crashmonitor.grandchild:+1\n" +
+			"golang.org/x/telemetry/crashmonitor.child:+2\n" +
+			"golang.org/x/telemetry/crashmonitor.TestMain.func2:+1\n" +
 			"runtime.goexit:--"
 		if got != want {
 			t.Errorf("got counter name <<%s>>, want <<%s>>", got, want)

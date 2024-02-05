@@ -78,34 +78,29 @@ func EncodeStack(pcs []uintptr, prefix string) string {
 	var locs []string
 	lastImport := ""
 	frs := runtime.CallersFrames(pcs)
-	for i := 0; ; i++ {
+	for {
 		fr, more := frs.Next()
-		pcline := fr.Line
-		entryptr := fr.Entry
-		var locline string
 		// TODO(adonovan): this CutLast(".") operation isn't
 		// appropriate for generic function symbols.
 		path, fname := cutLastDot(fr.Function)
 		if path == lastImport {
-			path = "\""
+			path = `"` // (a ditto mark)
 		} else {
 			lastImport = path
 		}
+		var loc string
 		if fr.Func != nil {
-			_, entryline := fr.Func.FileLine(entryptr)
-			if pcline >= entryline {
-				locline = fmt.Sprintf("%s.%s:%d", path, fname, pcline-entryline)
-			} else {
-				// unexpected
-				locline = fmt.Sprintf("%s.%s:??%d", path, fname, pcline)
-				lastImport = ""
-			}
+			// Use function-relative line numbering.
+			// f:+2 means two lines into function f.
+			// f:-1 should never happen, but be conservative.
+			_, entryLine := fr.Func.FileLine(fr.Entry)
+			loc = fmt.Sprintf("%s.%s:%+d", path, fname, fr.Line-entryLine)
 		} else {
-			// might happen if the function is non-Go code or is fully inlined.
-			locline = fmt.Sprintf("%s.%s:?%d", path, fname, pcline)
-			lastImport = ""
+			// The function is non-Go code or is fully inlined:
+			// use absolute line number within enclosing file.
+			loc = fmt.Sprintf("%s.%s:=%d", path, fname, fr.Line)
 		}
-		locs = append(locs, locline)
+		locs = append(locs, loc)
 		if !more {
 			break
 		}
