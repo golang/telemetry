@@ -24,6 +24,7 @@ import (
 )
 
 func TestRunProg(t *testing.T) {
+	testenv.SkipIfUnsupportedPlatform(t)
 	testenv.MustHaveExec(t)
 	prog1 := NewProgram(t, "prog1", func() int {
 		fmt.Println("FuncB")
@@ -55,6 +56,7 @@ func programIncCounters() int {
 }
 
 func TestE2E_off(t *testing.T) {
+	testenv.SkipIfUnsupportedPlatform(t)
 	testenv.MustHaveExec(t)
 	testenv.SkipIfUnsupportedPlatform(t)
 
@@ -94,6 +96,7 @@ func TestE2E_off(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
+	testenv.SkipIfUnsupportedPlatform(t)
 	testenv.MustHaveExec(t)
 	testenv.SkipIfUnsupportedPlatform(t)
 	programIncCounters := NewProgram(t, "prog", programIncCounters)

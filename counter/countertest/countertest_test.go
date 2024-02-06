@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.21
+//go:build go1.21 && !openbsd && !js && !wasip1 && !solaris && !android
 
 package countertest
 

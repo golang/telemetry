@@ -57,7 +57,9 @@ func (u *Uploader) reports(todo *work) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		todo.readyfiles = append(todo.readyfiles, fname)
+		if fname != "" {
+			todo.readyfiles = append(todo.readyfiles, fname)
+		}
 	}
 	return todo.readyfiles, nil
 }
@@ -176,81 +178,91 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
 	if err := json.Unmarshal(localContents, &x); err != nil {
 		return "", fmt.Errorf("failed to unmarshal local report (%v)", err)
 	}
-	// 2. create the uploadable version
-	cfg := config.NewConfig(u.Config)
-	upload := &telemetry.Report{
-		Week:     report.Week,
-		LastWeek: report.LastWeek,
-		X:        report.X,
-		Config:   report.Config,
-	}
-	for _, p := range report.Programs {
-		// does the uploadConfig want this program?
-		// if so, copy over the Stacks and Counters
-		// that the uploadConfig mentions.
-		if !cfg.HasGoVersion(p.GoVersion) || !cfg.HasProgram(p.Program) || !cfg.HasVersion(p.Program, p.Version) {
-			continue
-		}
-		x := &telemetry.ProgramReport{
-			Program:   p.Program,
-			Version:   p.Version,
-			GOOS:      p.GOOS,
-			GOARCH:    p.GOARCH,
-			GoVersion: p.GoVersion,
-			Counters:  make(map[string]int64),
-			Stacks:    make(map[string]int64),
-		}
-		upload.Programs = append(upload.Programs, x)
-		for k, v := range p.Counters {
-			if cfg.HasCounter(p.Program, k) && report.X <= cfg.Rate(p.Program, k) {
-				x.Counters[k] = v
-			}
-		}
-		// and the same for Stacks
-		// this can be made more efficient, when it matters
-		for k, v := range p.Stacks {
-			before, _, _ := strings.Cut(k, "\n")
-			if cfg.HasStack(p.Program, before) && report.X <= cfg.Rate(p.Program, before) {
-				x.Stacks[k] = v
-			}
-		}
-	}
 
-	uploadContents, err := json.MarshalIndent(upload, "", " ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal upload report (%v)", err)
+	var uploadContents []byte
+	if uploadOK {
+		// 2. create the uploadable version
+		cfg := config.NewConfig(u.Config)
+		upload := &telemetry.Report{
+			Week:     report.Week,
+			LastWeek: report.LastWeek,
+			X:        report.X,
+			Config:   report.Config,
+		}
+		for _, p := range report.Programs {
+			// does the uploadConfig want this program?
+			// if so, copy over the Stacks and Counters
+			// that the uploadConfig mentions.
+			if !cfg.HasGoVersion(p.GoVersion) || !cfg.HasProgram(p.Program) || !cfg.HasVersion(p.Program, p.Version) {
+				continue
+			}
+			x := &telemetry.ProgramReport{
+				Program:   p.Program,
+				Version:   p.Version,
+				GOOS:      p.GOOS,
+				GOARCH:    p.GOARCH,
+				GoVersion: p.GoVersion,
+				Counters:  make(map[string]int64),
+				Stacks:    make(map[string]int64),
+			}
+			upload.Programs = append(upload.Programs, x)
+			for k, v := range p.Counters {
+				if cfg.HasCounter(p.Program, k) && report.X <= cfg.Rate(p.Program, k) {
+					x.Counters[k] = v
+				}
+			}
+			// and the same for Stacks
+			// this can be made more efficient, when it matters
+			for k, v := range p.Stacks {
+				before, _, _ := strings.Cut(k, "\n")
+				if cfg.HasStack(p.Program, before) && report.X <= cfg.Rate(p.Program, before) {
+					x.Stacks[k] = v
+				}
+			}
+		}
+
+		uploadContents, err = json.MarshalIndent(upload, "", " ")
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal upload report (%v)", err)
+		}
 	}
 	localFileName := filepath.Join(u.LocalDir, "local."+expiryDate+".json")
 	uploadFileName := filepath.Join(u.LocalDir, expiryDate+".json")
+
+	/* Prepare to write files */
 	// if either file exists, someone has been here ahead of us
 	// (there is still a race, but this check shortens the open window)
 	if _, err := os.Stat(localFileName); err == nil {
 		deleteFiles(files)
-		return "", fmt.Errorf("report %s already exists", localFileName)
+		return "", fmt.Errorf("local report %s already exists", localFileName)
 	}
 	if _, err := os.Stat(uploadFileName); err == nil {
 		deleteFiles(files)
-		return "", fmt.Errorf("local report %s already exists", uploadFileName)
+		return "", fmt.Errorf("report %s already exists", uploadFileName)
 	}
 	// write the uploadable file
 	var errUpload, errLocal error
 	if uploadOK {
 		errUpload = os.WriteFile(uploadFileName, uploadContents, 0644)
 	}
-	// save all local reports.
+	// write the local file
 	errLocal = os.WriteFile(localFileName, localContents, 0644)
+	/*  Wrote the files */
 
 	// even though these errors won't occur, what should happen
 	// if errUpload == nil and it is ok to upload, and errLocal != nil?
 	if errLocal != nil {
-		return "", fmt.Errorf("failed to write local file %s (%v)", uploadFileName, errLocal)
+		return "", fmt.Errorf("failed to write local file %s (%v)", localFileName, errLocal)
 	}
 	if errUpload != nil {
 		return "", fmt.Errorf("failed to write upload file %s (%v)", uploadFileName, errUpload)
 	}
-	logger.Printf("created %s, deleting %v", uploadFileName, files)
+	logger.Printf("created %q, deleting %v", uploadFileName, files)
 	deleteFiles(files)
-	return uploadFileName, nil
+	if uploadOK {
+		return uploadFileName, nil
+	}
+	return "", nil
 }
 
 // return an existing ProgremReport, or create anew
