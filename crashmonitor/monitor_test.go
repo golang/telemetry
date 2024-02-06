@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"golang.org/x/telemetry/internal/counter"
+	"golang.org/x/telemetry/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
@@ -126,6 +127,8 @@ func TestStart(t *testing.T) {
 // It returns the child's stderr, and the name of the file
 // to which any incremented counter name will be written.
 func runSelf(t *testing.T, entrypoint string) (string, []byte) {
+	testenv.MustHaveExec(t)
+
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
