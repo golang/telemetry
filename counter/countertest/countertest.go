@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build go1.19 && !openbsd && !js && !wasip1 && !solaris && !android && !386
+
 // countertest provides testing utilities for counters.
 // This package cannot be used except for testing.
 package countertest
@@ -11,7 +13,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"golang.org/x/telemetry/internal/counter"
+	"golang.org/x/telemetry/counter"
+	ic "golang.org/x/telemetry/internal/counter"
 	"golang.org/x/telemetry/internal/telemetry"
 )
 
@@ -49,7 +52,7 @@ func ReadCounter(c *counter.Counter) (count uint64, _ error) {
 	if !isOpen() {
 		return 0, fmt.Errorf("unmet requirement - Open must be called")
 	}
-	return counter.Read(c)
+	return ic.Read(c)
 }
 
 // ReadStackCounter reads the given StackCounter.
@@ -57,5 +60,5 @@ func ReadStackCounter(c *counter.StackCounter) (stackCounts map[string]uint64, _
 	if !isOpen() {
 		return nil, fmt.Errorf("unmet requirement - Open must be called")
 	}
-	return counter.ReadStack(c)
+	return ic.ReadStack(c)
 }

@@ -94,6 +94,7 @@ func TestE2E_off(t *testing.T) {
 
 func TestE2E(t *testing.T) {
 	testenv.MustHaveExec(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 	programIncCounters := NewProgram(t, "prog", programIncCounters)
 	telemetryDir := t.TempDir()
 	goVers, progVers, progName := ProgInfo(t)
