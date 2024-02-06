@@ -79,7 +79,7 @@ function sectionController() {
 // the page is first rendered and when a facet is selected.
 function drawCharts() {
   for (const program of Page.Charts.Programs ?? []) {
-    for (const counter of program.Counters) {
+    for (const counter of program.Counters ?? []) {
       const rectYOpts: Plot.BinXInputs<Plot.RectYOptions> = {
         tip: true,
         x: (d: Datum) => new Date(d.Week),
