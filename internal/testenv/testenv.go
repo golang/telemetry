@@ -13,6 +13,8 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 // NeedsLocalhostNet skips t if networking does not work for ports opened
@@ -57,14 +59,8 @@ func NeedsGo(t testing.TB) {
 // are not support.
 func SkipIfUnsupportedPlatform(t testing.TB) {
 	t.Helper()
-	switch runtime.GOOS {
-	case "openbsd", "js", "wasip1", "solaris", "android":
-		// BUGS: #60614 - openbsd, #60967 - android , #60968 - solaris #60970 - solaris #60971 - wasip1)
-		t.Skip("broken for openbsd etc")
-	}
-	if runtime.GOARCH == "386" {
-		// BUGS: #60615 #60692 #60965 #60967
-		t.Skip("broken for GOARCH 386")
+	if telemetry.DisabledOnPlatform {
+		t.Skip("telemetry is unsupported on this platform")
 	}
 }
 

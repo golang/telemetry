@@ -7,7 +7,6 @@ package upload
 import (
 	"io"
 	"log"
-	"runtime"
 	"time"
 
 	"golang.org/x/telemetry"
@@ -60,22 +59,9 @@ func NewUploader(config *telemetry.UploadConfig) *Uploader {
 	}
 }
 
-// disabledOnPlatform indicates whether telemetry is disabled
-// due to bugs in the current platform.
-const disabledOnPlatform = false ||
-	// The following platforms could potentially be supported in the future:
-	runtime.GOOS == "openbsd" || // #60614
-	runtime.GOOS == "solaris" || // #60968 #60970
-	runtime.GOOS == "android" || // #60967
-	// These platforms fundamentally can't be supported:
-	runtime.GOOS == "js" || // #60971
-	runtime.GOOS == "wasip1" || // #60971
-	// Work is in progress to support 386:
-	runtime.GOARCH == "386" // #60615 #60692 #60965 #60967
-
 // Run generates and uploads reports
 func (u *Uploader) Run() {
-	if disabledOnPlatform {
+	if it.DisabledOnPlatform {
 		return
 	}
 	todo := u.findWork()
