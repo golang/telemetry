@@ -56,6 +56,7 @@ func programIncCounters() int {
 
 func TestE2E_off(t *testing.T) {
 	testenv.MustHaveExec(t)
+	testenv.SkipIfUnsupportedPlatform(t)
 
 	prog := NewProgram(t, "prog", programIncCounters)
 	tests := []struct {

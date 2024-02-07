@@ -8,6 +8,12 @@ package countertest
 
 import "golang.org/x/telemetry/counter"
 
-func Open(telemetryDir string)                                                          {}
-func ReadCounter(c *counter.Counter) (count uint64, _ error)                            {}
-func ReadStackCounter(c *counter.StackCounter) (stackCounts map[string]uint64, _ error) {}
+func Open(telemetryDir string) {}
+
+func ReadCounter(c *counter.Counter) (count uint64, _ error) {
+	return 0, nil
+}
+
+func ReadStackCounter(c *counter.StackCounter) (stackCounts map[string]uint64, _ error) {
+	return nil, nil
+}
