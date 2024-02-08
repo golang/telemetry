@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 		debug.SetTraceback("system")
 		writeSentinel(os.Stderr)
 
-		child() // this line is "TestMain:9"
+		child() // this line is "TestMain:+9"
 		panic("unreachable")
 
 	case "start.panic", "start.exit":
@@ -51,15 +51,13 @@ func TestMain(m *testing.M) {
 	}
 }
 
-//go:noinline
 func child() {
 	fmt.Println("hello")
-	grandchild() // this line is "child:2"
+	grandchild() // this line is "child:+2"
 }
 
-//go:noinline
 func grandchild() {
-	panic("oops") // this line is "grandchild:1"
+	panic("oops") // this line is "grandchild:=60" (the call from child is inlined)
 }
 
 // TestViaStderr is an internal test that asserts that the telemetry
@@ -74,12 +72,18 @@ func TestViaStderr(t *testing.T) {
 	got = sanitize(counter.DecodeStack(got))
 	want := "crash/crash\n" +
 		"runtime.gopanic:--\n" +
-		"golang.org/x/telemetry/crashmonitor.grandchild:+1\n" +
+		"golang.org/x/telemetry/crashmonitor.grandchild:=60\n" +
 		"golang.org/x/telemetry/crashmonitor.child:+2\n" +
 		"golang.org/x/telemetry/crashmonitor.TestMain:+9\n" +
 		"main.main:--\n" +
 		"runtime.main:--\n" +
 		"runtime.goexit:--"
+
+	if !Supported() { // !go1.23
+		// Before go1.23, the traceback excluded PCs for inlined frames.
+		want = strings.ReplaceAll(want, "golang.org/x/telemetry/crashmonitor.child:+2\n", "")
+	}
+
 	if got != want {
 		t.Errorf("got counter name <<%s>>, want <<%s>>", got, want)
 	}
@@ -113,7 +117,7 @@ func TestStart(t *testing.T) {
 		got := sanitize(counter.DecodeStack(string(data)))
 		want := "crash/crash\n" +
 			"runtime.gopanic:--\n" +
-			"golang.org/x/telemetry/crashmonitor.grandchild:+1\n" +
+			"golang.org/x/telemetry/crashmonitor.grandchild:=60\n" +
 			"golang.org/x/telemetry/crashmonitor.child:+2\n" +
 			"golang.org/x/telemetry/crashmonitor.TestMain.func2:+1\n" +
 			"runtime.goexit:--"
