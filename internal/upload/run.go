@@ -50,12 +50,12 @@ func LogIfDebug(dirname string) error {
 		dname = dirname
 	}
 	fd, err := os.Stat(dname)
-	if err == os.ErrExist || !fd.IsDir() {
-		// debug doesn't exist or isn't a directory
-		return nil
-	}
 	if err != nil {
 		return err
+	}
+	if fd == nil || !fd.IsDir() {
+		// debug doesn't exist or isn't a directory
+		return nil
 	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {

@@ -50,6 +50,17 @@ func TestUploadBasic(t *testing.T) {
 	defer srv.Close()
 
 	uploader := newTestUploader(uc, telemetryDir, srv)
+	// make it impossible to write a log by creating a non-directory with the log's name
+	logName := filepath.Join(telemetryDir, "debug")
+	fd, err := os.Create(logName)
+	if err != nil {
+		t.Error(err)
+	}
+	defer os.Remove(logName) // perhaps overkill, but Windows is picky
+	if err := LogIfDebug(""); err == nil {
+		t.Errorf("log writing should have failed")
+	}
+	fd.Close()
 	uploader.StartTime = uploader.StartTime.Add(15*24*time.Hour + 1*time.Minute) // make sure we are in the future.
 
 	// Counter files in telemetryDir were timestamped with "today" timestamp
