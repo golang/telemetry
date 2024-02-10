@@ -404,6 +404,17 @@ func TestStack(t *testing.T) {
 			t.Errorf("line %d differs:\n%s\n%s", i, n0[i], n1[i])
 		}
 	}
+	// check that ReadStack gives the same results
+	mp, err := ReadStack(c)
+	if len(mp) != 2 {
+		t.Errorf("ReadStack returned %d values, expected 2", len(mp))
+	}
+	for k, v := range mp {
+		if v != 1 {
+			t.Errorf("got %d for %q, expected 1", v, k)
+		}
+	}
+
 	oldnames := make(map[string]bool)
 	for _, nm := range names {
 		oldnames[nm] = true

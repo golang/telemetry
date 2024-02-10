@@ -44,6 +44,10 @@ func TestRotateCounters(t *testing.T) {
 		// the value of c is in its extra field
 		t.Errorf("got %d, expected 2", state.extra())
 	}
+	// Read should give the same answer
+	if v, err := Read(c); err != nil || v != 2 {
+		t.Errorf("Read got %d, %v, expected 2, nil", v, err)
+	}
 	f.rotate()
 	c.Inc() // this goes through counter.add() safely
 	if c.file.current.Load() == nil {
@@ -60,7 +64,10 @@ func TestRotateCounters(t *testing.T) {
 		// the value of c is in the mapped file
 		t.Errorf("got %d, expected 3", c.ptr.count.Load())
 	}
-
+	// and Read should give the same result
+	if v, err := Read(c); err != nil || v != 3 {
+		t.Errorf("Read gave %d, %v, expected 3, nil", v, err)
+	}
 	// move into the future and rotate the file, remapping it
 	now := getnow()
 	counterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }

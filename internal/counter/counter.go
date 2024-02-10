@@ -293,6 +293,9 @@ func (c *Counter) refresh() {
 // Read reads the given counter.
 // This is the implementation of x/telemetry/counter/countertest.ReadCounter.
 func Read(c *Counter) (uint64, error) {
+	if c.file.current.Load() == nil {
+		return c.state.load().extra(), nil
+	}
 	pf, err := readFile(c.file)
 	if err != nil {
 		return 0, err
