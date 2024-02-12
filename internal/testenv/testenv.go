@@ -31,7 +31,8 @@ var (
 	hasGoErr  error
 )
 
-func hasGo() error {
+// HasGo checks whether the current system has 'go'.
+func HasGo() error {
 	hasGoOnce.Do(func() {
 		cmd := exec.Command("go", "env", "GOROOT")
 		out, err := cmd.Output()
@@ -50,7 +51,7 @@ func hasGo() error {
 // NeedsGo skips t if the current system does not have 'go'  or
 // cannot run them with exec.Command.
 func NeedsGo(t testing.TB) {
-	if err := hasGo(); err != nil {
+	if err := HasGo(); err != nil {
 		t.Skipf("skipping test: go is not available - %v", err)
 	}
 }

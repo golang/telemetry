@@ -12,14 +12,70 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/godev/internal/config"
 	tconfig "golang.org/x/telemetry/internal/config"
+	"golang.org/x/telemetry/internal/testenv"
 )
+
+func TestMain(m *testing.M) {
+	if !canRunGoDevModuleTests() {
+		return
+	}
+	os.Exit(m.Run())
+}
+
+// First class ports, https://go.dev/wiki/PortingPolicy, excluding 386 and arm.
+var onSupportedPlatform = map[string]bool{
+	"darwin/amd64":  true,
+	"darwin/arm64":  true,
+	"linux/amd64":   true,
+	"linux/arm64":   true,
+	"windows/amd64": true,
+}
+
+// canRunGoDevModuleTests returns whether the current test environment
+// is suitable for golang.org/x/telemetry/godev module tests.
+func canRunGoDevModuleTests() bool {
+	// Even though telemetry.go.dev runs on linux,
+	// we should be still able to debug and test telemetry.go.dev on
+	// contributors' machines locally.
+	if goosarch := runtime.GOOS + "/" + runtime.GOARCH; !onSupportedPlatform[goosarch] {
+		return false
+	}
+	// Must be able to run 'go'.
+	if err := testenv.HasGo(); err != nil {
+		return false
+	}
+
+	// Our tests must run from the repository source, not from module cache.
+	// Check golang.org/x/telemetry directory is accessible and has go.mod and config/config.json.
+	output, err := exec.Command("go", "list", "-f", "{{.Dir}}", "golang.org/x/telemetry").Output()
+	if err != nil {
+		return false
+	}
+	xTelemetryDir := string(bytes.TrimSpace(output))
+	if xTelemetryDir == "" {
+		return false
+	}
+	if _, err := os.Stat(filepath.Join(xTelemetryDir, "go.mod")); err != nil {
+		return false
+	}
+	// config/config.json is in the golang.org/x/telemetry/config module, so
+	// this doesn't hold from e.g. GOMODCACHE.
+	if _, err := os.Stat(filepath.Join(xTelemetryDir, "config", "config.json")); err != nil {
+		return false
+	}
+
+	return true
+}
 
 // If telemetry_url is configured, TestPaths may be used as a basic push test.
 var telemetryURL = flag.String("telemetry_url", "", "url of the telemetry instance to test")
