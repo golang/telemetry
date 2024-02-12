@@ -6,6 +6,7 @@ package content
 
 import (
 	"errors"
+	"go/build"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -111,6 +112,10 @@ func TestServer_ServeHTTP(t *testing.T) {
 				t.Fatal(err)
 			}
 			wantBody := string(data)
+			if tt.wantCode == http.StatusMovedPermanently && len(build.Default.ReleaseTags) < 23 {
+				// Prior to Go 1.23, net/http generated an extra newline in its redirect text (CL 562356).
+				wantBody += "\n"
+			}
 			if diff := cmp.Diff(wantBody, got); diff != "" {
 				t.Errorf("GET %s response body mismatch (-want, +got):\n%s", tt.path, diff)
 			}
