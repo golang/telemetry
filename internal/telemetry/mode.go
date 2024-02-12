@@ -124,6 +124,7 @@ const DisabledOnPlatform = false ||
 	runtime.GOOS == "openbsd" || // #60614
 	runtime.GOOS == "solaris" || // #60968 #60970
 	runtime.GOOS == "android" || // #60967
+	runtime.GOOS == "illumos" || // #65544
 	// These platforms fundamentally can't be supported:
 	runtime.GOOS == "js" || // #60971
 	runtime.GOOS == "wasip1" || // #60971
