@@ -13,7 +13,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"reflect"
 	"runtime/debug"
 	"strconv"
@@ -29,102 +28,66 @@ func Supported() bool { return setCrashOutput != nil }
 
 var setCrashOutput func(*os.File) error // = runtime.SetCrashOutput on go1.23+
 
-// Start starts the monitor process, which performs automated
-// reporting of unexpected crashes via Go telemetry. Call this
-// function once immediately after [counter.Open]() within the main
-// function of your application, before argument parsing.
-//
-// This function re-executes the current executable as a child
-// process, in a special mode. In that mode, the call to Start will
-// never return.
-//
-// The application should avoid doing expensive work in init functions
-// as they will be executed twice. Run with GODEBUG=inittrace=1 to
-// display the running time of each package initializer.
-//
-// Start uses the [debug.SetCrashOutput] mechanism, which is a
-// process-wide resource. Do not make other calls to that function
-// within your application. Start is a no-op unless the program is
-// built with go1.23+.
-func Start() {
-	if !Supported() {
-		return
-	}
-
-	const crashmonitorVar = "X_TELEMETRY_CRASHMONITOR"
-	if os.Getenv(crashmonitorVar) != "" {
-		// This process is the crashmonitor (child).
-		log.SetFlags(0)
-		log.SetPrefix("crashmonitor: ")
-
-		// Wait for parent process's dying gasp.
-		// If the parent dies for any reason this read will return.
-		data, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			log.Fatalf("failed to read from input pipe: %v", err)
-		}
-
-		// If the only line is the sentinel, it wasn't a crash.
-		if bytes.Count(data, []byte("\n")) < 2 {
-			os.Exit(0) // parent exited without crash report
-		}
-
-		log.Printf("parent reported crash:\n%s", data)
-
-		// Parse the stack out of the crash report
-		// and record a telemetry count for it.
-		name, err := telemetryCounterName(data)
-		if err != nil {
-			// Keep count of how often this happens
-			// so that we can investigate if necessary.
-			incrementCounter("crash/malformed")
-
-			// Something went wrong.
-			// Save the crash securely in the file system.
-			f, err := os.CreateTemp(os.TempDir(), "*.crash")
-			if err != nil {
-				log.Fatal(err)
-			}
-			if _, err := f.Write(data); err != nil {
-				log.Fatal(err)
-			}
-			if err := f.Close(); err != nil {
-				log.Fatal(err)
-			}
-			log.Printf("failed to report crash to telemetry: %v", err)
-			log.Fatalf("crash report saved at %s", f.Name())
-		}
-
-		incrementCounter(name)
-
-		log.Fatalf("telemetry crash recorded")
-	}
-
-	// This process is the application (parent).
-	// Fork+exec the crashmonitor (child).
-	exe, err := os.Executable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	cmd := exec.Command(exe, "** crashmonitor **") // this unused arg is just for ps(1)
-	cmd.Env = append(os.Environ(), crashmonitorVar+"=1")
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stderr
-	pipe, err := cmd.StdinPipe()
-	if err != nil {
-		log.Fatalf("StdinPipe: %v", err)
-	}
-
+// Parent sets up the parent side of the crashmonitor. It requires
+// exclusive use of a writable pipe connected to the child process's stdin.
+func Parent(pipe *os.File) {
 	writeSentinel(pipe)
 	// Ensure that we get pc=0x%x values in the traceback.
 	debug.SetTraceback("system")
-	setCrashOutput(pipe.(*os.File)) // (this conversion is safe)
+	setCrashOutput(pipe)
+}
 
-	if err := cmd.Start(); err != nil {
-		log.Fatalf("can't start crash monitor: %v", err)
+// Child runs the part of the crashmonitor that runs in the child process.
+// It expects its stdin to be connected via a pipe to the parent which has
+// run Parent. If non-nil, logw is a Writer to use for logging.
+func Child(logw io.Writer) {
+	// This process is the crashmonitor (child).
+	logger := log.Default()
+	if logw != nil {
+		logger = log.New(logw, "crashmonitor: ", 0)
 	}
 
-	// Now return and run the application proper...
+	// Wait for parent process's dying gasp.
+	// If the parent dies for any reason this read will return.
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		logger.Fatalf("failed to read from input pipe: %v", err)
+	}
+
+	// If the only line is the sentinel, it wasn't a crash.
+	if bytes.Count(data, []byte("\n")) < 2 {
+		os.Exit(0) // parent exited without crash report
+	}
+
+	logger.Printf("parent reported crash:\n%s", data)
+
+	// Parse the stack out of the crash report
+	// and record a telemetry count for it.
+	name, err := telemetryCounterName(data)
+	if err != nil {
+		// Keep count of how often this happens
+		// so that we can investigate if necessary.
+		incrementCounter("crash/malformed")
+
+		// Something went wrong.
+		// Save the crash securely in the file system.
+		f, err := os.CreateTemp(os.TempDir(), "*.crash")
+		if err != nil {
+			logger.Fatal(err)
+		}
+		if _, err := f.Write(data); err != nil {
+			logger.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			logger.Fatal(err)
+		}
+		logger.Printf("failed to report crash to telemetry: %v", err)
+		logger.Fatalf("crash report saved at %s", f.Name())
+	}
+
+	incrementCounter(name)
+
+	logger.Fatalf("telemetry crash recorded")
 }
 
 // (stubbed by test)
