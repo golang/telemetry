@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -57,7 +58,7 @@ func programIncCounters() int {
 func TestE2E_off(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	testenv.MustHaveExec(t)
-	testenv.SkipIfUnsupportedPlatform(t)
+	log.Printf("GOOS=%s GOARCH=%s", runtime.GOOS, runtime.GOARCH)
 
 	prog := NewProgram(t, "prog", programIncCounters)
 	tests := []struct {
@@ -97,7 +98,6 @@ func TestE2E_off(t *testing.T) {
 func TestE2E(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	testenv.MustHaveExec(t)
-	testenv.SkipIfUnsupportedPlatform(t)
 	programIncCounters := NewProgram(t, "prog", programIncCounters)
 	telemetryDir := t.TempDir()
 	goVers, progVers, progName := ProgInfo(t)

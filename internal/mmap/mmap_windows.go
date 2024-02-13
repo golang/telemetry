@@ -25,7 +25,7 @@ func mmapFile(f *os.File, previous *Data) (Data, error) {
 	if size == 0 {
 		return Data{f, nil, nil}, nil
 	}
-	// setting the min and max sizes to zero to map the whole file, as described in
+	// set the min and max sizes to zero to map the whole file, as described in
 	// https://learn.microsoft.com/en-us/windows/win32/memory/creating-a-file-mapping-object#file-mapping-size
 	h, err := windows.CreateFileMapping(windows.Handle(f.Fd()), nil, syscall.PAGE_READWRITE, 0, 0, nil)
 	if err != nil {
