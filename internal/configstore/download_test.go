@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/proxy"
+	"golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/testenv"
 )
 

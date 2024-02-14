@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 // Config is a wrapper around telemetry.UploadConfig that provides some

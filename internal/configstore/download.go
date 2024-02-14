@@ -17,7 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"golang.org/x/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 const (

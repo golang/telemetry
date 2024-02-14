@@ -21,10 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/counter"
 	"golang.org/x/telemetry/internal/regtest"
-	it "golang.org/x/telemetry/internal/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/testenv"
 )
 
@@ -79,7 +78,7 @@ func newTestUploader(uc *telemetry.UploadConfig, telemetryDir string, srv *httpt
 	uploader := NewUploader(uc)
 	uploader.LocalDir = filepath.Join(telemetryDir, "local")
 	uploader.UploadDir = filepath.Join(telemetryDir, "upload")
-	uploader.ModeFilePath = it.ModeFilePath(filepath.Join(telemetryDir, "mode"))
+	uploader.ModeFilePath = telemetry.ModeFilePath(filepath.Join(telemetryDir, "mode"))
 	uploader.UploadServerURL = srv.URL
 	return uploader
 }

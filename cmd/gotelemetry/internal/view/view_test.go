@@ -11,8 +11,8 @@ import (
 	"reflect"
 	"testing"
 
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/config"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 func Test_summary(t *testing.T) {

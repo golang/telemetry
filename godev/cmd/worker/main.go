@@ -22,7 +22,6 @@ import (
 	taskspb "cloud.google.com/go/cloudtasks/apiv2/cloudtaskspb"
 	"golang.org/x/exp/slog"
 	"golang.org/x/mod/semver"
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/godev/internal/config"
 	"golang.org/x/telemetry/godev/internal/content"
 	ilog "golang.org/x/telemetry/godev/internal/log"
@@ -30,6 +29,7 @@ import (
 	"golang.org/x/telemetry/godev/internal/storage"
 	tconfig "golang.org/x/telemetry/internal/config"
 	contentfs "golang.org/x/telemetry/internal/content"
+	"golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/unionfs"
 )
 

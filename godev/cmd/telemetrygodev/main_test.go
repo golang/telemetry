@@ -19,9 +19,9 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/godev/internal/config"
 	tconfig "golang.org/x/telemetry/internal/config"
+	"golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/testenv"
 )
 

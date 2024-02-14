@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"golang.org/x/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 func Test_nest(t *testing.T) {

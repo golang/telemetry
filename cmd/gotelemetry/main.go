@@ -18,7 +18,7 @@ import (
 	"golang.org/x/telemetry/cmd/gotelemetry/internal/csv"
 	"golang.org/x/telemetry/cmd/gotelemetry/internal/view"
 	"golang.org/x/telemetry/internal/counter"
-	it "golang.org/x/telemetry/internal/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/upload"
 )
 
@@ -213,10 +213,10 @@ func help(name string) {
 }
 
 func runOn(_ []string) {
-	if old, _ := it.Mode(); old == "on" {
+	if old, _ := telemetry.Mode(); old == "on" {
 		return
 	}
-	if err := it.SetMode("on"); err != nil {
+	if err := telemetry.SetMode("on"); err != nil {
 		failf("Failed to enable telemetry: %v", err)
 	}
 	// We could perhaps only show the telemetry on message when the mode goes
@@ -236,19 +236,19 @@ To disable both collection and uploading, run “gotelemetry off“.`
 }
 
 func runLocal(_ []string) {
-	if old, _ := it.Mode(); old == "local" {
+	if old, _ := telemetry.Mode(); old == "local" {
 		return
 	}
-	if err := it.SetMode("local"); err != nil {
+	if err := telemetry.SetMode("local"); err != nil {
 		failf("Failed to set the telemetry mode to local: %v", err)
 	}
 }
 
 func runOff(_ []string) {
-	if old, _ := it.Mode(); old == "off" {
+	if old, _ := telemetry.Mode(); old == "off" {
 		return
 	}
-	if err := it.SetMode("off"); err != nil {
+	if err := telemetry.SetMode("off"); err != nil {
 		failf("Failed to disable telemetry: %v", err)
 	}
 }
@@ -258,12 +258,12 @@ func runView(_ []string) {
 }
 
 func runEnv(_ []string) {
-	m, t := it.Mode()
+	m, t := telemetry.Mode()
 	fmt.Printf("mode: %s %s\n", m, t)
 	fmt.Println()
-	fmt.Println("modefile:", it.ModeFile)
-	fmt.Println("localdir:", it.LocalDir)
-	fmt.Println("uploaddir:", it.UploadDir)
+	fmt.Println("modefile:", telemetry.ModeFile)
+	fmt.Println("localdir:", telemetry.LocalDir)
+	fmt.Println("uploaddir:", telemetry.UploadDir)
 }
 
 func runClean(_ []string) {
@@ -271,8 +271,8 @@ func runClean(_ []string) {
 	// It would probably be OK to just remove everything, but it may
 	// be useful to preserve the weekends file.
 	for dir, suffixes := range map[string][]string{
-		it.LocalDir:  {"." + counter.FileVersion + ".count", ".json"},
-		it.UploadDir: {".json"},
+		telemetry.LocalDir:  {"." + counter.FileVersion + ".count", ".json"},
+		telemetry.UploadDir: {".json"},
 	} {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -307,7 +307,7 @@ func runCSV(_ []string) {
 
 func runDump(args []string) {
 	if len(args) == 0 {
-		localdir := it.LocalDir
+		localdir := telemetry.LocalDir
 		fi, err := os.ReadDir(localdir)
 		if err != nil && len(args) == 0 {
 			log.Fatal(err)

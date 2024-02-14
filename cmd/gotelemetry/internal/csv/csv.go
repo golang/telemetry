@@ -20,9 +20,8 @@ import (
 	"sort"
 	"strings"
 
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/counter"
-	it "golang.org/x/telemetry/internal/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 type file struct {
@@ -33,7 +32,7 @@ type file struct {
 }
 
 func Csv() {
-	files, err := readdir(it.LocalDir, nil)
+	files, err := readdir(telemetry.LocalDir, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -28,8 +28,8 @@ import (
 	_ "embed"
 
 	"golang.org/x/mod/semver"
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/graphconfig"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 var (

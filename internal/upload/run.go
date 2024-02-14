@@ -15,8 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/telemetry"
-	it "golang.org/x/telemetry/internal/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 var logger *log.Logger
@@ -45,7 +44,7 @@ func SetLogOutput(logging io.Writer) {
 // dirname, if it exists. If dirname is the empty string,
 // the function tries the directory it.Localdir/debug.
 func LogIfDebug(dirname string) error {
-	dname := filepath.Join(it.LocalDir, "debug")
+	dname := filepath.Join(telemetry.LocalDir, "debug")
 	if dirname != "" {
 		dname = dirname
 	}
@@ -99,7 +98,7 @@ type Uploader struct {
 	// UploadDir is where uploader leaves the copy of uploaded data.
 	UploadDir string
 	// ModeFilePath is the file.
-	ModeFilePath it.ModeFilePath
+	ModeFilePath telemetry.ModeFilePath
 
 	UploadServerURL string
 	StartTime       time.Time
@@ -112,9 +111,9 @@ func NewUploader(config *telemetry.UploadConfig) *Uploader {
 	return &Uploader{
 		Config:          config,
 		ConfigVersion:   "custom",
-		LocalDir:        it.LocalDir,
-		UploadDir:       it.UploadDir,
-		ModeFilePath:    it.ModeFile,
+		LocalDir:        telemetry.LocalDir,
+		UploadDir:       telemetry.UploadDir,
+		ModeFilePath:    telemetry.ModeFile,
 		UploadServerURL: "https://telemetry.go.dev/upload",
 		StartTime:       time.Now().UTC(),
 	}
@@ -122,7 +121,7 @@ func NewUploader(config *telemetry.UploadConfig) *Uploader {
 
 // Run generates and uploads reports
 func (u *Uploader) Run() {
-	if it.DisabledOnPlatform {
+	if telemetry.DisabledOnPlatform {
 		return
 	}
 	todo := u.findWork()

@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/configstore"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 // reports generates reports from inactive count files

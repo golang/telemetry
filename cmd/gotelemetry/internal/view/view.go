@@ -23,13 +23,12 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/cmd/gotelemetry/internal/browser"
 	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/configstore"
 	contentfs "golang.org/x/telemetry/internal/content"
 	tcounter "golang.org/x/telemetry/internal/counter"
-	it "golang.org/x/telemetry/internal/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/unionfs"
 )
 
@@ -115,16 +114,16 @@ func (s *Server) handleIndex(fsys fs.FS) handlerFunc {
 		if err != nil {
 			return err
 		}
-		if _, err := os.Stat(it.LocalDir); err != nil {
+		if _, err := os.Stat(telemetry.LocalDir); err != nil {
 			return fmt.Errorf(
 				`The telemetry dir %s does not exist.
-There is nothing to report.`, it.LocalDir)
+There is nothing to report.`, telemetry.LocalDir)
 		}
-		reports, err := reports(it.LocalDir, cfg)
+		reports, err := reports(telemetry.LocalDir, cfg)
 		if err != nil {
 			return err
 		}
-		files, err := files(it.LocalDir, cfg)
+		files, err := files(telemetry.LocalDir, cfg)
 		if err != nil {
 			return err
 		}

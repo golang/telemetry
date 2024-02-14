@@ -15,11 +15,10 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/telemetry"
 	"golang.org/x/telemetry/counter"
 	"golang.org/x/telemetry/internal/config"
 	icounter "golang.org/x/telemetry/internal/counter"
-	it "golang.org/x/telemetry/internal/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/testenv"
 )
 
@@ -75,7 +74,7 @@ func TestE2E_off(t *testing.T) {
 		t.Run(fmt.Sprintf("mode=%s", test.mode), func(t *testing.T) {
 			telemetryDir := t.TempDir()
 			if test.mode != "" {
-				if err := it.ModeFilePath(filepath.Join(telemetryDir, "mode")).SetMode(test.mode); err != nil {
+				if err := telemetry.ModeFilePath(filepath.Join(telemetryDir, "mode")).SetMode(test.mode); err != nil {
 					t.Fatalf("SetMode failed: %v", err)
 				}
 			}

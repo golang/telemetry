@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"golang.org/x/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 func TestConfig(t *testing.T) {

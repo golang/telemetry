@@ -12,7 +12,7 @@ import (
 	"sort"
 	"testing"
 
-	"golang.org/x/telemetry"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 func TestGenerate(t *testing.T) {
