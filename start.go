@@ -10,8 +10,10 @@ import (
 	"os"
 	"os/exec"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/telemetry/counter"
 	"golang.org/x/telemetry/internal/crashmonitor"
+	"golang.org/x/telemetry/upload"
 )
 
 // Config controls the behavior of [Start].
@@ -47,11 +49,15 @@ type Config struct {
 //
 // If [Config.Upload] is set, and the user has opted in to telemetry
 // uploading, this process may attempt to upload approved counters
-// to telemetry.go.dev. [But: this option doesn't appear to exist yet.]
+// to telemetry.go.dev.
 //
-// If [Config.ReportCrashes] is set, Start re-executes the current
-// executable as a child process, in a special mode in which it acts
-// as a crash monitor for the parent process (the application).
+// If [Config.ReportCrashes] is set, any fatal crash will be
+// recorded by incrementing a counter named for the stack of the
+// first running goroutine in the traceback.
+//
+// If either of these flags is set, Start re-executes the current
+// executable as a child process, in a special mode in which it
+// acts as a telemetry sidecar for the parent process (the application).
 // In that mode, the call to Start will never return, so Start must
 // be called immediately within main, even before such things as
 // inspecting the command line. The application should avoid expensive
@@ -59,23 +65,21 @@ type Config struct {
 // be executed twice (parent and child).
 func Start(config Config) {
 	counter.Open()
-	if !config.ReportCrashes || !crashmonitor.Supported() {
-		// TODO(matloob): Once support for uploading is added to start,
-		// we'll just start the uploader instead of returning here.
-		return
-	}
-	if os.Getenv(telemetryChildVar) != "" {
-		child(config.Logger)
-		panic("unreachable")
-	}
 
-	parent(config.Logger)
+	if (config.ReportCrashes && crashmonitor.Supported()) || config.Upload {
+		if os.Getenv(telemetryChildVar) != "" {
+			child(config)
+			panic("unreachable")
+		}
+
+		parent(config)
+	}
 }
 
 const telemetryChildVar = "X_TELEMETRY_CHILD"
 
-func parent(logw io.Writer) {
-	logger := log.New(logw, "", 0)
+func parent(config Config) {
+	logger := log.New(config.Logger, "", 0)
 	// This process is the application (parent).
 	// Fork+exec the telemetry child.
 	exe, err := os.Executable()
@@ -86,19 +90,44 @@ func parent(logw io.Writer) {
 	cmd.Env = append(os.Environ(), telemetryChildVar+"=1")
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stderr
-	pipe, err := cmd.StdinPipe()
-	if err != nil {
-		logger.Fatalf("StdinPipe: %v", err)
-	}
 
-	crashmonitor.Parent(pipe.(*os.File)) // (this conversion is safe)
+	if config.ReportCrashes {
+		pipe, err := cmd.StdinPipe()
+		if err != nil {
+			logger.Fatalf("StdinPipe: %v", err)
+		}
+
+		crashmonitor.Parent(pipe.(*os.File)) // (this conversion is safe)
+	}
 
 	if err := cmd.Start(); err != nil {
 		logger.Fatalf("can't start telemetry child process: %v", err)
 	}
 }
 
-func child(logw io.Writer) {
-	// TODO(matloob): add support for uploading.
-	crashmonitor.Child(logw)
+func child(config Config) {
+	// Start crashmonitoring and uploading depending on what's requested
+	// and wait for the longer running child to complete before exiting:
+	// if we collected a crash before the upload finished, wait for the
+	// upload to finish before exiting
+	var g errgroup.Group
+
+	if config.Upload {
+		g.Go(func() error {
+			uploaderChild(config.Logger)
+			return nil
+		})
+	}
+	if config.ReportCrashes {
+		g.Go(func() error {
+			crashmonitor.Child(config.Logger)
+			return nil
+		})
+	}
+	g.Wait()
+}
+
+func uploaderChild(logger io.Writer) {
+	// TODO(matloob): Do rate-limiting here.
+	upload.Run(&upload.Control{Logger: logger})
 }

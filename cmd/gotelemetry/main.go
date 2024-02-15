@@ -341,7 +341,7 @@ func runDump(args []string) {
 
 func runUpload(_ []string) {
 	upload.Run(&upload.Control{
-		Logging: os.Stderr,
+		Logger: os.Stderr,
 	})
 }
 
