@@ -443,6 +443,10 @@ func TestStack(t *testing.T) {
 		if ct == nil {
 			t.Fatal("nil counter")
 		}
+		_, err := Read(ct)
+		if err != nil {
+			t.Errorf("failed to read known counter %v", err)
+		}
 		if ct.ptr.count == nil {
 			t.Errorf("%q has nil ptr.count", ct.Name())
 			continue
@@ -491,7 +495,7 @@ func TestStack(t *testing.T) {
 	}
 }
 
-// fn calls itself n times recursively as incrementing the stack counter.
+// fn calls itself n times recursively while incrementing the stack counter.
 func fn(t *testing.T, n int, c *StackCounter) {
 	c.Inc()
 	if n > 0 {

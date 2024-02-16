@@ -300,8 +300,11 @@ func Read(c *Counter) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	// counter doesn't write the entry to file until the value becomes non-zero.
-	return pf.Count[c.name], nil
+	v, ok := pf.Count[DecodeStack(c.Name())]
+	if !ok {
+		return v, fmt.Errorf("not found:%q", DecodeStack(c.Name()))
+	}
+	return v, nil
 }
 
 func readFile(f *file) (*File, error) {

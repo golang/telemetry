@@ -32,8 +32,12 @@ func TestReadCounter(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	c := counter.New("foobar")
 
-	if got, err := ReadCounter(c); err != nil || got != 0 {
-		t.Errorf("ReadCounter = (%v, %v), want (%v, nil)", got, err, 0)
+	got, err := ReadCounter(c)
+	if got != 0 {
+		t.Errorf("ReadCounter = %d, want 0", got)
+	}
+	if err == nil {
+		t.Errorf("ReadCounter = (%v, nil), want (%v, error)", got, 0)
 	}
 
 	var wg sync.WaitGroup
