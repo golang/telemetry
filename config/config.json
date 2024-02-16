@@ -538,11 +538,24 @@
 				{
 					"Name": "gopls/goversion:{1.16,1.17,1.18,1.19,1.20,1.21,1.22,1.23,1.24,1.25,1.26,1.27,1.28,1.29,1.30}",
 					"Rate": 1
+				},
+				{
+					"Name": "crash/malformed",
+					"Rate": 1
+				},
+				{
+					"Name": "crash/no-running-goroutine",
+					"Rate": 1
 				}
 			],
 			"Stacks": [
 				{
 					"Name": "gopls/bug",
+					"Rate": 1,
+					"Depth": 16
+				},
+				{
+					"Name": "crash/crash",
 					"Rate": 1,
 					"Depth": 16
 				}

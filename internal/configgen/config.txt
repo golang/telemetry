@@ -26,3 +26,28 @@ issue: https://go.dev/issue/62249
 program: golang.org/x/tools/gopls
 depth: 16
 version: v0.13.0
+---
+counter: crash/crash
+title: Unexpected Go crashes
+description: stacks of goroutines running when the Go program crashed
+type: stack
+issue: https://go.dev/issue/65696
+program: golang.org/x/tools/gopls
+depth: 16
+version: v0.15.0
+---
+counter: crash/malformed
+title: Failure to parse runtime crash output
+description: count of runtime crash messages that failed to parse
+type: partition
+issue: https://go.dev/issue/65696
+program: golang.org/x/tools/gopls
+version: v0.15.0
+---
+counter: crash/no-running-goroutine
+title: Failure to identify any running goroutine in the crash output
+description: count of runtime crash messages that don't have a running goroutine (e.g. deadlock)
+type: partition
+issue: https://go.dev/issue/65696
+program: golang.org/x/tools/gopls
+version: v0.15.0
