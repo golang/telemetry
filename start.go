@@ -75,6 +75,8 @@ func Start(config Config) {
 	}
 }
 
+var daemonize = func(cmd *exec.Cmd) {}
+
 const telemetryChildVar = "X_TELEMETRY_CHILD"
 
 func parent(config Config) {
@@ -85,6 +87,7 @@ func parent(config Config) {
 		log.Fatal(err)
 	}
 	cmd := exec.Command(exe, "** telemetry **") // this unused arg is just for ps(1)
+	daemonize(cmd)
 	cmd.Env = append(os.Environ(), telemetryChildVar+"=1")
 
 	// The child process must write to a log file, not
