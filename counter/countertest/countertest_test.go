@@ -8,7 +8,6 @@ package countertest
 
 import (
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -18,26 +17,16 @@ import (
 	"golang.org/x/telemetry/internal/testenv"
 )
 
-func TestMain(m *testing.M) {
-	tmp, err := os.MkdirTemp("", "counter")
-	if err != nil {
-		panic(err)
-	}
-
-	Open(tmp)
-	os.Exit(m.Run())
-}
-
 func TestReadCounter(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	c := counter.New("foobar")
 
 	got, err := ReadCounter(c)
-	if got != 0 {
-		t.Errorf("ReadCounter = %d, want 0", got)
+	if err != nil {
+		t.Errorf("ReadCounter = (%d, %v), want (0,nil)", got, err)
 	}
-	if err == nil {
-		t.Errorf("ReadCounter = (%v, nil), want (%v, error)", got, 0)
+	if got != 0 {
+		t.Fatalf("ReadCounter = %d, want 0", got)
 	}
 
 	var wg sync.WaitGroup

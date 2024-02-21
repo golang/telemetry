@@ -9,7 +9,6 @@
 package countertest
 
 import (
-	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -49,16 +48,10 @@ func Open(telemetryDir string) {
 
 // ReadCounter reads the given counter.
 func ReadCounter(c *counter.Counter) (count uint64, _ error) {
-	if !isOpen() {
-		return 0, fmt.Errorf("unmet requirement - Open must be called")
-	}
 	return ic.Read(c)
 }
 
 // ReadStackCounter reads the given StackCounter.
 func ReadStackCounter(c *counter.StackCounter) (stackCounts map[string]uint64, _ error) {
-	if !isOpen() {
-		return nil, fmt.Errorf("unmet requirement - Open must be called")
-	}
 	return ic.ReadStack(c)
 }
