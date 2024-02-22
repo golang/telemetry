@@ -20,7 +20,7 @@ import (
 // For convenience, each field is made to global
 // and they are not supposed to be changed.
 var (
-	// Default directory containing count files and local reports (not yet uploaded)
+	// Default directory containing count files, local reports (not yet uploaded), and logs
 	LocalDir string
 	// Default directory containing uploaded reports.
 	UploadDir string

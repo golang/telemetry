@@ -14,3 +14,7 @@ var (
 func SetIncrementCounter(f func(name string)) {
 	incrementCounter = f
 }
+
+func SetChildExitHook(f func()) {
+	childExitHook = f
+}

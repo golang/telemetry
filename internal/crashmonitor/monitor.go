@@ -39,27 +39,22 @@ func Parent(pipe *os.File) {
 
 // Child runs the part of the crashmonitor that runs in the child process.
 // It expects its stdin to be connected via a pipe to the parent which has
-// run Parent. If non-nil, logw is a Writer to use for logging.
-func Child(logw io.Writer) {
-	// This process is the crashmonitor (child).
-	logger := log.Default()
-	if logw != nil {
-		logger = log.New(logw, "crashmonitor: ", 0)
-	}
-
+// run Parent.
+func Child() {
 	// Wait for parent process's dying gasp.
 	// If the parent dies for any reason this read will return.
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		logger.Fatalf("failed to read from input pipe: %v", err)
+		log.Fatalf("failed to read from input pipe: %v", err)
 	}
 
 	// If the only line is the sentinel, it wasn't a crash.
 	if bytes.Count(data, []byte("\n")) < 2 {
+		childExitHook()
 		os.Exit(0) // parent exited without crash report
 	}
 
-	logger.Printf("parent reported crash:\n%s", data)
+	log.Printf("parent reported crash:\n%s", data)
 
 	// Parse the stack out of the crash report
 	// and record a telemetry count for it.
@@ -73,25 +68,29 @@ func Child(logw io.Writer) {
 		// Save the crash securely in the file system.
 		f, err := os.CreateTemp(os.TempDir(), "*.crash")
 		if err != nil {
-			logger.Fatal(err)
+			log.Fatal(err)
 		}
 		if _, err := f.Write(data); err != nil {
-			logger.Fatal(err)
+			log.Fatal(err)
 		}
 		if err := f.Close(); err != nil {
-			logger.Fatal(err)
+			log.Fatal(err)
 		}
-		logger.Printf("failed to report crash to telemetry: %v", err)
-		logger.Fatalf("crash report saved at %s", f.Name())
+		log.Printf("failed to report crash to telemetry: %v", err)
+		log.Fatalf("crash report saved at %s", f.Name())
 	}
 
 	incrementCounter(name)
 
-	logger.Fatalf("telemetry crash recorded")
+	childExitHook()
+	log.Fatalf("telemetry crash recorded")
 }
 
 // (stubbed by test)
-var incrementCounter = func(name string) { counter.New(name).Inc() }
+var (
+	incrementCounter = func(name string) { counter.New(name).Inc() }
+	childExitHook    = func() {}
+)
 
 // The sentinel function returns its address. The difference between
 // this value as observed by calls in two different processes of the
