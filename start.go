@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/telemetry/counter"
@@ -156,6 +157,56 @@ func child(config Config) {
 }
 
 func uploaderChild() {
-	// TODO(matloob): Do rate-limiting here.
+	tokenfilepath := filepath.Join(telemetry.LocalDir, "upload.token")
+	ok, err := acquireUploadToken(tokenfilepath)
+	if err != nil {
+		log.Printf("error acquiring upload token: %v", err)
+		return
+	} else if !ok {
+		// It hasn't been a day since the last upload.Run attempt or there's
+		// a concurrently running uploader.
+		return
+	}
 	upload.Run(&upload.Control{Logger: os.Stderr})
+}
+
+// acquireUploadToken acquires a token permitting the caller to upload.
+// To limit the frequency of uploads, only one token is issue per
+// machine per time period.
+// The boolean indicates whether the token was acquired.
+func acquireUploadToken(tokenfile string) (bool, error) {
+	const period = 24 * time.Hour
+
+	// A process acquires a token by successfully creating a
+	// well-known file. If the file already exists and has an
+	// mtime age less then than the period, the process does
+	// not acquire the token. If the file is older than the
+	// period, the process is allowed to remove the file and
+	// try to re-create it.
+	fi, err := os.Stat(tokenfile)
+	if err == nil {
+		if time.Since(fi.ModTime()) < period {
+			return false, nil
+		}
+		// There's a possible race here where two processes check the
+		// token file and see that it's older than the period, then the
+		// first one removes it and creates another, and then a second one
+		// removes the newly created file and creates yet another
+		// file. Then both processes would act as though they had the token.
+		// This is very rare, but it's also okay because we're only grabbing
+		// the token to do rate limiting, not for correctness.
+		_ = os.Remove(tokenfile)
+	} else if !os.IsNotExist(err) {
+		return false, fmt.Errorf("statting token file: %v", err)
+	}
+
+	f, err := os.OpenFile(tokenfile, os.O_CREATE|os.O_EXCL, 0666)
+	if err != nil {
+		if os.IsExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("creating token file: %v", err)
+	}
+	_ = f.Close()
+	return true, nil
 }
