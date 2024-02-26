@@ -6,7 +6,6 @@ package content
 
 import (
 	"errors"
-	"go/build"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -15,9 +14,11 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/telemetry/internal/testenv"
 )
 
 func TestServer_ServeHTTP(t *testing.T) {
+	testenv.NeedsGo1Point(t, 23) // output of some http helpers changed in Go 1.23
 	fsys := os.DirFS("testdata")
 	server := Server(fsys,
 		Handler("/data", handleTemplate(fsys)),
@@ -112,15 +113,11 @@ func TestServer_ServeHTTP(t *testing.T) {
 				t.Fatal(err)
 			}
 			wantBody := string(data)
-			if tt.wantCode == http.StatusMovedPermanently && len(build.Default.ReleaseTags) < 23 {
-				// Prior to Go 1.23, net/http generated an extra newline in its redirect text (CL 562356).
-				wantBody += "\n"
-			}
 			if diff := cmp.Diff(wantBody, got); diff != "" {
 				t.Errorf("GET %s response body mismatch (-want, +got):\n%s", tt.path, diff)
 			}
-			if diff := cmp.Diff(tt.wantCode, rr.Code); diff != "" {
-				t.Errorf("GET %s response code (-want, +got):\n%s", tt.path, diff)
+			if rr.Code != tt.wantCode {
+				t.Errorf("GET %s response code = %d, want %d", tt.path, rr.Code, tt.wantCode)
 			}
 		})
 	}

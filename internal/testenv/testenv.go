@@ -9,6 +9,7 @@ package testenv
 import (
 	"bytes"
 	"fmt"
+	"go/build"
 	"os/exec"
 	"runtime"
 	"sync"
@@ -72,5 +73,26 @@ func MustHaveExec(t testing.TB) {
 	switch runtime.GOOS {
 	case "wasip1", "js", "ios":
 		t.Skipf("skipping test: may not be able to exec subprocess on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
+// Go1Point returns the x in Go 1.x.
+func Go1Point() int {
+	for i := len(build.Default.ReleaseTags) - 1; i >= 0; i-- {
+		var version int
+		if _, err := fmt.Sscanf(build.Default.ReleaseTags[i], "go1.%d", &version); err != nil {
+			continue
+		}
+		return version
+	}
+	panic("bad release tags")
+}
+
+// NeedsGo1Point skips t if the Go version used to run the test is older than
+// 1.x.
+func NeedsGo1Point(t testing.TB, x int) {
+	if Go1Point() < x {
+		t.Helper()
+		t.Skipf("running Go version %q is version 1.%d, older than required 1.%d", runtime.Version(), Go1Point(), x)
 	}
 }
