@@ -55,3 +55,8 @@ func ReadCounter(c *counter.Counter) (count uint64, _ error) {
 func ReadStackCounter(c *counter.StackCounter) (stackCounts map[string]uint64, _ error) {
 	return ic.ReadStack(c)
 }
+
+// ReadFile reads the counters and stack counters from the given file.
+func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) {
+	return ic.ReadFile(name)
+}

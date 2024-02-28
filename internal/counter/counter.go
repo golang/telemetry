@@ -332,3 +332,28 @@ func readFile(f *file) (*File, error) {
 	}
 	return pf, nil
 }
+
+// ReadFile reads the counters and stack counters from the given file.
+// This is the implementation of x/telemetry/counter/countertest.Read
+func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) {
+	// TODO: Document the format of the stackCounters names.
+
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read from file: %v", err)
+	}
+	pf, err := Parse(name, data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse: %v", err)
+	}
+	counters = make(map[string]uint64)
+	stackCounters = make(map[string]uint64)
+	for k, v := range pf.Count {
+		if IsStackCounter(k) {
+			stackCounters[DecodeStack(k)] = v
+		} else {
+			counters[k] = v
+		}
+	}
+	return counters, stackCounters, nil
+}

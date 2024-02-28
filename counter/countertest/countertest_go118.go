@@ -17,3 +17,5 @@ func ReadCounter(c *counter.Counter) (count uint64, _ error) {
 func ReadStackCounter(c *counter.StackCounter) (stackCounts map[string]uint64, _ error) {
 	return nil, nil
 }
+
+func ReadFile(name string) (map[string]uint64, map[string]uint64, error) { return nil, nil, nil }
