@@ -195,3 +195,8 @@ func ReadStack(c *StackCounter) (map[string]uint64, error) {
 	}
 	return ret, nil
 }
+
+// IsStackCounter reports whether the counter name is for a stack counter.
+func IsStackCounter(name string) bool {
+	return strings.Contains(name, "\n")
+}

@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/configstore"
+	"golang.org/x/telemetry/internal/counter"
 	"golang.org/x/telemetry/internal/telemetry"
 )
 
@@ -154,7 +155,7 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
 		}
 		prog := findProgReport(x.Meta, report)
 		for k, v := range x.Count {
-			if strings.Contains(k, "\n") {
+			if counter.IsStackCounter(k) {
 				// stack
 				prog.Stacks[k] += int64(v)
 			} else {

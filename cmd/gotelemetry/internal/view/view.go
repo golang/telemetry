@@ -548,7 +548,7 @@ func pending(files []*counterFile, cfg *config.Config) []*telemetryReport {
 		program.Counters = make(map[string]int64)
 		program.Stacks = make(map[string]int64)
 		for k, v := range f.Count {
-			if strings.Contains(k, "\n") {
+			if tcounter.IsStackCounter(k) {
 				program.Stacks[k] = int64(v)
 			} else {
 				program.Counters[k] = int64(v)
