@@ -130,6 +130,7 @@ func parent(config Config) {
 	if err := cmd.Start(); err != nil {
 		log.Fatalf("can't start telemetry child process: %v", err)
 	}
+	go cmd.Wait() // Release resources if cmd happens not to outlive this process.
 }
 
 func child(config Config) {
