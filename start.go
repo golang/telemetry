@@ -74,10 +74,18 @@ func Start(config Config) {
 		telemetry.LocalDir = filepath.Join(config.TelemetryDir, "local")
 		telemetry.UploadDir = filepath.Join(config.TelemetryDir, "upload")
 	}
+	mode, _ := telemetry.Mode()
+	if mode == "off" {
+		// Telemetry is turned off. Crash reporting doesn't work without telemetry
+		// at least set to "local", and the uploader isn't started in uploaderChild if
+		// mode is "off"
+		return
+	}
+
 	counter.Open()
 
 	// Crash monitoring and uploading both require a sidecar process.
-	if (config.ReportCrashes && crashmonitor.Supported()) || config.Upload {
+	if (config.ReportCrashes && crashmonitor.Supported()) || (config.Upload && mode != "off") {
 		if os.Getenv(telemetryChildVar) != "" {
 			child(config)
 			os.Exit(0)
@@ -101,6 +109,7 @@ func parent(config Config) {
 	cmd := exec.Command(exe, "** telemetry **") // this unused arg is just for ps(1)
 	daemonize(cmd)
 	cmd.Env = append(os.Environ(), telemetryChildVar+"=1")
+	cmd.Dir = telemetry.LocalDir
 
 	// The child process must write to a log file, not
 	// the stderr file it inherited from the parent, as
@@ -169,6 +178,16 @@ func child(config Config) {
 }
 
 func uploaderChild() {
+	if mode, _ := telemetry.Mode(); mode == "off" {
+		// There's no work to be done if telemetry is turned off.
+		return
+	}
+	if telemetry.LocalDir == "" {
+		// The telemetry dir wasn't initialized properly, probably because
+		// os.UserConfigDir did not complete successfully. In that case
+		// there are no counters to upload, so we should just do nothing.
+		return
+	}
 	tokenfilepath := filepath.Join(telemetry.LocalDir, "upload.token")
 	ok, err := acquireUploadToken(tokenfilepath)
 	if err != nil {
