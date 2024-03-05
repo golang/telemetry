@@ -39,6 +39,12 @@ type Config struct {
 	// Longer term, the go command may become the sole program
 	// responsible for uploading.)
 	Upload bool
+
+	// TelemetryDir, if set, will specify an alternate telemetry
+	// directory to write data to. If not set, it uses the default
+	// directory.
+	// This field is intended to be used for isolating testing environments.
+	TelemetryDir string
 }
 
 // Start initializes telemetry using the specified configuration.
@@ -63,6 +69,11 @@ type Config struct {
 // steps or external side effects in init functions, as they will
 // be executed twice (parent and child).
 func Start(config Config) {
+	if config.TelemetryDir != "" {
+		telemetry.ModeFile = telemetry.ModeFilePath(filepath.Join(config.TelemetryDir, "mode"))
+		telemetry.LocalDir = filepath.Join(config.TelemetryDir, "local")
+		telemetry.UploadDir = filepath.Join(config.TelemetryDir, "upload")
+	}
 	counter.Open()
 
 	// Crash monitoring and uploading both require a sidecar process.
