@@ -84,6 +84,14 @@ func Start(config Config) {
 
 	counter.Open()
 
+	if _, err := os.Stat(telemetry.LocalDir); err != nil {
+		// There was a problem statting LocalDir, which is needed for both
+		// crash monitoring and counter uploading. Most likely, there was an
+		// error creating telemetry.LocalDir in the counter.Open call above.
+		// Don't start the child.
+		return
+	}
+
 	// Crash monitoring and uploading both require a sidecar process.
 	if (config.ReportCrashes && crashmonitor.Supported()) || (config.Upload && mode != "off") {
 		if os.Getenv(telemetryChildVar) != "" {
