@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"golang.org/x/telemetry/counter"
+	"golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/testenv"
 )
 
@@ -69,6 +70,13 @@ func TestReadStackCounter(t *testing.T) {
 		if !strings.Contains(k, t.Name()) || v != 100 {
 			t.Fatalf("ReadStackCounter = %v, want a stack counter with value 100", got)
 		}
+	}
+}
+
+func TestSupport(t *testing.T) {
+	if SupportedPlatform == telemetry.DisabledOnPlatform {
+		t.Errorf("supported mismatch: us %v, telemetry.internal.Disabled %v",
+			SupportedPlatform, telemetry.DisabledOnPlatform)
 	}
 }
 

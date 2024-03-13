@@ -20,6 +20,9 @@ var (
 	opened   bool
 )
 
+// SupportedPlatform reports if this platform supports Open()
+const SupportedPlatform = !telemetry.DisabledOnPlatform
+
 func isOpen() bool {
 	openedMu.Lock()
 	defer openedMu.Unlock()
