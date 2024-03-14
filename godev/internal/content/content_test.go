@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -107,12 +108,12 @@ func TestServer_ServeHTTP(t *testing.T) {
 				t.Fatal(err)
 			}
 			server.ServeHTTP(rr, req)
-			got := rr.Body.String()
+			got := strings.TrimSpace(rr.Body.String())
 			data, err := os.ReadFile(path.Join("testdata", tt.wantOut))
 			if err != nil {
 				t.Fatal(err)
 			}
-			wantBody := string(data)
+			wantBody := strings.TrimSpace(string(data))
 			if diff := cmp.Diff(wantBody, got); diff != "" {
 				t.Errorf("GET %s response body mismatch (-want, +got):\n%s", tt.path, diff)
 			}
