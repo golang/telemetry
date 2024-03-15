@@ -79,13 +79,7 @@ func TestViaStderr(t *testing.T) {
 	want := "crash/crash\n" +
 		"runtime.gopanic:--\n" +
 		"golang.org/x/telemetry/internal/crashmonitor_test.grandchild:=66\n" +
-		// TODO(adonovan): CL 561635 to the Go runtime, which causes
-		// the GOTRACEBACK=system output to be a valid input to CallersFrames,
-		// was reverted (see #65761), hopefully temporarily.
-		// For now the output contains missing frames and sometimes wrong
-		// line numbers.
-		//
-		// "golang.org/x/telemetry/internal/crashmonitor_test.child:+2\n" +
+		"golang.org/x/telemetry/internal/crashmonitor_test.child:+2\n" +
 		"golang.org/x/telemetry/internal/crashmonitor_test.TestMain:+9\n" +
 		"main.main:--\n" +
 		"runtime.main:--\n" +
@@ -153,13 +147,7 @@ func TestStart(t *testing.T) {
 		want := "crash/crash\n" +
 			"runtime.gopanic:--\n" +
 			"golang.org/x/telemetry/internal/crashmonitor_test.grandchild:=66\n" +
-			// TODO(adonovan): CL 561635 to the Go runtime, which causes
-			// the GOTRACEBACK=system output to be a valid input to CallersFrames,
-			// was reverted (see #65761), hopefully temporarily.
-			// For now the output contains missing frames and sometimes wrong
-			// line numbers.
-			//
-			//"golang.org/x/telemetry/internal/crashmonitor_test.child:+2\n" +
+			"golang.org/x/telemetry/internal/crashmonitor_test.child:+2\n" +
 			"golang.org/x/telemetry/internal/crashmonitor_test.TestMain.func3:+1\n" +
 			"runtime.goexit:--"
 		if got != want {
