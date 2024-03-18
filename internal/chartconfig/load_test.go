@@ -2,23 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package graphconfig_test
+package chartconfig_test
 
 import (
 	"reflect"
 	"testing"
 
-	"golang.org/x/telemetry/internal/graphconfig"
+	"golang.org/x/telemetry/internal/chartconfig"
 )
 
 func TestParse(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
-		want  []graphconfig.GraphConfig
+		want  []chartconfig.ChartConfig
 	}{
 		{"empty", "", nil},
-		{"single field", "title: A", []graphconfig.GraphConfig{{Title: "A"}}},
+		{"single field", "title: A", []chartconfig.ChartConfig{{Title: "A"}}},
 		{
 			"basic", `
 title: A
@@ -32,7 +32,7 @@ depth: 2
 error: 0.1
 version: v2.0.0
 `,
-			[]graphconfig.GraphConfig{{
+			[]chartconfig.ChartConfig{{
 				Title:       "A",
 				Description: "B",
 				Type:        "C",
@@ -49,7 +49,7 @@ version: v2.0.0
 title: A
 description: B
 `,
-			[]graphconfig.GraphConfig{
+			[]chartconfig.ChartConfig{
 				{Title: "A", Description: "B"},
 			},
 		},
@@ -64,7 +64,7 @@ description: B
 
 
 `,
-			[]graphconfig.GraphConfig{
+			[]chartconfig.ChartConfig{
 				{Title: "A", Description: "B"},
 			},
 		},
@@ -80,7 +80,7 @@ description: B
 title: C
 description: D
 `,
-			[]graphconfig.GraphConfig{
+			[]chartconfig.ChartConfig{
 				{Title: "A", Description: "B"},
 				{Title: "C", Description: "D"},
 			},
@@ -94,7 +94,7 @@ type: partition
 issue: TBD
 program: golang.org/x/tools/gopls
 `,
-			[]graphconfig.GraphConfig{
+			[]chartconfig.ChartConfig{
 				{
 					Title:       "Editor Distribution",
 					Description: "measure editor distribution for gopls users.",
@@ -109,7 +109,7 @@ program: golang.org/x/tools/gopls
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := graphconfig.Parse([]byte(test.input))
+			got, err := chartconfig.Parse([]byte(test.input))
 			if err != nil {
 				t.Fatalf("Parse(...) failed: %v", err)
 			}
@@ -161,7 +161,7 @@ depth: notanint
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := graphconfig.Parse([]byte(test.input))
+			_, err := chartconfig.Parse([]byte(test.input))
 			if err == nil {
 				t.Fatalf("Parse(...) succeeded unexpectedly")
 			}

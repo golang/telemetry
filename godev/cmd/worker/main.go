@@ -283,7 +283,7 @@ func charts(cfg *tconfig.Config, date string, d data, xs []float64) *chartdata {
 		)
 		for _, c := range p.Counters {
 			// TODO: add support for histogram counters by getting the counter type
-			// from the graph config.
+			// from the chart config.
 			prog.Charts = append(prog.Charts,
 				partition(d, p.Name, c.Name, tconfig.Expand(c.Name), xs),
 			)

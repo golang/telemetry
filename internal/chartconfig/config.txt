@@ -1,5 +1,5 @@
-# Note: this is an approved graph config. This is embedded in the configgen program.
-# For the graph config file format, see golang.org/x/telemetry/internal/graphconfig.
+# Note: these are approved chart configs, used to generate the upload config.
+# For the chart config file format, see chartconfig.go.
 
 title: Editor Distribution
 counter: gopls/client:{vscode,vscodium,vscode-insiders,code-server,eglot,govim,neovim,coc.nvim,sublimetext,other}

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The graphconfig package defines the GraphConfig type, representing telemetry
-// graph configuration, as well as utilities for parsing and validating this
+// The chartconfig package defines the ChartConfig type, representing telemetry
+// chart configuration, as well as utilities for parsing and validating this
 // configuration.
 //
-// Graph configuration defines the set of aggregations active on the telemetry
+// Chart configuration defines the set of aggregations active on the telemetry
 // server, and are used to derive which data needs to be uploaded by users.
 // See the original blog post for more details:
 //
@@ -24,20 +24,20 @@
 // The following keys are supported. Any entry not marked as (optional) must be
 // provided.
 //
-//   - title: the graph title.
-//   - description: (optional) a longer description of the graph.
-//   - issue: a go issue tracker URL proposing the graph configuration.
+//   - title: the chart title.
+//   - description: (optional) a longer description of the chart.
+//   - issue: a go issue tracker URL proposing the chart configuration.
 //     Multiple issues may be provided by including additional 'issue:' lines.
 //     All proposals must be in the 'accepted' state.
-//   - type: the graph type: currently only partition, histogram, and stack are
+//   - type: the chart type: currently only partition, histogram, and stack are
 //     supported.
-//   - program: the package path of the program for which this graph applies.
-//   - version: (optional) the first version for which this graph applies. Must
+//   - program: the package path of the program for which this chart applies.
+//   - version: (optional) the first version for which this chart applies. Must
 //     be a valid semver value.
-//   - counter: the primary counter this graph illustrates, including buckets
-//     for histogram and partition graphs
+//   - counter: the primary counter this chart illustrates, including buckets
+//     for histogram and partition charts.
 //   - depth: (optional) stack counters only; the maximum stack depth to collect
-//   - error: (optional) the desired error rate for this graph, which
+//   - error: (optional) the desired error rate for this chart, which
 //     determines collection rate
 //
 // Multiple records are separated by "---" lines.
@@ -66,13 +66,13 @@
 //	type: stack
 //	program: golang.org/x/tools/gopls
 //	depth: 10
-package graphconfig
+package chartconfig
 
-// A GraphConfig defines the configuration for a single graph/collection on the
+// A ChartConfig defines the configuration for a single chart/collection on the
 // telemetry server.
 //
 // See the package documentation for field definitions.
-type GraphConfig struct {
+type ChartConfig struct {
 	Title       string
 	Description string
 	Issue       []string

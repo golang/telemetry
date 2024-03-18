@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // The view command is a server intended to be run on a users machine to
-// display the local counters and time series graphs of counters.
+// display the local counters and time series charts of counters.
 package view
 
 import (

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"testing"
 
+	"golang.org/x/telemetry/internal/chartconfig"
 	"golang.org/x/telemetry/internal/telemetry"
 )
 
@@ -23,7 +24,7 @@ func TestGenerate(t *testing.T) {
 		"golang.org/toolchain":     {"v0.0.1-go1.21.0.linux-arm", "v0.0.1-go1.20.linux-arm"},
 		"golang.org/x/tools/gopls": {"v0.13.0", "v0.14.0", "v0.15.0-pre.1", "v0.15.0"},
 	}
-	const gcfg = `
+	const raw = `
 title: Editor Distribution
 counter: gopls/editor:{emacs,vim,vscode,other}
 description: measure editor distribution for gopls users.
@@ -32,7 +33,11 @@ issue: https://go.dev/issue/61038
 program: golang.org/x/tools/gopls
 version: v0.14.0
 `
-	got, err := generate([]byte(gcfg), padding{2, 1, 1, 2, 2})
+	gcfgs, err := chartconfig.Parse([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := generate(gcfgs, padding{2, 1, 1, 2, 2})
 	if err != nil {
 		t.Fatal(err)
 	}

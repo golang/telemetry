@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package graphconfig
+package chartconfig
 
 import (
 	"errors"
@@ -11,9 +11,9 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// Validate checks that a graph config is complete and coherent, returning an
+// Validate checks that a ChartConfig is complete and coherent, returning an
 // error describing all problems encountered, or nil.
-func Validate(cfg GraphConfig) error {
+func Validate(cfg ChartConfig) error {
 	var errs []error
 	reportf := func(format string, args ...any) {
 		errs = append(errs, fmt.Errorf(format, args...))
@@ -37,7 +37,7 @@ func Validate(cfg GraphConfig) error {
 		reportf("invalid depth %d: must be non-negative", cfg.Depth)
 	}
 	if cfg.Depth != 0 && cfg.Type != "stack" {
-		reportf("depth can only be set for \"stack\" graph types")
+		reportf("depth can only be set for \"stack\" chart types")
 	}
 	if cfg.Version != "" && !semver.IsValid(cfg.Version) {
 		reportf("%q is not valid semver", cfg.Version)

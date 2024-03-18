@@ -10,16 +10,29 @@
 
 {{define "content"}}
 <main id="main">
-    <section class="Config">
-        <h2 id="config">Config</h2>
-        <p>
-          The config contains the list of active counters for each program
-          and allowed report metadata.
-        </p>
-        <label>
-            Version: {{.Version}}
-        </label>
-        <pre style="max-height: 100rem">{{.PrettyConfig}}</pre>
-      </section>
+  <section class="Chart Config">
+    <h2 id="config">Chart Config</h2>
+    <p>
+      The chart config contains the list of approved charts to display on
+			telemetry.go.dev. The chart config format is documented by the
+			<a href="https://pkg.go.dev/golang.org/x/telemetry/internal/chartconfig">
+				<code>chartconfig</code>
+			</a> package documentation.
+    </p>
+    <pre style="max-height: 100rem">{{.ChartConfig}}</pre>
+  </section>
+
+  <section class="Upload Config">
+    <h2 id="config">Upload Config</h2>
+    <p>
+      The upload config contains the list of active counters for each program
+      and allowed report metadata. This is generated from the chart config
+      above.
+    </p>
+    <label>
+      Version: {{.Version}}
+    </label>
+    <pre style="max-height: 100rem">{{.UploadConfig}}</pre>
+  </section>
 </main>
 {{end}}

@@ -28,6 +28,7 @@ import (
 	ilog "golang.org/x/telemetry/godev/internal/log"
 	"golang.org/x/telemetry/godev/internal/middleware"
 	"golang.org/x/telemetry/godev/internal/storage"
+	"golang.org/x/telemetry/internal/chartconfig"
 	tconfig "golang.org/x/telemetry/internal/config"
 	contentfs "golang.org/x/telemetry/internal/content"
 	"golang.org/x/telemetry/internal/telemetry"
@@ -230,6 +231,7 @@ func fsys(fromOS bool) fs.FS {
 }
 
 func handleConfig(fsys fs.FS, ucfg *tconfig.Config) content.HandlerFunc {
+	ccfg := chartconfig.Raw()
 	cfg := ucfg.UploadConfig
 	version := "default"
 
@@ -240,10 +242,12 @@ func handleConfig(fsys fs.FS, ucfg *tconfig.Config) content.HandlerFunc {
 		}
 		data := struct {
 			Version      string
-			PrettyConfig string
+			ChartConfig  string
+			UploadConfig string
 		}{
 			Version:      version,
-			PrettyConfig: string(cfgJSON),
+			ChartConfig:  string(ccfg),
+			UploadConfig: string(cfgJSON),
 		}
 		return content.Template(w, fsys, "config.html", data, http.StatusOK)
 	}

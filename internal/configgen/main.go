@@ -7,7 +7,7 @@
 //go:build go1.21
 
 // Package configgen generates the upload config file stored in the config.json
-// file of golang.org/x/telemetry/config based on the graphconfig stored in
+// file of golang.org/x/telemetry/config based on the chartconfig stored in
 // config.txt.
 package main
 
@@ -25,10 +25,8 @@ import (
 	"sort"
 	"strings"
 
-	_ "embed"
-
 	"golang.org/x/mod/semver"
-	"golang.org/x/telemetry/internal/graphconfig"
+	"golang.org/x/telemetry/internal/chartconfig"
 	"golang.org/x/telemetry/internal/telemetry"
 )
 
@@ -40,16 +38,18 @@ var (
 	SamplingRate = 1.0
 )
 
-//go:embed config.txt
-var graphConfig []byte
-
 func main() {
 	flag.Parse()
+
+	gcfgs, err := chartconfig.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// The padding heuristics below are based on the example of gopls.
 	//
 	// The goal is to pad enough versions for a quarter.
-	cfg, err := generate(graphConfig, padding{
+	uCfg, err := generate(gcfgs, padding{
 		// 6 releases into the future translates to approximately three months for gopls.
 		releases: 6,
 		// We may release gopls 1.0, but won't release 2.0 in a three month timespan!
@@ -66,7 +66,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfgJSON, err := json.MarshalIndent(cfg, "", "\t")
+	cfgJSON, err := json.MarshalIndent(uCfg, "", "\t")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func main() {
 			log.Fatal(err)
 		}
 		// Guarantee that we have enough padding to do two patches releases tomorrow.
-		minCfg, err := generate(graphConfig, padding{
+		minCfg, err := generate(gcfgs, padding{
 			releases: 2,
 			maj:      1,
 			majmin:   1, // we're not ever going to do more than one major/minor release in a day
@@ -138,9 +138,9 @@ func readConfig(file string) (*telemetry.UploadConfig, error) {
 	return cfg, nil
 }
 
-// generate computes the upload config from graph configs and module
+// generate computes the upload config from chart configs and module
 // information, returning the resulting formatted JSON.
-func generate(graphConfig []byte, padding padding) (*telemetry.UploadConfig, error) {
+func generate(gcfgs []chartconfig.ChartConfig, padding padding) (*telemetry.UploadConfig, error) {
 	ucfg := &telemetry.UploadConfig{
 		GOOS:   goos(),
 		GOARCH: goarch(),
@@ -153,16 +153,11 @@ func generate(graphConfig []byte, padding padding) (*telemetry.UploadConfig, err
 		return nil, fmt.Errorf("querying go info: %v", err)
 	}
 
-	gcfgs, err := graphconfig.Parse(graphConfig)
-	if err != nil {
-		return nil, fmt.Errorf("parsing graph config records: %v", err)
-	}
-
 	for i, r := range gcfgs {
-		if err := graphconfig.Validate(r); err != nil {
+		if err := chartconfig.Validate(r); err != nil {
 			// TODO(rfindley): this is a poor way to identify the faulty record. We
-			// should probably store position information in the GraphConfig.
-			return nil, fmt.Errorf("graph config #%d (%q): %v", i, r.Title, err)
+			// should probably store position information in the ChartConfig.
+			return nil, fmt.Errorf("chart config #%d (%q): %v", i, r.Title, err)
 		}
 	}
 

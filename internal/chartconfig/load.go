@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package graphconfig
+package chartconfig
 
 import (
+	_ "embed"
 	"fmt"
 	"reflect"
 	"sort"
@@ -12,21 +13,33 @@ import (
 	"strings"
 )
 
-// Parse parses GraphConfig records from the provided raw data, returning an
+//go:embed config.txt
+var chartConfig []byte
+
+func Raw() []byte {
+	return chartConfig
+}
+
+// Load loads and parses the current chart config.
+func Load() ([]ChartConfig, error) {
+	return Parse(chartConfig)
+}
+
+// Parse parses ChartConfig records from the provided raw data, returning an
 // error if the config has invalid syntax. See the package documentation for a
 // description of the record syntax.
 //
-// Even with correct syntax, the resulting GraphConfig may not meet all the
+// Even with correct syntax, the resulting chart config may not meet all the
 // requirements described in the package doc. Call [Validate] to check whether
 // the config data is coherent.
-func Parse(data []byte) ([]GraphConfig, error) {
+func Parse(data []byte) ([]ChartConfig, error) {
 	// Collect field information for the record type.
 	var (
 		prefixes []string                               // for parse errors
 		fields   = make(map[string]reflect.StructField) // key -> struct field
 	)
 	{
-		typ := reflect.TypeOf(GraphConfig{})
+		typ := reflect.TypeOf(ChartConfig{})
 		for i := 0; i < typ.NumField(); i++ {
 			f := typ.Field(i)
 			key := strings.ToLower(f.Name)
@@ -41,15 +54,15 @@ func Parse(data []byte) ([]GraphConfig, error) {
 
 	// Read records, separated by '---'
 	var (
-		records    []GraphConfig
-		inProgress = new(GraphConfig)      // record value currently being parsed
+		records    []ChartConfig
+		inProgress = new(ChartConfig)      // record value currently being parsed
 		set        = make(map[string]bool) // fields that are set so far; empty records are skipped
 	)
 	flushRecord := func() {
 		if len(set) > 0 { // only flush non-empty records
 			records = append(records, *inProgress)
 		}
-		inProgress = new(GraphConfig)
+		inProgress = new(ChartConfig)
 		set = make(map[string]bool)
 	}
 
