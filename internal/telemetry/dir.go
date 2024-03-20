@@ -30,7 +30,7 @@ var Default Dir
 
 // A Dir holds paths to telemetry data inside a directory.
 type Dir struct {
-	dir, local, upload, modefile string
+	dir, local, upload, debug, modefile string
 }
 
 // NewDir creates a new Dir encapsulating paths in the given dir.
@@ -42,6 +42,7 @@ func NewDir(dir string) Dir {
 		dir:      dir,
 		local:    filepath.Join(dir, "local"),
 		upload:   filepath.Join(dir, "upload"),
+		debug:    filepath.Join(dir, "debug"),
 		modefile: filepath.Join(dir, "mode"),
 	}
 }
@@ -64,6 +65,10 @@ func (d Dir) LocalDir() string {
 
 func (d Dir) UploadDir() string {
 	return d.upload
+}
+
+func (d Dir) DebugDir() string {
+	return d.debug
 }
 
 func (d Dir) ModeFile() string {

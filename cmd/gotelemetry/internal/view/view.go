@@ -157,7 +157,7 @@ func (s Server) configAt(version string) (ucfg *config.Config, err error) {
 		if err != nil {
 			return nil, err
 		}
-		ucfg = config.NewConfig(&cfg)
+		ucfg = config.NewConfig(cfg)
 	}
 	return ucfg, nil
 }

@@ -60,7 +60,7 @@ func TestDownload(t *testing.T) {
 			}
 
 			want := tc.want
-			if !reflect.DeepEqual(got, want) {
+			if !reflect.DeepEqual(*got, want) {
 				t.Errorf("Download(latest, _) = %v\nwant %v", stringify(got), stringify(want))
 			}
 		})

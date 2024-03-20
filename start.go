@@ -208,7 +208,9 @@ func uploaderChild() {
 		// a concurrently running uploader.
 		return
 	}
-	upload.Run(&upload.Control{Logger: os.Stderr})
+	if err := upload.Run(upload.RunConfig{LogWriter: os.Stderr}); err != nil {
+		log.Printf("upload failed: %v", err)
+	}
 }
 
 // acquireUploadToken acquires a token permitting the caller to upload.

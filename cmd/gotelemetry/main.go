@@ -340,9 +340,13 @@ func runDump(args []string) {
 }
 
 func runUpload(_ []string) {
-	upload.Run(&upload.Control{
-		Logger: os.Stderr,
-	})
+	if err := upload.Run(upload.RunConfig{
+		LogWriter: os.Stderr,
+	}); err != nil {
+		fmt.Printf("Upload failed: %v\n", err)
+	} else {
+		fmt.Println("Upload completed.")
+	}
 }
 
 func main() {
