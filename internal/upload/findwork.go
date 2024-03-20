@@ -23,7 +23,7 @@ type work struct {
 // that need to be uploaded. (There may be unexpected leftover files
 // and uploading is supposed to be idempotent.)
 func (u *Uploader) findWork() work {
-	localdir, uploaddir := u.LocalDir, u.UploadDir
+	localdir, uploaddir := u.Dir.LocalDir(), u.Dir.UploadDir()
 	var ans work
 	fis, err := os.ReadDir(localdir)
 	if err != nil {
@@ -31,7 +31,7 @@ func (u *Uploader) findWork() work {
 		return ans
 	}
 
-	mode, asof := u.ModeFilePath.Mode()
+	mode, asof := u.Dir.Mode()
 	logger.Printf("mode %s, asof %s", mode, asof)
 
 	// count files end in .v1.count

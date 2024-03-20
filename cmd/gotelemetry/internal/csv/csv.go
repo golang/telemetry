@@ -32,7 +32,7 @@ type file struct {
 }
 
 func Csv() {
-	files, err := readdir(telemetry.LocalDir, nil)
+	files, err := readdir(telemetry.Default.LocalDir(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}

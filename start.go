@@ -70,11 +70,9 @@ type Config struct {
 // be executed twice (parent and child).
 func Start(config Config) {
 	if config.TelemetryDir != "" {
-		telemetry.ModeFile = telemetry.ModeFilePath(filepath.Join(config.TelemetryDir, "mode"))
-		telemetry.LocalDir = filepath.Join(config.TelemetryDir, "local")
-		telemetry.UploadDir = filepath.Join(config.TelemetryDir, "upload")
+		telemetry.Default = telemetry.NewDir(config.TelemetryDir)
 	}
-	mode, _ := telemetry.Mode()
+	mode, _ := telemetry.Default.Mode()
 	if mode == "off" {
 		// Telemetry is turned off. Crash reporting doesn't work without telemetry
 		// at least set to "local", and the uploader isn't started in uploaderChild if
@@ -84,7 +82,7 @@ func Start(config Config) {
 
 	counter.Open()
 
-	if _, err := os.Stat(telemetry.LocalDir); err != nil {
+	if _, err := os.Stat(telemetry.Default.LocalDir()); err != nil {
 		// There was a problem statting LocalDir, which is needed for both
 		// crash monitoring and counter uploading. Most likely, there was an
 		// error creating telemetry.LocalDir in the counter.Open call above.
@@ -121,7 +119,7 @@ func parent(config Config) {
 	cmd := exec.Command(exe, "** telemetry **") // this unused arg is just for ps(1)
 	daemonize(cmd)
 	cmd.Env = append(os.Environ(), telemetryChildVar+"=1")
-	cmd.Dir = telemetry.LocalDir
+	cmd.Dir = telemetry.Default.LocalDir()
 
 	// The child process must write to a log file, not
 	// the stderr file it inherited from the parent, as
@@ -132,7 +130,7 @@ func parent(config Config) {
 	// By default, we discard the child process's stderr,
 	// but in line with the uploader, log to a file in local/debug
 	// only if that directory was created by the user.
-	localDebug := filepath.Join(telemetry.LocalDir, "debug")
+	localDebug := filepath.Join(telemetry.Default.LocalDir(), "debug")
 	fd, err := os.Stat(localDebug)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -190,17 +188,17 @@ func child(config Config) {
 }
 
 func uploaderChild() {
-	if mode, _ := telemetry.Mode(); mode == "off" {
+	if mode, _ := telemetry.Default.Mode(); mode == "off" {
 		// There's no work to be done if telemetry is turned off.
 		return
 	}
-	if telemetry.LocalDir == "" {
+	if telemetry.Default.LocalDir() == "" {
 		// The telemetry dir wasn't initialized properly, probably because
 		// os.UserConfigDir did not complete successfully. In that case
 		// there are no counters to upload, so we should just do nothing.
 		return
 	}
-	tokenfilepath := filepath.Join(telemetry.LocalDir, "upload.token")
+	tokenfilepath := filepath.Join(telemetry.Default.LocalDir(), "upload.token")
 	ok, err := acquireUploadToken(tokenfilepath)
 	if err != nil {
 		log.Printf("error acquiring upload token: %v", err)

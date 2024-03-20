@@ -24,7 +24,7 @@ import (
 //
 // [gotelemetry]: https://pkg.go.dev/golang.org/x/telemetry/cmd/gotelemetry
 func Mode() string {
-	mode, _ := telemetry.Mode()
+	mode, _ := telemetry.Default.Mode()
 	return mode
 }
 
@@ -36,5 +36,5 @@ func Mode() string {
 // An error is returned if the provided mode value is invalid, or if an error
 // occurs while persisting the mode value to the file system.
 func SetMode(mode string) error {
-	return telemetry.SetMode(mode)
+	return telemetry.Default.SetMode(mode)
 }

@@ -6,42 +6,38 @@
 package telemetry
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 )
 
-func TestTelemetryDefault(t *testing.T) {
+func TestDefaults(t *testing.T) {
 	defaultDirMissing := false
 	if _, err := os.UserConfigDir(); err != nil {
 		defaultDirMissing = true
 	}
 	if defaultDirMissing {
-		if LocalDir != "" || UploadDir != "" || ModeFile != "" {
-			t.Errorf("DefaultSetting: (%q, %q, %q), want empty LocalDir/UploadDir/ModeFile", LocalDir, UploadDir, ModeFile)
+		if Default.LocalDir() != "" || Default.UploadDir() != "" || Default.ModeFile() != "" {
+			t.Errorf("DefaultSetting: (%q, %q, %q), want empty LocalDir/UploadDir/ModeFile", Default.LocalDir(), Default.UploadDir(), Default.ModeFile())
 		}
 	} else {
-		if LocalDir == "" || UploadDir == "" || ModeFile == "" {
-			t.Errorf("DefaultSetting: (%q, %q, %q), want non-empty LocalDir/UploadDir/ModeFile", LocalDir, UploadDir, ModeFile)
+		if Default.LocalDir() == "" || Default.UploadDir() == "" || Default.ModeFile() == "" {
+			t.Errorf("DefaultSetting: (%q, %q, %q), want non-empty LocalDir/UploadDir/ModeFile", Default.LocalDir(), Default.UploadDir(), Default.ModeFile())
 		}
 	}
 }
 
 func TestTelemetryModeWithNoModeConfig(t *testing.T) {
-	tmp := t.TempDir()
 	tests := []struct {
-		modefile ModeFilePath
-		want     string
+		dir  Dir
+		want string
 	}{
-		{ModeFilePath(filepath.Join(tmp, "mode")), "local"},
-		{"", "off"},
+		{NewDir(t.TempDir()), "local"},
+		{Dir{}, "off"},
 	}
 	for _, tt := range tests {
-		if got, _ := tt.modefile.Mode(); got != tt.want {
-			t.Logf("Mode file: %q", tt.modefile)
-			t.Errorf("Mode() = %v, want %v", got, tt.want)
+		if got, _ := tt.dir.Mode(); got != tt.want {
+			t.Errorf("Dir{modefile=%q}.Mode() = %v, want %v", tt.dir.ModeFile(), got, tt.want)
 		}
 	}
 }
@@ -59,18 +55,17 @@ func TestSetMode(t *testing.T) {
 		{"bogus", true},
 		{"", true},
 	}
-	tmp := t.TempDir()
-	for i, tt := range tests {
+	for _, tt := range tests {
 		t.Run("mode="+tt.in, func(t *testing.T) {
-			modefile := ModeFilePath(filepath.Join(tmp, fmt.Sprintf("modefile%d", i)))
-			setErr := modefile.SetMode(tt.in)
+			dir := NewDir(t.TempDir())
+			setErr := dir.SetMode(tt.in)
 			if (setErr != nil) != tt.wantErr {
 				t.Fatalf("Set() error = %v, wantErr %v", setErr, tt.wantErr)
 			}
 			if setErr != nil {
 				return
 			}
-			if got, _ := modefile.Mode(); got != tt.in {
+			if got, _ := dir.Mode(); got != tt.in {
 				t.Errorf("LookupMode() = %q, want %q", got, tt.in)
 			}
 		})
@@ -88,16 +83,15 @@ func TestMode(t *testing.T) {
 		{"off", "off", time.Time{}},
 		{"local", "local", time.Time{}},
 	}
-	tmp := t.TempDir()
-	for i, tt := range tests {
+	for _, tt := range tests {
 		t.Run("mode="+tt.in, func(t *testing.T) {
-			fname := filepath.Join(tmp, fmt.Sprintf("modefile%d", i))
-			if err := os.WriteFile(fname, []byte(tt.in), 0666); err != nil {
+			dir := NewDir(t.TempDir())
+			if err := os.WriteFile(dir.ModeFile(), []byte(tt.in), 0666); err != nil {
 				t.Fatal(err)
 			}
 			// Note: the checks below intentionally do not use time.Equal:
 			// we want this exact representation of time.
-			if gotMode, gotTime := ModeFilePath(fname).Mode(); gotMode != tt.wantMode || gotTime != tt.wantTime {
+			if gotMode, gotTime := dir.Mode(); gotMode != tt.wantMode || gotTime != tt.wantTime {
 				t.Errorf("ModeFilePath(contents=%s).Mode() = %q, %v, want %q, %v", tt.in, gotMode, gotTime, tt.wantMode, tt.wantTime)
 			}
 		})

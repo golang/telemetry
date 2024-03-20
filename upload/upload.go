@@ -25,7 +25,7 @@ func Run(c *Control) {
 			log.Printf("upload recover: %v", err)
 		}
 	}()
-	upload.NewUploader(nil).Run()
+	upload.NewUploader("", nil).Run()
 }
 
 // A Control allows the user to override various default

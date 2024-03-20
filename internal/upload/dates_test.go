@@ -66,24 +66,21 @@ func TestUploadBasic(t *testing.T) {
 	// and scheduled to get expired in the future.
 	// Let's pretend telemetry was enabled a year ago by mutating the mode file,
 	// we are in the future, and test if the count files are successfully uploaded.
-	uploader.ModeFilePath.SetModeAsOf("on", uploader.StartTime.Add(-365*24*time.Hour).UTC())
-	uploadedContent, fname := subtest(t, uc, uploader) // TODO(hyangah) : inline
+	uploader.Dir.SetModeAsOf("on", uploader.StartTime.Add(-365*24*time.Hour).UTC())
+	uploadedContent, fname := subtest(t, uploader) // TODO(hyangah) : inline
 
 	if want, got := [][]byte{uploadedContent}, uploaded(); !reflect.DeepEqual(want, got) {
 		t.Errorf("server got %s\nwant %s", got, want)
 	}
 	// and check that the uploaded report is in the upload dir
-	uname := filepath.Join(uploader.UploadDir, fname)
+	uname := filepath.Join(uploader.Dir.UploadDir(), fname)
 	if _, err := os.Stat(uname); err != nil {
 		t.Errorf("%v for uploade report %s", err, uname)
 	}
 }
 
 func newTestUploader(uc *telemetry.UploadConfig, telemetryDir string, srv *httptest.Server) *Uploader {
-	uploader := NewUploader(uc)
-	uploader.LocalDir = filepath.Join(telemetryDir, "local")
-	uploader.UploadDir = filepath.Join(telemetryDir, "upload")
-	uploader.ModeFilePath = telemetry.ModeFilePath(filepath.Join(telemetryDir, "mode"))
+	uploader := NewUploader(telemetryDir, uc)
 	uploader.UploadServerURL = srv.URL
 	return uploader
 }
@@ -103,7 +100,7 @@ func createTestUploadServer(t *testing.T) (*httptest.Server, func() [][]byte) {
 }
 
 // createFailingUploadServer creates a test server that returns errors
-func createFailingUploadServer(t *testing.T) *httptest.Server {
+func createFailingUploadServer() *httptest.Server {
 	f := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.ReadAll(r.Body)
 		http.Error(w, "failed", http.StatusBadRequest)
@@ -130,7 +127,7 @@ func TestUploadFailure(t *testing.T) {
 	uc := createTestUploadConfig(t, []string{"knownCounter"}, []string{"aStack"})
 
 	// Start upload server
-	srv := createFailingUploadServer(t)
+	srv := createFailingUploadServer()
 	defer srv.Close()
 
 	uploader := newTestUploader(uc, telemetryDir, srv)
@@ -151,11 +148,11 @@ func TestUploadFailure(t *testing.T) {
 	// and scheduled to get expired in the future.
 	// Let's pretend telemetry was enabled a year ago by mutating the mode file,
 	// we are in the future, and test if the count files are successfully uploaded.
-	uploader.ModeFilePath.SetModeAsOf("on", uploader.StartTime.Add(-365*24*time.Hour).UTC())
-	_, fname := subtest(t, uc, uploader)
+	uploader.Dir.SetModeAsOf("on", uploader.StartTime.Add(-365*24*time.Hour).UTC())
+	_, fname := subtest(t, uploader)
 	// check that fname does not exist
-	lname := filepath.Join(uploader.LocalDir, fname)
-	uname := filepath.Join(uploader.UploadDir, fname)
+	lname := filepath.Join(uploader.Dir.LocalDir(), fname)
+	uname := filepath.Join(uploader.Dir.UploadDir(), fname)
 	if _, err := os.Stat(lname); err == nil {
 		t.Errorf("local file %s should not exist", lname)
 	}
@@ -322,7 +319,7 @@ func TestDates(t *testing.T) {
 			defer srv.Close()
 
 			uploader := newTestUploader(uc, telemetryDir, srv)
-			uploader.ModeFilePath.SetModeAsOf("on", telemetryEnableTime)
+			uploader.Dir.SetModeAsOf("on", telemetryEnableTime)
 			uploader.UploadServerURL = srv.URL
 			uploader.StartTime = mustParseDate(tx.today)
 
@@ -441,13 +438,13 @@ func readCountFileInfo(t *testing.T, localDir string) *countFileInfo {
 }
 
 func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) int {
-	dbg := filepath.Join(u.LocalDir, "debug")
+	dbg := filepath.Join(u.Dir.LocalDir(), "debug")
 	os.MkdirAll(dbg, 0777)
 	if err := LogIfDebug(dbg); err != nil {
 		t.Errorf("debug logging: %v", err)
 	}
 	if len(doing.uploads) > 0 {
-		os.MkdirAll(u.UploadDir, 0777)
+		os.MkdirAll(u.Dir.UploadDir(), 0777)
 	}
 	contents := bytes.Join([][]byte{
 		known.buf[:known.beginOffset],
@@ -457,25 +454,25 @@ func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) int {
 		known.buf[known.endOffset+len("YYYY-MM-DD"):],
 	}, nil)
 	filename := known.namePrefix + doing.date + ".v1.count"
-	if err := os.WriteFile(filepath.Join(u.LocalDir, filename), contents, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(u.Dir.LocalDir(), filename), contents, 0666); err != nil {
 		t.Errorf("%v writing count file for %s (%s)", err, doing.name, filename)
 		return 0
 	}
 	for _, x := range doing.locals {
 		nm := fmt.Sprintf("local.%s.json", x)
-		if err := os.WriteFile(filepath.Join(u.LocalDir, nm), []byte{}, 0666); err != nil {
+		if err := os.WriteFile(filepath.Join(u.Dir.LocalDir(), nm), []byte{}, 0666); err != nil {
 			t.Errorf("%v writing local file %s", err, nm)
 		}
 	}
 	for _, x := range doing.readys {
 		nm := fmt.Sprintf("%s.json", x)
-		if err := os.WriteFile(filepath.Join(u.LocalDir, nm), []byte{}, 0666); err != nil {
+		if err := os.WriteFile(filepath.Join(u.Dir.LocalDir(), nm), []byte{}, 0666); err != nil {
 			t.Errorf("%v writing ready file %s", err, nm)
 		}
 	}
 	for _, x := range doing.uploads {
 		nm := fmt.Sprintf("%s.json", x)
-		if err := os.WriteFile(filepath.Join(u.UploadDir, nm), []byte{}, 0666); err != nil {
+		if err := os.WriteFile(filepath.Join(u.Dir.UploadDir(), nm), []byte{}, 0666); err != nil {
 			t.Errorf("%v writing upload %s", err, nm)
 		}
 	}
@@ -485,9 +482,9 @@ func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) int {
 
 	// check results
 	var cfiles, rfiles, lfiles, ufiles, logcnt int
-	fis, err := os.ReadDir(u.LocalDir)
+	fis, err := os.ReadDir(u.Dir.LocalDir())
 	if err != nil {
-		t.Errorf("%v reading localdir %s", err, u.LocalDir)
+		t.Errorf("%v reading localdir %s", err, u.Dir.LocalDir())
 		return 0
 	}
 	for _, f := range fis {
@@ -500,7 +497,7 @@ func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) int {
 		case strings.HasSuffix(f.Name(), ".json"):
 			rfiles++
 		case f.Name() == "debug":
-			dbgname := filepath.Join(u.LocalDir, "debug")
+			dbgname := filepath.Join(u.Dir.LocalDir(), "debug")
 			logs, err := os.ReadDir(dbgname)
 			if err != nil {
 				break
@@ -513,9 +510,9 @@ func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) int {
 	if logcnt != 1 {
 		t.Errorf("expected 1 log file, got %d", logcnt)
 	}
-	fis, err = os.ReadDir(u.UploadDir)
+	fis, err = os.ReadDir(u.Dir.UploadDir())
 	if err != nil {
-		t.Errorf("%v reading uploaddir %s", err, u.UploadDir)
+		t.Errorf("%v reading uploaddir %s", err, u.Dir.UploadDir())
 		return 0
 	}
 	ufiles = len(fis) // assume there's nothing but .json reports
@@ -543,7 +540,7 @@ func doTest(t *testing.T, u *Uploader, doing *Test, known *countFileInfo) int {
 }
 
 // check that generated report is as expected, and return its contents and its name
-func subtest(t *testing.T, c *telemetry.UploadConfig, u *Uploader) ([]byte, string) {
+func subtest(t *testing.T, u *Uploader) ([]byte, string) {
 	// check state before generating report
 	work := u.findWork()
 	// expect one count file and nothing else
@@ -569,7 +566,7 @@ func subtest(t *testing.T, c *telemetry.UploadConfig, u *Uploader) ([]byte, stri
 		// the uploadable report
 		t.Errorf("expected one readyfile, got %d", len(got.readyfiles))
 	}
-	fi, err := os.ReadDir(u.LocalDir)
+	fi, err := os.ReadDir(u.Dir.LocalDir())
 	if len(fi) != 3 || err != nil {
 		// one local report, one uploadable report, one weekends file
 		t.Errorf("expected three files in LocalDir, got %d, %v", len(fi), err)
@@ -581,7 +578,7 @@ func subtest(t *testing.T, c *telemetry.UploadConfig, u *Uploader) ([]byte, stri
 	var localFile, uploadFile []byte
 	var uploadName string
 	for _, f := range fi {
-		fname := filepath.Join(u.LocalDir, f.Name())
+		fname := filepath.Join(u.Dir.LocalDir(), f.Name())
 		buf, err := os.ReadFile(fname)
 		if err != nil {
 			t.Fatal(err)

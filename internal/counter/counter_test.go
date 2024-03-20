@@ -70,7 +70,7 @@ func TestBasic(t *testing.T) {
 
 func TestMissingLocalDir(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
-	err := os.RemoveAll(telemetry.LocalDir)
+	err := os.RemoveAll(telemetry.Default.LocalDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestNewFile(t *testing.T) {
 		var f file
 		c := f.New("gophers")
 		// shouldn't see a file yet
-		fi, err := os.ReadDir(telemetry.LocalDir)
+		fi, err := os.ReadDir(telemetry.Default.LocalDir())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -245,7 +245,7 @@ func TestNewFile(t *testing.T) {
 		}
 		c.Add(9)
 		// still shouldn't see a file
-		fi, err = os.ReadDir(telemetry.LocalDir)
+		fi, err = os.ReadDir(telemetry.Default.LocalDir())
 		if err != nil {
 			close(&f)
 			t.Fatal(err)
@@ -256,7 +256,7 @@ func TestNewFile(t *testing.T) {
 		}
 		f.rotate()
 		// now we should see a count file and a weekends file
-		fi, _ = os.ReadDir(telemetry.LocalDir)
+		fi, _ = os.ReadDir(telemetry.Default.LocalDir())
 		if len(fi) != 2 {
 			close(&f)
 			t.Fatalf("len(fi) = %d, want 2", len(fi))
@@ -267,7 +267,7 @@ func TestNewFile(t *testing.T) {
 			case "weekends":
 				weekendsFile = f.Name()
 				// while we're here, check that is ok
-				buf, err := os.ReadFile(filepath.Join(telemetry.LocalDir, weekendsFile))
+				buf, err := os.ReadFile(filepath.Join(telemetry.Default.LocalDir(), weekendsFile))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -280,7 +280,7 @@ func TestNewFile(t *testing.T) {
 			}
 		}
 
-		buf, err := os.ReadFile(filepath.Join(telemetry.LocalDir, countFile))
+		buf, err := os.ReadFile(filepath.Join(telemetry.Default.LocalDir(), countFile))
 		if err != nil {
 			close(&f)
 			t.Fatal(err)
@@ -303,8 +303,8 @@ func TestNewFile(t *testing.T) {
 		}
 		close(&f)
 		// remove the file for the next iteration of the loop
-		os.Remove(filepath.Join(telemetry.LocalDir, countFile))
-		os.Remove(filepath.Join(telemetry.LocalDir, weekendsFile))
+		os.Remove(filepath.Join(telemetry.Default.LocalDir(), countFile))
+		os.Remove(filepath.Join(telemetry.Default.LocalDir(), weekendsFile))
 	}
 }
 
@@ -316,12 +316,12 @@ func TestWeekends(t *testing.T) {
 	for i := 0; i < 7; i++ {
 		counterTime = future(i)
 		for index := range "0123456" {
-			os.WriteFile(filepath.Join(telemetry.LocalDir, "weekends"), []byte{byte(index + '0')}, 0666)
+			os.WriteFile(filepath.Join(telemetry.Default.LocalDir(), "weekends"), []byte{byte(index + '0')}, 0666)
 			var f file
 			c := f.New("gophers")
 			c.Add(7)
 			f.rotate()
-			fis, err := os.ReadDir(telemetry.LocalDir)
+			fis, err := os.ReadDir(telemetry.Default.LocalDir())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -330,11 +330,11 @@ func TestWeekends(t *testing.T) {
 			for _, fi := range fis {
 				// ignore errors for brevity: something else will fail
 				if fi.Name() == "weekends" {
-					buf, _ := os.ReadFile(filepath.Join(telemetry.LocalDir, fi.Name()))
+					buf, _ := os.ReadFile(filepath.Join(telemetry.Default.LocalDir(), fi.Name()))
 					buf = bytes.TrimSpace(buf)
 					weekends = time.Weekday(buf[0] - '0')
 				} else if strings.HasSuffix(fi.Name(), ".count") {
-					buf, _ := os.ReadFile(filepath.Join(telemetry.LocalDir, fi.Name()))
+					buf, _ := os.ReadFile(filepath.Join(telemetry.Default.LocalDir(), fi.Name()))
 					parsed, _ := Parse(fi.Name(), buf)
 					begins, _ = time.Parse(time.RFC3339, parsed.Meta["TimeBegin"])
 					ends, _ = time.Parse(time.RFC3339, parsed.Meta["TimeEnd"])
@@ -361,7 +361,7 @@ func TestWeekends(t *testing.T) {
 			close(&f)
 			// remove files for the next iteration of the loop
 			for _, f := range fis {
-				os.Remove(filepath.Join(telemetry.LocalDir, f.Name()))
+				os.Remove(filepath.Join(telemetry.Default.LocalDir(), f.Name()))
 			}
 		}
 	}
@@ -505,13 +505,9 @@ func fn(t *testing.T, n int, c *StackCounter) {
 
 func setup(t *testing.T) {
 	log.SetFlags(log.Lshortfile)
-	tmpDir := t.TempDir() // new dir for each test
-	telemetry.LocalDir = tmpDir + "/local"
-	telemetry.UploadDir = tmpDir + "/upload"
-	os.MkdirAll(telemetry.LocalDir, 0777)
-	os.MkdirAll(telemetry.UploadDir, 0777)
-	telemetry.ModeFile = telemetry.ModeFilePath(filepath.Join(tmpDir, "mode"))
-	// os.UserConfigDir() is "" in tests so no point in looking at it
+	telemetry.Default = telemetry.NewDir(t.TempDir()) // new dir for each test
+	os.MkdirAll(telemetry.Default.LocalDir(), 0777)
+	os.MkdirAll(telemetry.Default.UploadDir(), 0777)
 }
 
 func restore() {

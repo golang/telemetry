@@ -114,16 +114,17 @@ func (s *Server) handleIndex(fsys fs.FS) handlerFunc {
 		if err != nil {
 			return err
 		}
-		if _, err := os.Stat(telemetry.LocalDir); err != nil {
+		localDir := telemetry.Default.LocalDir()
+		if _, err := os.Stat(localDir); err != nil {
 			return fmt.Errorf(
 				`The telemetry dir %s does not exist.
-There is nothing to report.`, telemetry.LocalDir)
+There is nothing to report.`, telemetry.Default.LocalDir())
 		}
-		reports, err := reports(telemetry.LocalDir, cfg)
+		reports, err := reports(localDir, cfg)
 		if err != nil {
 			return err
 		}
-		files, err := files(telemetry.LocalDir, cfg)
+		files, err := files(localDir, cfg)
 		if err != nil {
 			return err
 		}

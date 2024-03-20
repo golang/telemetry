@@ -85,7 +85,7 @@ func (u *Uploader) uploadReportContents(fname string, buf []byte) bool {
 		return false
 	}
 	// put a copy in the uploaded directory
-	newname := filepath.Join(u.UploadDir, fdate+".json")
+	newname := filepath.Join(u.Dir.UploadDir(), fdate+".json")
 	if err := os.WriteFile(newname, buf, 0644); err == nil {
 		os.Remove(fname) // if it exists
 	}

@@ -23,7 +23,7 @@ import (
 
 // reports generates reports from inactive count files
 func (u *Uploader) reports(todo *work) ([]string, error) {
-	if mode, _ := u.ModeFilePath.Mode(); mode == "off" {
+	if mode, _ := u.Dir.Mode(); mode == "off" {
 		return nil, nil // no reports
 	}
 	thisInstant := u.StartTime
@@ -120,7 +120,7 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
 		u.ConfigVersion = v
 	}
 	uploadOK := true
-	mode, asof := u.ModeFilePath.Mode()
+	mode, asof := u.Dir.Mode()
 	if u.Config == nil || mode != "on" {
 		logger.Printf("no upload config or mode %q is not 'on'", mode)
 		uploadOK = false // no config, nothing to upload
@@ -227,8 +227,8 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
 			return "", fmt.Errorf("failed to marshal upload report (%v)", err)
 		}
 	}
-	localFileName := filepath.Join(u.LocalDir, "local."+expiryDate+".json")
-	uploadFileName := filepath.Join(u.LocalDir, expiryDate+".json")
+	localFileName := filepath.Join(u.Dir.LocalDir(), "local."+expiryDate+".json")
+	uploadFileName := filepath.Join(u.Dir.LocalDir(), expiryDate+".json")
 
 	/* Prepare to write files */
 	// if either file exists, someone has been here ahead of us

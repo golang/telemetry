@@ -147,7 +147,7 @@ func TestRotate(t *testing.T) {
 	setup(t)
 	defer restore()
 	// pretend something was uploaded
-	os.WriteFile(filepath.Join(telemetry.UploadDir, "anything"), []byte{}, 0666)
+	os.WriteFile(filepath.Join(telemetry.Default.UploadDir(), "anything"), []byte{}, 0666)
 	var f file
 	defer close(&f)
 	c := f.New("gophers")
@@ -156,7 +156,7 @@ func TestRotate(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		// nothing should change on the second rotate
 		f.rotate()
-		fi, err := os.ReadDir(telemetry.LocalDir)
+		fi, err := os.ReadDir(telemetry.Default.LocalDir())
 		if err != nil || len(fi) != 2 {
 			t.Fatalf("err=%v, len(fi) = %d, want 2", err, len(fi))
 		}
@@ -170,7 +170,7 @@ func TestRotate(t *testing.T) {
 		if us != now {
 			t.Errorf("us = %v, want %v, i=%d y=%s", us, now, i, y)
 		}
-		fd, err := os.Open(filepath.Join(telemetry.LocalDir, fi[0].Name()))
+		fd, err := os.Open(filepath.Join(telemetry.Default.LocalDir(), fi[0].Name()))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -189,7 +189,7 @@ func TestRotate(t *testing.T) {
 	}
 	counterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
 	f.rotate()
-	fi, err := os.ReadDir(telemetry.LocalDir)
+	fi, err := os.ReadDir(telemetry.Default.LocalDir())
 	if err != nil || len(fi) != 3 {
 		t.Fatalf("err=%v, len(fi) = %d, want 3", err, len(fi))
 	}

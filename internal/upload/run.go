@@ -44,7 +44,7 @@ func SetLogOutput(logging io.Writer) {
 // dirname, if it exists. If dirname is the empty string,
 // the function tries the directory it.Localdir/debug.
 func LogIfDebug(dirname string) error {
-	dname := filepath.Join(telemetry.LocalDir, "debug")
+	dname := filepath.Join(telemetry.Default.LocalDir(), "debug")
 	if dirname != "" {
 		dname = dirname
 	}
@@ -93,12 +93,8 @@ type Uploader struct {
 	// ConfigVersion is the version of the config.
 	ConfigVersion string
 
-	// LocalDir is where the local counter files are.
-	LocalDir string
-	// UploadDir is where uploader leaves the copy of uploaded data.
-	UploadDir string
-	// ModeFilePath is the file.
-	ModeFilePath telemetry.ModeFilePath
+	// Dir is the telemetry directory to process.
+	Dir telemetry.Dir
 
 	UploadServerURL string
 	StartTime       time.Time
@@ -107,13 +103,24 @@ type Uploader struct {
 }
 
 // NewUploader creates a default uploader.
-func NewUploader(config *telemetry.UploadConfig) *Uploader {
+//
+// If telemetryDir is set, it is used as the telemetry data directory to
+// process, instead of the default directory.
+//
+// If config is set, it is used as the upload config, rather than the
+// downloaded upload configuration.
+func NewUploader(telemetryDir string, config *telemetry.UploadConfig) *Uploader {
+	var dir telemetry.Dir
+	if telemetryDir != "" {
+		dir = telemetry.NewDir(telemetryDir)
+	} else {
+		dir = telemetry.Default
+	}
+	// TODO(rfindley): get the config here, rather than during the upload process.
 	return &Uploader{
 		Config:          config,
 		ConfigVersion:   "custom",
-		LocalDir:        telemetry.LocalDir,
-		UploadDir:       telemetry.UploadDir,
-		ModeFilePath:    telemetry.ModeFile,
+		Dir:             dir,
 		UploadServerURL: "https://telemetry.go.dev/upload",
 		StartTime:       time.Now().UTC(),
 	}

@@ -73,20 +73,19 @@ func TestE2E_off(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("mode=%s", test.mode), func(t *testing.T) {
-			telemetryDir := t.TempDir()
+			dir := telemetry.NewDir(t.TempDir())
 			if test.mode != "" {
-				if err := telemetry.ModeFilePath(filepath.Join(telemetryDir, "mode")).SetMode(test.mode); err != nil {
+				if err := dir.SetMode(test.mode); err != nil {
 					t.Fatalf("SetMode failed: %v", err)
 				}
 			}
-			out, err := RunProg(t, telemetryDir, prog)
+			out, err := RunProg(t, dir.Dir(), prog)
 			if err != nil {
 				t.Fatalf("program failed unexpectedly (%v)\n%s", err, out)
 			}
-			localDir := filepath.Join(telemetryDir, "local")
-			_, err = os.Stat(localDir)
+			_, err = os.Stat(dir.LocalDir())
 			if err != nil && !os.IsNotExist(err) {
-				t.Fatalf("os.Stat(%q): unexpected error: %v", localDir, err)
+				t.Fatalf("os.Stat(%q): unexpected error: %v", dir.LocalDir(), err)
 			}
 			if gotLocalDir := err == nil; gotLocalDir != test.wantLocalDir {
 				t.Errorf("got /local dir: %v, want %v; out:\n%s", gotLocalDir, test.wantLocalDir, string(out))
