@@ -63,13 +63,14 @@ func newHandler(ctx context.Context, cfg *config.Config) http.Handler {
 	fsys := fsys(cfg.DevMode)
 	mux := http.NewServeMux()
 
+	logger := slog.Default()
 	mux.Handle("/", handleRoot(fsys, buckets))
 	mux.Handle("/config", handleConfig(fsys, ucfg))
-	mux.Handle("/upload/", handleUpload(ucfg, buckets))
+	mux.Handle("/upload/", handleUpload(ucfg, buckets, logger))
 	mux.Handle("/charts/", handleChart(fsys, buckets))
 
 	mw := middleware.Chain(
-		middleware.Log(slog.Default()),
+		middleware.Log(logger),
 		middleware.Timeout(cfg.RequestTimeout),
 		middleware.RequestSize(cfg.MaxRequestBytes),
 		middleware.Recover(),
@@ -150,18 +151,30 @@ func handleChart(fsys fs.FS, buckets *storage.API) content.HandlerFunc {
 	}
 }
 
-func handleUpload(ucfg *tconfig.Config, buckets *storage.API) content.HandlerFunc {
+func handleUpload(ucfg *tconfig.Config, buckets *storage.API, log *slog.Logger) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method == "POST" {
+			ctx := r.Context()
+			// Log the error, but only the first 80 characters.
+			// This prevents excessive logging related to broken payloads.
+			// The first line should give us a sense of the failure mode.
+			warn := func(msg string, err error) {
+				errs := []rune(err.Error())
+				if len(errs) > 80 {
+					errs = append(errs[:79], '…')
+				}
+				log.WarnContext(ctx, msg+": "+string(errs))
+			}
 			var report telemetry.Report
 			if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
+				warn("invalid JSON payload", err)
 				return content.Error(err, http.StatusBadRequest)
 			}
 			if err := validate(&report, ucfg); err != nil {
+				warn("invalid report", err)
 				return content.Error(err, http.StatusBadRequest)
 			}
 			// TODO: capture metrics for collisions.
-			ctx := r.Context()
 			name := fmt.Sprintf("%s/%g.json", report.Week, report.X)
 			f, err := buckets.Upload.Object(name).NewWriter(ctx)
 			if err != nil {
