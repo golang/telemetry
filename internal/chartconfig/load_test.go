@@ -105,6 +105,26 @@ program: golang.org/x/tools/gopls
 				},
 			},
 		},
+		{
+			"multiline counter field", `
+counter: foo:{
+	bar,
+    baz
+}
+`,
+			[]chartconfig.ChartConfig{
+				{Counter: "foo:{bar,baz}"},
+			},
+		},
+		{
+			"multiline counter field with braces immediately next to text", `
+counter: foo:{bar,
+ baz}
+`,
+			[]chartconfig.ChartConfig{
+				{Counter: "foo:{bar,baz}"},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -156,6 +176,77 @@ title: bar
 			`
 depth: notanint
 `,
+		},
+		{
+			"open curly brace not in counter field",
+			`
+title: {
+`,
+		},
+		{
+			"close curly brace not in counter field",
+			`
+title: }
+`,
+		},
+		{
+			"end of record within multiline counter field",
+			`
+counter: foo{
+  bar
+---
+title: baz
+`,
+		},
+		{
+			"end of file within multiline counter field",
+			`
+counter: foo{
+  bar
+`,
+		},
+		{
+			"close curly before open curly",
+			`
+counter: }foo{
+  bar
+}`,
+		},
+		{
+			"open curly after close curly",
+			`
+counter: foo{
+  bar
+} {`,
+		},
+		{
+			"open curly after open curly same line",
+			`
+counter: foo{{
+  bar
+}`,
+		},
+		{
+			"open curly after open curly different line",
+			`
+counter: foo{
+  {bar
+}`,
+		},
+		{
+			"close curly after close curly",
+			`
+counter: foo{
+  bar
+} }`,
+		},
+		{
+			"comma right before close curly",
+			`
+counter: foo{
+  bar,
+  baz,
+} }`,
 		},
 	}
 

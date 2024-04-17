@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 //go:embed config.txt
@@ -66,12 +67,66 @@ func Parse(data []byte) ([]ChartConfig, error) {
 		set = make(map[string]bool)
 	}
 
+	// Within bucket braces in counter fields, newlines are ignored.
+	// if we're in the middle of a multiline counter field, accumulatedCounterText
+	// contains the joined lines of the field up to the current line. Once
+	// a line containing an end brace is reached, line will be set to the
+	// joined lines of accumulatedCounterText and processed as a single line.
+	var accumulatedCounterText string
+
 	for lineNum, line := range strings.Split(string(data), "\n") {
 		if line == "---" {
+			if accumulatedCounterText != "" {
+				return nil, fmt.Errorf("line %d: reached end of record while processing multiline counter field", lineNum)
+			}
 			flushRecord()
 			continue
 		}
 		text, _, _ := strings.Cut(line, "#") // trim comments
+
+		// Processing of counter fields which can appear across multiple lines.
+		// See comment on accumulatedCounterText.
+		if accumulatedCounterText == "" {
+			if oi := strings.Index(text, "{"); oi >= 0 {
+				if strings.Contains(text[:oi], "}") {
+					return nil, fmt.Errorf("line %d: invalid line %q: unexpected '}'", lineNum, line)
+				}
+				if strings.Contains(text[oi+len("{"):], "{") {
+					return nil, fmt.Errorf("line %d: invalid line %q: unexpected '{'", lineNum, line)
+				}
+				if !strings.HasPrefix(text, "counter:") {
+					return nil, fmt.Errorf("line %d: invalid line %q: '{' is only allowed to appear within a counter field", lineNum, line)
+				}
+				accumulatedCounterText = strings.TrimRightFunc(text, unicode.IsSpace)
+				// Don't continue here. If the counter field is a single line
+				// the check for the close brace below will close the line
+				// and process it as text. Set text to "" so when it's appended to
+				// accumulatedCounterText we don't add the line twice.
+				text = ""
+			} else if strings.Contains(text, "}") {
+				return nil, fmt.Errorf("line %d: invalid line %q: unexpected '}'", lineNum, line)
+			}
+		}
+		if accumulatedCounterText != "" {
+			if strings.Contains(text, "{") {
+				return nil, fmt.Errorf("line %d: invalid line %q: '{' is only allowed to appear once within a counter field", lineNum, line)
+			}
+			accumulatedCounterText += strings.TrimSpace(text)
+			if ci := strings.Index(accumulatedCounterText, "}"); ci >= 0 {
+				if strings.Contains(accumulatedCounterText[ci+len("}"):], "}") {
+					return nil, fmt.Errorf("line %d: invalid line %q: unexpected '}'", lineNum, line)
+				}
+				if ci > 0 && strings.HasSuffix(accumulatedCounterText[:ci], ",") {
+					return nil, fmt.Errorf("line %d: invalid line %q: unexpected '}' after ','", lineNum, line)
+				}
+				text = accumulatedCounterText
+				accumulatedCounterText = ""
+			} else {
+				// We're in the middle of a multiline counter field. Continue
+				// processing.
+				continue
+			}
+		}
 
 		var key string
 		for k := range fields {
@@ -103,6 +158,11 @@ func Parse(data []byte) ([]ChartConfig, error) {
 		}
 		set[key] = true
 	}
+
+	if accumulatedCounterText != "" {
+		return nil, fmt.Errorf("reached end of file while processing multiline counter field")
+	}
+
 	flushRecord()
 	return records, nil
 }
