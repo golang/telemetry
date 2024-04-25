@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"golang.org/x/telemetry/counter"
+	"golang.org/x/telemetry/internal/configtest"
 	"golang.org/x/telemetry/internal/regtest"
 	"golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/testenv"
@@ -43,6 +44,7 @@ func TestUploadBasic(t *testing.T) {
 		t.Fatalf("failed to run program: %s", out)
 	}
 	uc := createTestUploadConfig(t, []string{"knownCounter"}, []string{"aStack"})
+	env := configtest.LocalProxyEnv(t, uc, "v1.2.3")
 
 	// Start upload server
 	srv, uploaded := createTestUploadServer(t)
@@ -59,7 +61,7 @@ func TestUploadBasic(t *testing.T) {
 	uploader, err := NewUploader(RunConfig{
 		TelemetryDir: telemetryDir,
 		UploadURL:    srv.URL,
-		UploadConfig: uc,
+		Env:          env,
 		StartTime:    time.Now().Add(15*24*time.Hour + 1*time.Minute),
 	})
 	if err != nil {
@@ -127,6 +129,7 @@ func TestUploadFailure(t *testing.T) {
 		t.Fatalf("failed to run program: %s", out)
 	}
 	uc := createTestUploadConfig(t, []string{"knownCounter"}, []string{"aStack"})
+	env := configtest.LocalProxyEnv(t, uc, "v1.2.3")
 
 	// Start upload server
 	srv := failingUploadServer()
@@ -144,7 +147,7 @@ func TestUploadFailure(t *testing.T) {
 	uploader, err := NewUploader(RunConfig{
 		TelemetryDir: telemetryDir,
 		UploadURL:    srv.URL,
-		UploadConfig: uc,
+		Env:          env,
 		StartTime:    time.Now().Add(15*24*time.Hour + 1*time.Minute),
 	})
 	if err != nil {
@@ -226,6 +229,7 @@ func TestDates(t *testing.T) {
 	}
 	cs := readCountFileInfo(t, filepath.Join(telemetryDir, "local"))
 	uc := createTestUploadConfig(t, nil, []string{"aStack"})
+	env := configtest.LocalProxyEnv(t, uc, "v1.2.3")
 
 	const today = "2020-01-24"
 	const yesterday = "2020-01-23"
@@ -333,7 +337,7 @@ func TestDates(t *testing.T) {
 			uploader, err := NewUploader(RunConfig{
 				TelemetryDir: telemetryDir,
 				UploadURL:    srv.URL,
-				UploadConfig: uc,
+				Env:          env,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -608,7 +612,7 @@ func subtest(t *testing.T, u *Uploader) ([]byte, string) {
 
 	// all the counters except for 'unknownCounter' should be in the upload file.
 	if got, want := string(uploadFile), string(localFile[:found[0]])+string(localFile[found[1]:]); got != want {
-		t.Fatalf("got\n%s want\n%s", got, want)
+		t.Fatalf("got uploaded report:\n%s\nwant:\n%s", got, want)
 	}
 	// try uploading to the test server
 	u.uploadReport(got.readyfiles[0])

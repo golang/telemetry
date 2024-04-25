@@ -23,11 +23,11 @@ import (
 //
 // All fields are optional, for testing or observability.
 type RunConfig struct {
-	TelemetryDir string                  // if set, overrides the telemetry data directory
-	UploadURL    string                  // if set, overrides the telemetry upload endpoint
-	LogWriter    io.Writer               // if set, used for detailed logging of the upload process
-	UploadConfig *telemetry.UploadConfig // if set, overrides the downloaded upload configuration
-	StartTime    time.Time               // if set, overrides the upload start time
+	TelemetryDir string    // if set, overrides the telemetry data directory
+	UploadURL    string    // if set, overrides the telemetry upload endpoint
+	LogWriter    io.Writer // if set, used for detailed logging of the upload process
+	Env          []string  // if set, appended to the config download environment
+	StartTime    time.Time // if set, overrides the upload start time
 }
 
 // Uploader encapsulates a single upload operation, carrying parameters and
@@ -97,14 +97,9 @@ func NewUploader(rcfg RunConfig) (*Uploader, error) {
 	logger := log.New(logWriter, "", 0)
 
 	// Fetch the upload config, if it is not provided.
-	config := rcfg.UploadConfig
-	configVersion := "custom"
-	if config == nil {
-		var err error
-		config, configVersion, err = configstore.Download("latest", nil)
-		if err != nil {
-			return nil, err
-		}
+	config, configVersion, err := configstore.Download("latest", rcfg.Env)
+	if err != nil {
+		return nil, err
 	}
 
 	// Set the start time, if it is not provided.

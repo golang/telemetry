@@ -21,31 +21,23 @@ import (
 )
 
 const (
-	configModulePath = "golang.org/x/telemetry/config"
-	configFileName   = "config.json"
+	ModulePath     = "golang.org/x/telemetry/config"
+	configFileName = "config.json"
 )
 
-// DownloadOption is an option for Download.
-type DownloadOption struct {
-	// Env holds the environment variables used when downloading the configuration.
-	// If nil, the process's environment variables are used.
-	Env []string
-}
-
-// Download fetches the requested telemetry UploadConfig using "go mod download".
+// Download fetches the requested telemetry UploadConfig using "go mod
+// download". If envOverlay is provided, it is appended to the environment used
+// for invoking the go command.
 //
 // The second result is the canonical version of the requested configuration.
-func Download(version string, opts *DownloadOption) (*telemetry.UploadConfig, string, error) {
+func Download(version string, envOverlay []string) (*telemetry.UploadConfig, string, error) {
 	if version == "" {
 		version = "latest"
 	}
-	if opts == nil {
-		opts = &DownloadOption{}
-	}
-	modVer := configModulePath + "@" + version
+	modVer := ModulePath + "@" + version
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", "mod", "download", "-json", modVer)
-	cmd.Env = opts.Env
+	cmd.Env = append(os.Environ(), envOverlay...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
