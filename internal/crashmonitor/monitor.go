@@ -26,7 +26,7 @@ import (
 // TODO(adonovan): eliminate once go1.23+ is assured.
 func Supported() bool { return setCrashOutput != nil }
 
-var setCrashOutput func(*os.File, debug.CrashOptions) error // = runtime.SetCrashOutput on go1.23+
+var setCrashOutput func(*os.File) error // = runtime.SetCrashOutput on go1.23+
 
 // Parent sets up the parent side of the crashmonitor. It requires
 // exclusive use of a writable pipe connected to the child process's stdin.
@@ -34,7 +34,7 @@ func Parent(pipe *os.File) {
 	writeSentinel(pipe)
 	// Ensure that we get pc=0x%x values in the traceback.
 	debug.SetTraceback("system")
-	setCrashOutput(pipe, debug.CrashOptions{})
+	setCrashOutput(pipe)
 }
 
 // Child runs the part of the crashmonitor that runs in the child process.
