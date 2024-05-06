@@ -13,6 +13,7 @@ import (
 )
 
 func init() {
+	// TODO(adonovan): remove temporary lambda when the SetCrashOutput transition (#67182) is complete.
 	setCrashOutput = func(f *os.File) error {
 		return debug.SetCrashOutput(f)
 	}
