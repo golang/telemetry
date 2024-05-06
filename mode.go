@@ -4,9 +4,7 @@
 
 package telemetry
 
-import (
-	"golang.org/x/telemetry/internal/telemetry"
-)
+import "golang.org/x/telemetry/internal/telemetry"
 
 // Mode returns the current telemetry mode.
 //

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -45,6 +46,19 @@ type Config struct {
 	// directory.
 	// This field is intended to be used for isolating testing environments.
 	TelemetryDir string
+
+	// UploadStartTime, if set, overrides the time used as the upload start time,
+	// which is the time used by the upload logic to determine whether counter
+	// file data should be uploaded. Only counter files that have expired before
+	// the start time are considered for upload.
+	//
+	// This field can be used to simulate a future upload that collects recently
+	// modified counters.
+	UploadStartTime time.Time
+
+	// UploadURL, if set, overrides the URL used to receive uploaded reports. If
+	// unset, this URL defaults to https://telemetry.go.dev/upload.
+	UploadURL string
 }
 
 // Start initializes telemetry using the specified configuration.
@@ -68,16 +82,21 @@ type Config struct {
 // inspecting the command line. The application should avoid expensive
 // steps or external side effects in init functions, as they will
 // be executed twice (parent and child).
-func Start(config Config) {
+//
+// Start returns a StartResult, which may be awaited via [StartResult.Wait] to
+// wait for all work done by Start to complete.
+func Start(config Config) *StartResult {
 	if config.TelemetryDir != "" {
 		telemetry.Default = telemetry.NewDir(config.TelemetryDir)
 	}
+	result := new(StartResult)
+
 	mode, _ := telemetry.Default.Mode()
 	if mode == "off" {
 		// Telemetry is turned off. Crash reporting doesn't work without telemetry
 		// at least set to "local", and the uploader isn't started in uploaderChild if
 		// mode is "off"
-		return
+		return result
 	}
 
 	counter.Open()
@@ -87,7 +106,7 @@ func Start(config Config) {
 		// crash monitoring and counter uploading. Most likely, there was an
 		// error creating telemetry.LocalDir in the counter.Open call above.
 		// Don't start the child.
-		return
+		return result
 	}
 
 	// Crash monitoring and uploading both require a sidecar process.
@@ -97,15 +116,31 @@ func Start(config Config) {
 			os.Exit(0)
 		}
 
-		parent(config)
+		parent(config, result)
 	}
+	return result
+}
+
+// A StartResult is a handle to the result of a call to [Start]. Call
+// [StartResult.Wait] to wait for the completion of all work done on behalf of
+// Start.
+type StartResult struct {
+	wg sync.WaitGroup
+}
+
+// Wait waits for the completion of all work initiated by [Start].
+func (res *StartResult) Wait() {
+	if res == nil {
+		return
+	}
+	res.wg.Wait()
 }
 
 var daemonize = func(cmd *exec.Cmd) {}
 
 const telemetryChildVar = "X_TELEMETRY_CHILD"
 
-func parent(config Config) {
+func parent(config Config, result *StartResult) {
 	// This process is the application (parent).
 	// Fork+exec the telemetry child.
 	exe, err := os.Executable()
@@ -160,7 +195,11 @@ func parent(config Config) {
 	if err := cmd.Start(); err != nil {
 		log.Fatalf("can't start telemetry child process: %v", err)
 	}
-	go cmd.Wait() // Release resources if cmd happens not to outlive this process.
+	result.wg.Add(1)
+	go func() {
+		cmd.Wait() // Release resources if cmd happens not to outlive this process.
+		result.wg.Done()
+	}()
 }
 
 func child(config Config) {
@@ -174,7 +213,7 @@ func child(config Config) {
 
 	if config.Upload {
 		g.Go(func() error {
-			uploaderChild()
+			uploaderChild(config.UploadStartTime, config.UploadURL)
 			return nil
 		})
 	}
@@ -187,7 +226,7 @@ func child(config Config) {
 	g.Wait()
 }
 
-func uploaderChild() {
+func uploaderChild(asof time.Time, uploadURL string) {
 	if mode, _ := telemetry.Default.Mode(); mode == "off" {
 		// There's no work to be done if telemetry is turned off.
 		return
@@ -208,7 +247,11 @@ func uploaderChild() {
 		// a concurrently running uploader.
 		return
 	}
-	if err := upload.Run(upload.RunConfig{LogWriter: os.Stderr}); err != nil {
+	if err := upload.Run(upload.RunConfig{
+		UploadURL: uploadURL,
+		LogWriter: os.Stderr,
+		StartTime: asof,
+	}); err != nil {
 		log.Printf("upload failed: %v", err)
 	}
 }

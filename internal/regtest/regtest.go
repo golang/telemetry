@@ -11,11 +11,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
 
 	"golang.org/x/telemetry/counter/countertest"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 const (
@@ -80,7 +82,7 @@ func RunProg(t *testing.T, telemetryDir string, prog Program) ([]byte, error) {
 
 	// Spawn a subprocess to run the 'prog' by setting telemetryDirEnvVar.
 	cmd := exec.Command(testBin, "-test.run", fmt.Sprintf("^%s$", testName))
-	cmd.Env = append(cmd.Env, telemetryDirEnvVar+"="+telemetryDir, entryPointEnvVar+"="+string(prog))
+	cmd.Env = append(os.Environ(), telemetryDirEnvVar+"="+telemetryDir, entryPointEnvVar+"="+string(prog))
 	return cmd.CombinedOutput()
 }
 
@@ -103,4 +105,28 @@ func ProgInfo(t *testing.T) (goVersion, progVersion, progName string) {
 		progVers = "devel"
 	}
 	return goVers, progVers, progPkgPath
+}
+
+// CreateTestUploadConfig creates a new upload config for the current program,
+// permitting the given counters.
+func CreateTestUploadConfig(t *testing.T, counterNames, stackCounterNames []string) *telemetry.UploadConfig {
+	goVersion, progVersion, progName := ProgInfo(t)
+	GOOS, GOARCH := runtime.GOOS, runtime.GOARCH
+	programConfig := &telemetry.ProgramConfig{
+		Name:     progName,
+		Versions: []string{progVersion},
+	}
+	for _, c := range counterNames {
+		programConfig.Counters = append(programConfig.Counters, telemetry.CounterConfig{Name: c, Rate: 1})
+	}
+	for _, c := range stackCounterNames {
+		programConfig.Stacks = append(programConfig.Stacks, telemetry.CounterConfig{Name: c, Rate: 1, Depth: 16})
+	}
+	return &telemetry.UploadConfig{
+		GOOS:       []string{GOOS},
+		GOARCH:     []string{GOARCH},
+		SampleRate: 1.0,
+		GoVersion:  []string{goVersion},
+		Programs:   []*telemetry.ProgramConfig{programConfig},
+	}
 }
