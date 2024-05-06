@@ -111,12 +111,28 @@ func Start(config Config) *StartResult {
 
 	// Crash monitoring and uploading both require a sidecar process.
 	if (config.ReportCrashes && crashmonitor.Supported()) || (config.Upload && mode != "off") {
-		if os.Getenv(telemetryChildVar) != "" {
+		switch v := os.Getenv(telemetryChildVar); v {
+		case "":
+			// The subprocess started by parent has X_TELEMETRY_CHILD=1.
+			parent(config, result)
+		case "1":
+			// golang/go#67211: be sure to set telemetryChildVar before running the
+			// child, because the child itself invokes the go command to download the
+			// upload config. If the telemetryChildVar variable is still set to "1",
+			// that delegated go command may think that it is itself a telemetry
+			// child.
+			//
+			// On the other hand, if telemetryChildVar were simply unset, then the
+			// delegated go commands would fork themselves recursively. Short-circuit
+			// this recursion.
+			os.Setenv(telemetryChildVar, "2")
 			child(config)
 			os.Exit(0)
+		case "2":
+			// Do nothing: see note above.
+		default:
+			log.Fatalf("unexpected value for %q: %q", telemetryChildVar, v)
 		}
-
-		parent(config, result)
 	}
 	return result
 }
@@ -138,6 +154,11 @@ func (res *StartResult) Wait() {
 
 var daemonize = func(cmd *exec.Cmd) {}
 
+// If telemetryChildVar is set to "1" in the environment, this is the telemetry
+// child.
+//
+// If telemetryChildVar is set to "2", this is a child of the child, and no
+// further forking should occur.
 const telemetryChildVar = "X_TELEMETRY_CHILD"
 
 func parent(config Config, result *StartResult) {
