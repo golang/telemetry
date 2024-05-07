@@ -51,3 +51,55 @@ type: partition
 issue: https://go.dev/issue/65696
 program: golang.org/x/tools/gopls
 version: v0.15.0
+---
+counter: go/invocations
+title: cmd/go invocations
+description: Number of invocations of the go command
+type: partition
+issue: https://go.dev/issue/67244
+program: cmd/go
+version: go1.23rc1
+---
+counter: go/build/flag:{
+  buildmode
+}
+title: cmd/go flags
+description: Flag names of flags provided to the go command
+type: partition
+issue: https://go.dev/issue/67244
+program: cmd/go
+version: go1.23rc1
+---
+counter: go/build/flag/buildmode:{
+  archive
+  c-archive
+  c-shared
+  default
+  exe
+  pie
+  shared
+  plugin
+}
+title: cmd/go buildmode values
+description: Buildmode values for the go command
+type: partition
+issue: https://go.dev/issue/67244
+program: cmd/go
+version: go1.23rc1
+---
+counter: compile/invocations
+title: cmd/compile invocations
+description: Number of invocations of the go compiler
+type: partition
+issue: https://go.dev/issue/67244
+program: cmd/compile
+version: go1.23rc1
+---
+title: Compiler bug report calls
+counter: compile/bug
+description: count stacks for cases where cmd/compile has a fatal error
+type: stack
+issue: https://go.dev/issue/67244
+program: cmd/compile
+depth: 16
+version: go1.23rc1
