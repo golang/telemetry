@@ -43,12 +43,11 @@ func TestUploadBasic(t *testing.T) {
 	if out, err := regtest.RunProg(t, telemetryDir, prog); err != nil {
 		t.Fatalf("failed to run program: %s", out)
 	}
-	uc := createTestUploadConfig(t, []string{"knownCounter"}, []string{"aStack"})
+	uc := CreateTestUploadConfig(t, []string{"knownCounter"}, []string{"aStack"})
 	env := configtest.LocalProxyEnv(t, uc, "v1.2.3")
 
 	// Start upload server
-	srv, uploaded := createTestUploadServer(t)
-	defer srv.Close()
+	srv, uploaded := CreateTestUploadServer(t)
 
 	// make it impossible to write a log by creating a non-directory with the log's name
 	logName := filepath.Join(telemetryDir, "debug")
@@ -75,7 +74,9 @@ func TestUploadBasic(t *testing.T) {
 	// and scheduled to get expired in the future.
 	// Let's pretend telemetry was enabled a year ago by mutating the mode file,
 	// we are in the future, and test if the count files are successfully uploaded.
-	uploader.dir.SetModeAsOf("on", uploader.startTime.Add(-365*24*time.Hour).UTC())
+	if err := uploader.dir.SetModeAsOf("on", uploader.startTime.Add(-365*24*time.Hour).UTC()); err != nil {
+		t.Fatal(err)
+	}
 	uploadedContent, fname := subtest(t, uploader) // TODO(hyangah) : inline
 
 	if want, got := [][]byte{uploadedContent}, uploaded(); !reflect.DeepEqual(want, got) {
@@ -88,10 +89,11 @@ func TestUploadBasic(t *testing.T) {
 	}
 }
 
-// createTestUploadServer creates a test server that records the uploaded data.
-func createTestUploadServer(t *testing.T) (*httptest.Server, func() [][]byte) {
+// CreateTestUploadServer creates a test server that records the uploaded data.
+// The server is closed as part of cleaning up t.
+func CreateTestUploadServer(t *testing.T) (*httptest.Server, func() [][]byte) {
 	s := &uploadQueue{}
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		buf, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("invalid request received: %v", err)
@@ -99,7 +101,9 @@ func createTestUploadServer(t *testing.T) (*httptest.Server, func() [][]byte) {
 			return
 		}
 		s.Append(buf)
-	})), s.Get
+	}))
+	t.Cleanup(srv.Close)
+	return srv, s.Get
 }
 
 // failingUploadServer creates a test server that returns errors
@@ -128,7 +132,7 @@ func TestUploadFailure(t *testing.T) {
 	if out, err := regtest.RunProg(t, telemetryDir, prog); err != nil {
 		t.Fatalf("failed to run program: %s", out)
 	}
-	uc := createTestUploadConfig(t, []string{"knownCounter"}, []string{"aStack"})
+	uc := CreateTestUploadConfig(t, []string{"knownCounter"}, []string{"aStack"})
 	env := configtest.LocalProxyEnv(t, uc, "v1.2.3")
 
 	// Start upload server
@@ -159,7 +163,9 @@ func TestUploadFailure(t *testing.T) {
 	// and scheduled to get expired in the future.
 	// Let's pretend telemetry was enabled a year ago by mutating the mode file,
 	// we are in the future, and test if the count files are successfully uploaded.
-	dir.SetModeAsOf("on", uploader.startTime.Add(-365*24*time.Hour).UTC())
+	if err := dir.SetModeAsOf("on", uploader.startTime.Add(-365*24*time.Hour).UTC()); err != nil {
+		t.Fatal(err)
+	}
 	_, fname := subtest(t, uploader)
 	// check that fname does not exist
 	lname := filepath.Join(uploader.dir.LocalDir(), fname)
@@ -189,7 +195,7 @@ func (s *uploadQueue) Get() [][]byte {
 	return s.data
 }
 
-func createTestUploadConfig(t *testing.T, counterNames, stackCounterNames []string) *telemetry.UploadConfig {
+func CreateTestUploadConfig(t *testing.T, counterNames, stackCounterNames []string) *telemetry.UploadConfig {
 	goVersion, progVersion, progName := regtest.ProgInfo(t)
 	GOOS, GOARCH := runtime.GOOS, runtime.GOARCH
 	programConfig := &telemetry.ProgramConfig{
@@ -228,7 +234,7 @@ func TestDates(t *testing.T) {
 		t.Fatalf("failed to run program: %s", out)
 	}
 	cs := readCountFileInfo(t, filepath.Join(telemetryDir, "local"))
-	uc := createTestUploadConfig(t, nil, []string{"aStack"})
+	uc := CreateTestUploadConfig(t, nil, []string{"aStack"})
 	env := configtest.LocalProxyEnv(t, uc, "v1.2.3")
 
 	const today = "2020-01-24"
@@ -327,8 +333,7 @@ func TestDates(t *testing.T) {
 		t.Run(tx.name, func(t *testing.T) {
 			telemetryDir := t.TempDir()
 
-			srv, uploaded := createTestUploadServer(t)
-			defer srv.Close()
+			srv, uploaded := CreateTestUploadServer(t)
 
 			dbg := filepath.Join(telemetryDir, "debug")
 			if err := os.MkdirAll(dbg, 0777); err != nil {
@@ -343,7 +348,9 @@ func TestDates(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer uploader.Close()
-			uploader.dir.SetModeAsOf("on", telemetryEnableTime)
+			if err := uploader.dir.SetModeAsOf("on", telemetryEnableTime); err != nil {
+				t.Fatal(err)
+			}
 			uploader.startTime = mustParseDate(tx.today)
 
 			wantUploadCount := doTest(t, uploader, &tx, cs)

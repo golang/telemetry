@@ -106,7 +106,9 @@ func runStart() int {
 
 	countertest.Open(mustGetEnv(telemetryDirEnv))
 	counter.Inc("teststart/counter")
-	it.Default.SetModeAsOf("on", time.Now().Add(-8*24*time.Hour))
+	if err := it.Default.SetModeAsOf("on", time.Now().Add(-8*24*time.Hour)); err != nil {
+		log.Fatalf("setting mode: %v", err)
+	}
 
 	res := telemetry.Start(telemetry.Config{
 		// No need to set TelemetryDir since the Default dir is already set by countertest.Open.

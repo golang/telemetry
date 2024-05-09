@@ -70,7 +70,7 @@ func TestRotateCounters(t *testing.T) {
 	}
 	// move into the future and rotate the file, remapping it
 	now := getnow()
-	counterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
+	CounterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
 	f.rotate()
 
 	// c has value 0 in the new file
@@ -101,7 +101,7 @@ func TestRotateCounters(t *testing.T) {
 
 	// simulate failure to remap
 	oldmap := memmap
-	counterTime = func() time.Time { return now.Add(14 * 24 * time.Hour) }
+	CounterTime = func() time.Time { return now.Add(14 * 24 * time.Hour) }
 	memmap = func(*os.File, *mmap.Data) (mmap.Data, error) { return mmap.Data{}, fmt.Errorf("too bad") }
 	f.rotate()
 	memmap = oldmap
@@ -135,7 +135,7 @@ func TestRotateCounters(t *testing.T) {
 
 // return the current date according to counterTime()
 func getnow() time.Time {
-	year, month, day := counterTime().Date()
+	year, month, day := CounterTime().Date()
 	now := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 	return now
 }
@@ -187,7 +187,7 @@ func TestRotate(t *testing.T) {
 		}
 		fd.Close()
 	}
-	counterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
+	CounterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
 	f.rotate()
 	fi, err := os.ReadDir(telemetry.Default.LocalDir())
 	if err != nil || len(fi) != 3 {

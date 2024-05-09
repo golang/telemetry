@@ -55,7 +55,8 @@ func (u *Uploader) reports(todo *work) ([]string, error) {
 		}
 		fname, err := u.createReport(earliest[expiry], expiry, files, lastWeek)
 		if err != nil {
-			return nil, err
+			u.logger.Printf("Failed to create report for %s: %v", expiry, err)
+			continue
 		}
 		if fname != "" {
 			u.logger.Printf("Ready to upload: %s", filepath.Base(fname))
@@ -157,12 +158,9 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles [
 			succeeded = true
 		}
 	}
-	// TODO(rfindley): There's a bug here: we return an error if a count file
-	// parses, but has no counter.
-	//
-	// Furthermore, this error causes us to bail out, and return no reports. We
-	// should only fail the report containing the count file.
 	if !succeeded {
+		// TODO(rfindley): this isn't right: a count file is not unparseable just
+		// because it has no counters
 		return "", fmt.Errorf("all %d count files for %s were unparseable", len(countFiles), expiryDate)
 	}
 	// 1. generate the local report

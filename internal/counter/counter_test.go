@@ -225,7 +225,7 @@ func TestNewFile(t *testing.T) {
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
-	now := counterTime().UTC()
+	now := CounterTime().UTC()
 	year, month, day := now.Date()
 	// preserve time location as done in (*file).filename.
 	testStartTime := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
@@ -314,7 +314,7 @@ func TestWeekends(t *testing.T) {
 	setup(t)
 	// get all the 49 combinations of today and when the week ends
 	for i := 0; i < 7; i++ {
-		counterTime = future(i)
+		CounterTime = future(i)
 		for index := range "0123456" {
 			os.WriteFile(filepath.Join(telemetry.Default.LocalDir(), "weekends"), []byte{byte(index + '0')}, 0666)
 			var f file
@@ -511,7 +511,7 @@ func setup(t *testing.T) {
 }
 
 func restore() {
-	counterTime = time.Now().UTC
+	CounterTime = func() time.Time { return time.Now().UTC() }
 }
 
 func (f *file) New(name string) *Counter {

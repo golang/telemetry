@@ -15,8 +15,7 @@ import (
 // In practice this test runs last, so is somewhat superfluous,
 // but it also checks that uploads and reads from the channel are matched
 func TestSimpleServer(t *testing.T) {
-	srv, uploaded := createTestUploadServer(t)
-	defer srv.Close()
+	srv, uploaded := CreateTestUploadServer(t)
 
 	url := srv.URL
 	resp, err := http.Post(url, "text/plain", strings.NewReader("hello"))
