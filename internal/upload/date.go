@@ -38,7 +38,7 @@ var farFuture = time.UnixMilli(1 << 62)
 //
 // TODO(rfindley): just return an error to make this explicit.
 func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time) {
-	parsed, err := u.parse(fname)
+	parsed, err := u.parseCountFile(fname)
 	if err != nil {
 		u.logger.Printf("expiry Parse: %v for %s", err, fname)
 		return time.Time{}, farFuture
@@ -68,7 +68,7 @@ type parsedCache struct {
 	m  map[string]*counter.File
 }
 
-func (u *Uploader) parse(fname string) (*counter.File, error) {
+func (u *Uploader) parseCountFile(fname string) (*counter.File, error) {
 	u.cache.mu.Lock()
 	defer u.cache.mu.Unlock()
 	if u.cache.m == nil {
