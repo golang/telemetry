@@ -139,3 +139,53 @@ func TestUploader_EmptyUpload(t *testing.T) {
 		}
 	}
 }
+
+func TestUploader_ModeHandling(t *testing.T) {
+	// This test verifies that the uploader honors the telemetry mode, as well as
+	// its asof date.
+
+	testenv.SkipIfUnsupportedPlatform(t)
+
+	prog := regtest.NewIncProgram(t, "prog1", "counter")
+
+	tests := []struct {
+		mode        string
+		wantUploads int
+	}{
+		{"off", 0},
+		{"local", 0},
+		{"on", 1}, // only the second week is uploadable
+	}
+	for _, test := range tests {
+		t.Run(test.mode, func(t *testing.T) {
+			telemetryDir := t.TempDir()
+			// Create two counter files to upload, at least a week apart.
+			now := time.Now()
+			asof1 := now.Add(-15 * 24 * time.Hour)
+			if out, err := regtest.RunProgAsOf(t, telemetryDir, asof1, prog); err != nil {
+				t.Fatalf("failed to run program: %s", out)
+			}
+			asof2 := now.Add(-8 * 24 * time.Hour)
+			if out, err := regtest.RunProgAsOf(t, telemetryDir, asof2, prog); err != nil {
+				t.Fatalf("failed to run program: %s", out)
+			}
+
+			uploader, getUploads := createUploader(t, telemetryDir, []string{"counter"}, nil)
+
+			// Enable telemetry as of 10 days ago. This should prevent the first week
+			// from being uploaded, but not the second.
+			if err := telemetry.NewDir(telemetryDir).SetModeAsOf(test.mode, now.Add(-10*24*time.Hour)); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := uploader.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			uploads := getUploads()
+			if gotUploads := len(uploads); gotUploads != test.wantUploads {
+				t.Fatalf("got %d uploads, want %d", gotUploads, test.wantUploads)
+			}
+		})
+	}
+}
