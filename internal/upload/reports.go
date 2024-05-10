@@ -35,7 +35,13 @@ func (u *Uploader) reports(todo *work) ([]string, error) {
 	countFiles := make(map[string][]string) // expiry date string->filenames
 	earliest := make(map[string]time.Time)  // earliest begin time for any counter
 	for _, f := range todo.countfiles {
-		begin, end := u.counterDateSpan(f)
+		begin, end, err := u.counterDateSpan(f)
+		if err != nil {
+			// This shouldn't happen: we should have already skipped count files that
+			// don't contain valid start or end times.
+			u.logger.Printf("BUG: failed to parse expiry for collected count file: %v", err)
+			continue
+		}
 
 		if end.Before(thisInstant) {
 			expiry := end.Format(dateFormat)

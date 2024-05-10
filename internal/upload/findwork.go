@@ -40,12 +40,16 @@ func (u *Uploader) findWork() work {
 	for _, fi := range fis {
 		if strings.HasSuffix(fi.Name(), ".v1.count") {
 			fname := filepath.Join(localdir, fi.Name())
-			if u.stillOpen(fname) {
+			_, expiry, err := u.counterDateSpan(fname)
+			switch {
+			case err != nil:
+				u.logger.Printf("Error reading expiry for count file %s: %v", fi.Name(), err)
+			case expiry.After(u.startTime):
 				u.logger.Printf("Skipping count file %s: still active", fi.Name())
-				continue
+			default:
+				u.logger.Printf("Collecting count file %s", fi.Name())
+				ans.countfiles = append(ans.countfiles, fname)
 			}
-			u.logger.Printf("Collecting count file %s", fi.Name())
-			ans.countfiles = append(ans.countfiles, fname)
 		} else if strings.HasPrefix(fi.Name(), "local.") {
 			// skip
 		} else if strings.HasSuffix(fi.Name(), ".json") && mode == "on" {

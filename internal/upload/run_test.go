@@ -5,6 +5,9 @@
 package upload_test
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -137,6 +140,73 @@ func TestUploader_EmptyUpload(t *testing.T) {
 		if !strings.Contains(report, "week2") {
 			t.Errorf("Didn't get an upload for week2. Report:\n%s", report)
 		}
+	}
+}
+
+func TestUploader_MissingDate(t *testing.T) {
+	// This test verifies that a counter file with corrupt metadata does not
+	// prevent the uploader from uploading another week's reports.
+
+	testenv.SkipIfUnsupportedPlatform(t)
+
+	prog := regtest.NewIncProgram(t, "prog", "counter")
+
+	telemetryDir := t.TempDir()
+
+	// Create two counter files to upload, a week apart.
+	asof1 := time.Now().Add(-15 * 24 * time.Hour)
+	if out, err := regtest.RunProgAsOf(t, telemetryDir, asof1, prog); err != nil {
+		t.Fatalf("failed to run program: %s", out)
+	}
+
+	// Corrupt the week 1 counter file.
+	{
+		localDir := telemetry.NewDir(telemetryDir).LocalDir()
+		fis, err := os.ReadDir(localDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var countFiles []string
+		for _, fi := range fis {
+			if strings.HasSuffix(fi.Name(), ".v1.count") {
+				countFiles = append(countFiles, filepath.Join(localDir, fi.Name()))
+			}
+		}
+		if len(countFiles) != 1 {
+			t.Fatalf("after first RunProgAsOf, found %d count files, want 1", len(countFiles))
+		}
+		countFile := countFiles[0]
+		data, err := os.ReadFile(countFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Importantly, the byte replacement here has the same length.
+		// If not, the entire file (and not just metadata) would be corrupt, due to
+		// the header length mismatch.
+		corrupted := bytes.Replace(data, []byte(`TimeBegin:`), []byte(`TimxBegin:`), 1)
+		if err := os.WriteFile(countFile, corrupted, 0666); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	asof2 := time.Now().Add(-8 * 24 * time.Hour)
+	if out, err := regtest.RunProgAsOf(t, telemetryDir, asof2, prog); err != nil {
+		t.Fatalf("failed to run program: %s", out)
+	}
+
+	uploader, getUploads := createUploader(t, telemetryDir, []string{"counter"}, nil)
+	if err := uploader.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that we got one upload, for week 2.
+	uploads := getUploads()
+	if got, want := len(uploads), 1; got != want {
+		t.Fatalf("got %d uploads, want %d", got, want)
+	}
+	report := string(uploads[0])
+	if !strings.Contains(report, "counter") {
+		t.Errorf("Didn't get an upload for counter. Report:\n%s", report)
 	}
 }
 
