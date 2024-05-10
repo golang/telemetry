@@ -46,12 +46,6 @@ func TestStart(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	testenv.MustHaveExec(t)
 
-	// TODO(golang/go#67211): enable this test at go tip once the bug in Start
-	// delegation is fixed.
-	if testenv.Go1Point() >= 23 {
-		t.Skip("skipping due to golang/go#67211: Start fails with the current x/telemetry vendored into the Go command")
-	}
-
 	// This test sets up a telemetry environment, and then runs a test program
 	// that increments a counter, and uploads via telemetry.Start.
 
