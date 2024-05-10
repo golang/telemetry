@@ -134,7 +134,7 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles [
 		u.logger.Printf("As-of date %s is not before start %s", asof, start)
 		uploadOK = false
 	}
-	// should we check that all the x.Meta are consistent for GOOS, GOARCH, etc?
+	// TODO(rfindley): check that all the x.Meta are consistent for GOOS, GOARCH, etc.
 	report := &telemetry.Report{
 		Config:   u.configVersion,
 		X:        computeRandom(), // json encodes all the bits

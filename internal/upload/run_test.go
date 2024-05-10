@@ -6,12 +6,19 @@ package upload_test
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"golang.org/x/telemetry/counter"
 	"golang.org/x/telemetry/internal/configtest"
 	"golang.org/x/telemetry/internal/regtest"
 	"golang.org/x/telemetry/internal/telemetry"
@@ -62,6 +69,217 @@ type testWriter struct {
 func (w testWriter) Write(p []byte) (n int, err error) {
 	w.t.Log(strings.TrimSuffix(string(p), "\n")) // trim newlines added by logging
 	return len(p), nil
+}
+
+func TestUploader_Basic(t *testing.T) {
+	// Check the correctness of a single upload to the local server.
+
+	testenv.SkipIfUnsupportedPlatform(t)
+
+	prog := regtest.NewProgram(t, "prog", func() int {
+		counter.Inc("knownCounter")
+		counter.Inc("unknownCounter")
+		counter.NewStack("aStack", 4).Inc()
+		return 0
+	})
+
+	// produce a counter file (timestamped with "today")
+	telemetryDir := t.TempDir()
+	if out, err := regtest.RunProgAsOf(t, telemetryDir, time.Now().Add(-8*24*time.Hour), prog); err != nil {
+		t.Fatalf("failed to run program: %s", out)
+	}
+
+	// Running the program should produce a counter file.
+	checkTelemetryFiles(t, telemetryDir, telemetryFiles{counterFiles: 1})
+
+	// Aside: writing the "debug" file here reproduces a scenario observed in the
+	// past where the "debug" directory could not be read.
+	// (there is no issue to reference for additional context, unfortunately)
+	logName := filepath.Join(telemetryDir, "debug")
+	err := os.WriteFile(logName, nil, 0666) // must be done before calling NewUploader
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Run the upload.
+	uploader, getUploads := createUploader(t, telemetryDir, []string{"knownCounter", "aStack"}, nil)
+	if err := uploader.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// The upload process should have deleted the counter file, and produced both
+	// a local and uploaded report.
+	checkTelemetryFiles(t, telemetryDir, telemetryFiles{localReports: 1, uploadedReports: 1})
+
+	// Check that the uploaded report matches our expectations exactly.
+	uploads := getUploads()
+	if len(uploads) != 1 {
+		t.Fatalf("got %d uploads, want 1", len(uploads))
+	}
+	var got telemetry.Report
+	if err := json.Unmarshal(uploads[0], &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Week == "" {
+		t.Errorf("Uploaded report missing Week field:\n%s", uploads[0])
+	}
+	if len(got.Programs) != 1 {
+		t.Fatalf("got %d uploaded programs, want 1", len(got.Programs))
+	}
+	gotProgram := got.Programs[0]
+	want := telemetry.Report{
+		Week: got.Week, // volatile
+		X:    got.X,    // volatile
+		Programs: []*telemetry.ProgramReport{{
+			Program:   "upload.test",
+			Version:   "",
+			GoVersion: gotProgram.GoVersion, // easiest to read this from the report
+			GOOS:      runtime.GOOS,
+			GOARCH:    runtime.GOARCH,
+			Counters: map[string]int64{
+				"knownCounter": 1,
+			},
+			Stacks: map[string]int64{},
+		}},
+		Config: "v1.2.3",
+	}
+	gotFormatted, err := json.MarshalIndent(got, "", "\t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantFormatted, err := json.MarshalIndent(want, "", "\t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(gotFormatted), string(wantFormatted); got != want {
+		t.Errorf("Mismatching uploaded report:\ngot:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+type telemetryFiles struct {
+	counterFiles      int
+	localReports      int
+	unuploadedReports int
+	uploadedReports   int
+	// Other files like mode or weekends are intentionally omitted, because they
+	// are less interesting internal details.
+}
+
+// checkTelemetryFiles checks that the state of telemetryDir matches the
+// desired telemetryFiles.
+func checkTelemetryFiles(t *testing.T, telemetryDir string, want telemetryFiles) {
+	t.Helper()
+
+	dir := telemetry.NewDir(telemetryDir)
+
+	countFiles := func(dir, pattern string) int {
+		count := 0
+		fis, err := os.ReadDir(dir)
+		if err != nil {
+			return 0 // missing directory
+		}
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, fi := range fis {
+			if re.MatchString(fi.Name()) {
+				count++
+			}
+		}
+		return count
+	}
+	got := telemetryFiles{
+		counterFiles:      countFiles(dir.LocalDir(), `\.v1\.count`),
+		localReports:      countFiles(dir.LocalDir(), `^local\..*\.json$`),
+		unuploadedReports: countFiles(dir.LocalDir(), `^[0-9].*\.json$`),
+		uploadedReports:   countFiles(dir.UploadDir(), `^[0-9].*\.json$`),
+	}
+	if got != want {
+		t.Errorf("got telemetry files %+v, want %+v", got, want)
+	}
+}
+
+func TestUploader_Retries(t *testing.T) {
+	// Check that the Uploader handles upload server status codes appropriately,
+	// and that retries behave as expected.
+
+	testenv.SkipIfUnsupportedPlatform(t)
+
+	prog := regtest.NewIncProgram(t, "prog", "counter")
+
+	tests := []struct {
+		initialStatus   int
+		initialFiles    telemetryFiles
+		filesAfterRetry telemetryFiles
+	}{
+		{
+			http.StatusOK,
+			telemetryFiles{localReports: 1, uploadedReports: 1},
+			telemetryFiles{localReports: 1, uploadedReports: 1},
+		},
+		{
+			http.StatusBadRequest,
+			telemetryFiles{localReports: 1},
+			telemetryFiles{localReports: 1},
+		},
+		{
+			http.StatusInternalServerError,
+			telemetryFiles{localReports: 1, unuploadedReports: 1},
+			telemetryFiles{localReports: 1, uploadedReports: 1},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprint(test.initialStatus), func(t *testing.T) {
+			telemetryDir := t.TempDir()
+			if out, err := regtest.RunProgAsOf(t, telemetryDir, time.Now().Add(-8*24*time.Hour), prog); err != nil {
+				t.Fatalf("failed to run program: %s", out)
+			}
+
+			// Start an upload server that returns the given status code.
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(test.initialStatus)
+			}))
+			t.Cleanup(srv.Close)
+
+			// Enable uploads.
+			dir := telemetry.NewDir(telemetryDir)
+			if err := dir.SetModeAsOf("on", time.Now().Add(-365*24*time.Hour)); err != nil {
+				t.Fatal(err)
+			}
+
+			// Write the proxy.
+			uc := upload.CreateTestUploadConfig(t, []string{"counter"}, nil)
+			env := configtest.LocalProxyEnv(t, uc, "v1.2.3")
+
+			// Run the upload.
+			uploader, err := upload.NewUploader(upload.RunConfig{
+				TelemetryDir: telemetryDir,
+				UploadURL:    srv.URL,
+				Env:          env,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { uploader.Close() })
+			if err := uploader.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			// Check that the upload left the telemetry directory in the desired state.
+			checkTelemetryFiles(t, telemetryDir, test.initialFiles)
+
+			// Now re-run the upload with a succeeding upload server.
+			goodUploader, _ := createUploader(t, telemetryDir, []string{"counter"}, nil)
+			if err := goodUploader.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			// Check files after retrying.
+			checkTelemetryFiles(t, telemetryDir, test.filesAfterRetry)
+		})
+	}
 }
 
 func TestUploader_MultipleUploads(t *testing.T) {
