@@ -35,6 +35,9 @@ func TestSimpleServer(t *testing.T) {
 // make sure computeRandom() gets enough small values
 // in case SamplingRate is as small as .001
 func TestRandom(t *testing.T) {
+	// This test, being statistical, is intrinsically flaky
+	// It has failed once in its first 3 months at 4.5,
+	// so change the criterion to 7 sigma.
 	const N = 102400 // 35msec on an M1 mac
 	cnt := 0
 	for i := 0; i < N; i++ {
@@ -47,7 +50,7 @@ func TestRandom(t *testing.T) {
 	// We reject if cnt is off by 45, which happens about 1/300,000
 	// if the computeRandom() is truly uniform. That is, the
 	// test will be flaky about 3 times in a million.
-	if cnt < 55 || cnt > 145 {
-		t.Errorf("cnt %d more than 4.5 sigma(10) from mean(100)", cnt)
+	if cnt < 30 || cnt > 170 {
+		t.Errorf("cnt %d more than 7 sigma(10) from mean(100)", cnt)
 	}
 }
