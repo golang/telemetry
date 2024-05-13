@@ -11,6 +11,13 @@ import (
 	"golang.org/x/telemetry/internal/chartconfig"
 )
 
+func TestLoad(t *testing.T) {
+	// Test that we can actually load the chart config.
+	if _, err := chartconfig.Load(); err != nil {
+		t.Errorf("Load() failed: %v", err)
+	}
+}
+
 func TestParse(t *testing.T) {
 	tests := []struct {
 		name  string
