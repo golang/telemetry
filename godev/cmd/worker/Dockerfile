@@ -8,7 +8,7 @@
 # but Cloud Run mounts something else to /tmp, so anything
 # installed here will be shadowed.
 
-FROM golang:1.20
+FROM golang:1.22
 
 LABEL maintainer="Go Telemetry Team <go-telemetry-team@google.com>"
 
