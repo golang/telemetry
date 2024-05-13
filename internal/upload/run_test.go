@@ -477,3 +477,99 @@ func TestUploader_ModeHandling(t *testing.T) {
 		})
 	}
 }
+func TestUploader_DebugLog(t *testing.T) {
+	// This test verifies that the uploader honors the telemetry mode, as well as
+	// its asof date.
+
+	testenv.SkipIfUnsupportedPlatform(t)
+
+	prog := regtest.NewIncProgram(t, "prog1", "counter")
+
+	tests := []struct {
+		name          string
+		setup         func(t *testing.T) (telemetryDir string, err error)
+		wantDebugLogs int
+		wantUploads   int
+	}{
+		{
+			name: "valid",
+			setup: func(t *testing.T) (string, error) {
+				userConfigDir := "user config" // test use of space in the name
+				if runtime.GOOS == "windows" {
+					userConfigDir = "userconfig" // windows doesn't allow space in dir name
+				}
+				telemetryDir := filepath.Join(t.TempDir(), userConfigDir)
+				return telemetryDir, os.MkdirAll(filepath.Join(telemetryDir, "debug"), 0755)
+			},
+			wantDebugLogs: 1,
+			wantUploads:   1,
+		},
+		{
+			name: "nodebug",
+			setup: func(t *testing.T) (string, error) {
+				return t.TempDir(), nil
+			},
+			wantUploads: 1,
+		},
+		{
+			name: "not a directory", // debug log setup error shouldn't prevent uploading.
+			setup: func(t *testing.T) (string, error) {
+				telemetryDir := t.TempDir()
+				return telemetryDir, os.WriteFile(filepath.Join(telemetryDir, "debug"), nil, 0666)
+			},
+			wantUploads: 1,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			telemetryDir, err := test.setup(t)
+			if err != nil {
+				t.Fatalf("failed to configure the telemetry and debug directories: %v", err)
+			}
+			now := time.Now()
+			asof := now.Add(-8 * 24 * time.Hour)
+			if out, err := regtest.RunProgAsOf(t, telemetryDir, asof, prog); err != nil {
+				t.Fatalf("failed to run program: %s", out)
+			}
+
+			uploader, getUploads := createUploader(t, telemetryDir, []string{"counter"}, nil)
+			if err := uploader.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			uploads := getUploads()
+			if gotUploads := len(uploads); gotUploads != test.wantUploads {
+				t.Errorf("got %d uploads, want %d", gotUploads, test.wantUploads)
+			}
+			debugLogs := getDebugLogs(t, filepath.Join(telemetryDir, "debug"))
+			if gotDebugLogs := len(debugLogs); gotDebugLogs != test.wantDebugLogs {
+				t.Fatalf("got %d debug logs, want %d", gotDebugLogs, test.wantDebugLogs)
+			}
+		})
+	}
+}
+
+func getDebugLogs(t *testing.T, debugDir string) []string {
+	t.Helper()
+	if stat, err := os.Stat(debugDir); err != nil || !stat.IsDir() {
+		return nil
+	}
+	files, err := os.ReadDir(debugDir)
+	if err != nil {
+		return nil
+	}
+	var ret []string
+	for _, f := range files {
+		if !strings.HasSuffix(f.Name(), ".log") {
+			t.Logf("Ignoring %v", f.Name())
+			continue
+		}
+		contents, err := os.ReadFile(filepath.Join(debugDir, f.Name()))
+		if err != nil || !bytes.Contains(contents, []byte("mode on")) {
+			t.Logf("Ignoring %v - unreadable or unexpected contents (err: %v)", f.Name(), err)
+			continue
+		}
+		ret = append(ret, f.Name())
+	}
+	return ret
+}
