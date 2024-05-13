@@ -4,7 +4,7 @@
 
 //go:generate go run . -w
 
-//go:build go1.21
+//go:build go1.22
 
 // Package configgen generates the upload config file stored in the config.json
 // file of golang.org/x/telemetry/config based on the chartconfig stored in
@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"go/version"
 	"log"
 	"os"
 	"os/exec"
@@ -154,7 +155,7 @@ func generate(gcfgs []chartconfig.ChartConfig, padding padding) (*telemetry.Uplo
 	}
 
 	for i, r := range gcfgs {
-		if err := chartconfig.Validate(r); err != nil {
+		if err := ValidateChartConfig(r); err != nil {
 			// TODO(rfindley): this is a poor way to identify the faulty record. We
 			// should probably store position information in the ChartConfig.
 			return nil, fmt.Errorf("chart config #%d (%q): %v", i, r.Title, err)
@@ -189,27 +190,52 @@ func generate(gcfgs []chartconfig.ChartConfig, padding padding) (*telemetry.Uplo
 
 	for _, p := range programs {
 		minVersion := minVersions[p.Name]
-		versions, err := listProxyVersions(p.Name)
-		if err != nil {
-			return nil, fmt.Errorf("listing versions for %q: %v", p.Name, err)
-		}
-		// Filter proxy versions in place.
-		i := 0
-		for _, v := range versions {
-			if !semver.IsValid(v) {
-				// In order to perform semver comparison below, we must have valid
-				// versions. This should always be the case for the proxy.
-				// Trust, but verify.
-				return nil, fmt.Errorf("invalid semver %q returned from proxy for %q", v, p.Name)
+
+		// Collect eligible program versions. If p is a toolchain tool (cmd/go,
+		// cmd/compile, etc), these come out of the Go versions queried above.
+		// Otherwise, they come from the proxy.
+		//
+		// In both of these cases, the versions should be valid, but we verify
+		// anyway as otherwise the version comparison is meaningless.
+		// (and in fact, there is an invalid go1.9.2rc2 version in the proxy)
+		if telemetry.IsToolchainProgram(p.Name) {
+			// Note: no need to pad versions for toolchain programs, since the
+			// toolchain is released infrequently.
+			// (and in any case, version padding only works for semantic versions)
+			for _, v := range ucfg.GoVersion {
+				if !version.IsValid(v) {
+					// The proxy toolchain versions list go1.9.2rc2, which is invalid.
+					// Skip it. Note: this also filters out "devel", but that is added
+					// back below.
+					continue
+				}
+
+				if minVersion == "" || version.Compare(minVersion, v) <= 0 {
+					p.Versions = append(p.Versions, v)
+				}
 			}
-			if minVersion == "" || semver.Compare(minVersion, v) <= 0 {
-				versions[i] = v
-				i++
+		} else {
+			versions, err := listProxyVersions(p.Name)
+			if err != nil {
+				return nil, fmt.Errorf("listing versions for %q: %v", p.Name, err)
 			}
+			// Filter proxy versions in place.
+			i := 0
+			for _, v := range versions {
+				if !semver.IsValid(v) {
+					return nil, fmt.Errorf("invalid semver %q returned from proxy for %q", v, p.Name)
+				}
+				if minVersion == "" || semver.Compare(minVersion, v) <= 0 {
+					versions[i] = v
+					i++
+				}
+			}
+			p.Versions = padVersions(versions[:i], prereleasesForProgram(p.Name), padding)
 		}
-		p.Versions = padVersions(versions[:i], prereleasesForProgram(p.Name), padding)
-		// TODO(hakim): allow to collect counters from gopls@devel. go.dev/issues/62271
-		if p.Name == "golang.org/x/tools/gopls" {
+		// Allow collecting counters for devel versions of gopls and toolchain
+		// programs.
+		// TODO(golang/go#62271): revert once no longer needed
+		if p.Name == "golang.org/x/tools/gopls" || telemetry.IsToolchainProgram(p.Name) {
 			p.Versions = append(p.Versions, "devel") // added at the end.
 		}
 		ucfg.Programs = append(ucfg.Programs, p)
@@ -360,7 +386,7 @@ type byGoVersion []string
 func (vs byGoVersion) Len() int      { return len(vs) }
 func (vs byGoVersion) Swap(i, j int) { vs[i], vs[j] = vs[j], vs[i] }
 func (vs byGoVersion) Less(i, j int) bool {
-	cmp := Compare(vs[i], vs[j])
+	cmp := version.Compare(vs[i], vs[j])
 	if cmp != 0 {
 		return cmp < 0
 	}
@@ -445,7 +471,7 @@ func padVersions(versions []string, prereleasePatterns []string, padding padding
 	// This assumes that the program in question doesn't patch older releases
 	// (as is the case with gopls). If that assumption ever changes, we may need
 	// to apply padding to older versions as well.
-	versionsToPad := []version{parsedLatest}
+	versionsToPad := []semversion{parsedLatest}
 
 	var maj, min, patch int
 	for _, toPad := range versionsToPad {
@@ -501,7 +527,7 @@ func padVersions(versions []string, prereleasePatterns []string, padding padding
 }
 
 // version is a parsed semantic version.
-type version struct {
+type semversion struct {
 	major, minor, patch int
 	pre                 string
 }
@@ -509,8 +535,8 @@ type version struct {
 // parseSemver attempts to parse semver components out of the provided semver
 // v. If v is not valid semver in canonical form, parseSemver returns _, _, _,
 // _, false.
-func parseSemver(v string) (_ version, ok bool) {
-	var parsed version
+func parseSemver(v string) (_ semversion, ok bool) {
+	var parsed semversion
 	v, parsed.pre, _ = strings.Cut(v, "-")
 	if _, err := fmt.Sscanf(v, "v%d.%d.%d", &parsed.major, &parsed.minor, &parsed.patch); err == nil {
 		ok = true

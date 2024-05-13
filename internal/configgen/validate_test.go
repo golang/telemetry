@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package chartconfig_test
+//go:build go1.22
+
+package main
 
 import (
 	"strings"
@@ -10,6 +12,19 @@ import (
 
 	"golang.org/x/telemetry/internal/chartconfig"
 )
+
+func TestLoadedChartsAreValid(t *testing.T) {
+	// Test that we can actually load the chart config.
+	charts, err := chartconfig.Load()
+	if err != nil {
+		t.Errorf("Load() failed: %v", err)
+	}
+	for i, chart := range charts {
+		if err := ValidateChartConfig(chart); err != nil {
+			t.Errorf("Chart %d is invalid: %v", i, err)
+		}
+	}
+}
 
 func TestValidateOK(t *testing.T) {
 	// A minimally valid chart config.
@@ -27,7 +42,7 @@ program: golang.org/x/tools/gopls
 	if len(records) != 1 {
 		t.Fatalf("Parse(%q) returned %d records, want exactly 1", input, len(records))
 	}
-	if err := chartconfig.Validate(records[0]); err != nil {
+	if err := ValidateChartConfig(records[0]); err != nil {
 		t.Errorf("Validate(%q) = %v, want nil", input, err)
 	}
 }
@@ -38,7 +53,7 @@ func TestValidate(t *testing.T) {
 		"description:bar": {"title", "program", "issue", "counter", "type"},
 
 		// validation of semver intervals
-		"version:1.2.3": {"semver"},
+		"version:1.2.3.4": {"semver"},
 
 		// valid of stack configuration
 		"depth:-1": {"non-negative", "stack"},
@@ -52,7 +67,7 @@ func TestValidate(t *testing.T) {
 		if len(records) != 1 {
 			t.Fatalf("Parse(%q) returned %d records, want exactly 1", input, len(records))
 		}
-		err = chartconfig.Validate(records[0])
+		err = ValidateChartConfig(records[0])
 		if err == nil {
 			t.Fatalf("Validate(%q) succeeded unexpectedly", input)
 		}

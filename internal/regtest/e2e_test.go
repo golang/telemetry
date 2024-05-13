@@ -99,7 +99,7 @@ func TestE2E(t *testing.T) {
 	testenv.MustHaveExec(t)
 	programIncCounters := NewProgram(t, "prog", programIncCounters)
 	telemetryDir := t.TempDir()
-	goVers, progVers, progName := ProgInfo(t)
+	goVers, progPath, progVers := ProgramInfo(t)
 
 	out, err := RunProg(t, telemetryDir, programIncCounters)
 	if err != nil {
@@ -113,7 +113,7 @@ func TestE2E(t *testing.T) {
 		GoVersion: []string{goVers},
 		Programs: []*telemetry.ProgramConfig{
 			{
-				Name:     progName,
+				Name:     progPath,
 				Versions: []string{progVers},
 				Counters: []telemetry.CounterConfig{
 					{Name: "counter", Rate: 1},

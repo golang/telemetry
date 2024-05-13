@@ -11,7 +11,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -122,34 +121,23 @@ func RunProgAsOf(t *testing.T, telemetryDir string, asof time.Time, prog Program
 	return cmd.CombinedOutput()
 }
 
-// ProgInfo returns the go version, program name and version info the process would record in its counter file.
-func ProgInfo(t *testing.T) (goVersion, progVersion, progName string) {
+// ProgramInfo returns the go version, program name and version info the
+// process would record in its counter file.
+func ProgramInfo(t *testing.T) (goVersion, progPath, progVersion string) {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		t.Fatal("cannot read build info - it's likely this setup is unsupported by the counter package")
 	}
-	goVers := info.GoVersion
-	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
-		goVers = "devel"
-	}
-	progPkgPath := info.Path
-	if progPkgPath == "" {
-		progPkgPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
-	}
-	progVers := info.Main.Version
-	if strings.Contains(progVers, "devel") || strings.Contains(progVers, "-") {
-		progVers = "devel"
-	}
-	return goVers, progVers, progPkgPath
+	return telemetry.ProgramInfo(info)
 }
 
 // CreateTestUploadConfig creates a new upload config for the current program,
 // permitting the given counters.
 func CreateTestUploadConfig(t *testing.T, counterNames, stackCounterNames []string) *telemetry.UploadConfig {
-	goVersion, progVersion, progName := ProgInfo(t)
+	goVersion, progPath, progVersion := ProgramInfo(t)
 	GOOS, GOARCH := runtime.GOOS, runtime.GOARCH
 	programConfig := &telemetry.ProgramConfig{
-		Name:     progName,
+		Name:     progPath,
 		Versions: []string{progVersion},
 	}
 	for _, c := range counterNames {

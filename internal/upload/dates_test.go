@@ -61,10 +61,10 @@ func (s *uploadQueue) Get() [][]byte {
 }
 
 func CreateTestUploadConfig(t *testing.T, counterNames, stackCounterNames []string) *telemetry.UploadConfig {
-	goVersion, progVersion, progName := regtest.ProgInfo(t)
+	goVersion, progPath, progVersion := regtest.ProgramInfo(t)
 	GOOS, GOARCH := runtime.GOOS, runtime.GOARCH
 	programConfig := &telemetry.ProgramConfig{
-		Name:     progName,
+		Name:     progPath,
 		Versions: []string{progVersion},
 	}
 	for _, c := range counterNames {
