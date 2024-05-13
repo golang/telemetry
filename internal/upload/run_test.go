@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -468,6 +469,7 @@ func TestRun_ModeHandling(t *testing.T) {
 		})
 	}
 }
+
 func TestRun_DebugLog(t *testing.T) {
 	// This test verifies that the uploader honors the telemetry mode, as well as
 	// its asof date.
@@ -537,6 +539,60 @@ func TestRun_DebugLog(t *testing.T) {
 				t.Fatalf("got %d debug logs, want %d", gotDebugLogs, test.wantDebugLogs)
 			}
 		})
+	}
+}
+
+func TestRun_Concurrent(t *testing.T) {
+	t.Skip("Run is not concurrency safe")
+
+	testenv.SkipIfUnsupportedPlatform(t)
+
+	prog := regtest.NewIncProgram(t, "prog1", "counter")
+
+	telemetryDir := t.TempDir()
+	now := time.Now()
+
+	// Seed two weeks of uploads.
+	// These should *all* be uploaded as they will be neither too old,
+	// nor too new.
+	incCount := 0
+	for i := -21; i < -7; i++ {
+		incCount++
+		asof := now.Add(time.Duration(i) * 24 * time.Hour)
+		if out, err := regtest.RunProgAsOf(t, telemetryDir, asof, prog); err != nil {
+			t.Fatalf("failed to run program: %s", out)
+		}
+	}
+
+	cfg, getUploads := runConfig(t, telemetryDir, []string{"counter"}, nil)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := upload.Run(cfg); err != nil {
+				t.Errorf("upload.Run #%d failed: %v", i, err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	uploads := getUploads()
+	uploadedCount := 0
+	for i, upload := range uploads {
+		var got telemetry.Report
+		if err := json.Unmarshal(upload, &got); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := len(got.Programs), 1; got != want {
+			t.Fatalf("got %d programs in upload #%d, want %d", got, i, want)
+		}
+		uploadedCount += int(got.Programs[0].Counters["counter"])
+	}
+	if uploadedCount != incCount {
+		t.Errorf("uploaded %d total observations, want %d", uploadedCount, incCount)
 	}
 }
 
