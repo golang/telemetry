@@ -336,6 +336,45 @@
 	"SampleRate": 1,
 	"Programs": [
 		{
+			"Name": "cmd/compile",
+			"Versions": [
+				"devel"
+			],
+			"Counters": [
+				{
+					"Name": "compile/invocations",
+					"Rate": 1
+				}
+			],
+			"Stacks": [
+				{
+					"Name": "compile/bug",
+					"Rate": 1,
+					"Depth": 16
+				}
+			]
+		},
+		{
+			"Name": "cmd/go",
+			"Versions": [
+				"devel"
+			],
+			"Counters": [
+				{
+					"Name": "go/invocations",
+					"Rate": 1
+				},
+				{
+					"Name": "go/build/flag:{buildmode}",
+					"Rate": 1
+				},
+				{
+					"Name": "go/build/flag/buildmode:{archive,c-archive,c-shared,default,exe,pie,shared,plugin}",
+					"Rate": 1
+				}
+			]
+		},
+		{
 			"Name": "golang.org/x/tools/gopls",
 			"Versions": [
 				"v0.13.0",
