@@ -37,12 +37,15 @@ func TestMain(m *testing.M) {
 		// These modes uses Start and debug.SetCrashOutput.
 		// We stub the actual telemetry by instead writing to a file.
 		crashmonitor.SetIncrementCounter(func(name string) {
-			os.WriteFile(os.Getenv("TELEMETRY_FILE"), []byte(name), 0666)
+			os.WriteFile(os.Getenv("CRASHMONITOR_TELEMETRY_FILE"), []byte(name), 0666)
 		})
 		crashmonitor.SetChildExitHook(func() {
-			os.WriteFile(os.Getenv("TELEMETRY_EXIT_FILE"), nil, 0666)
+			os.WriteFile(os.Getenv("CRASHMONITOR_TELEMETRY_EXIT_FILE"), nil, 0666)
 		})
-		telemetry.Start(telemetry.Config{ReportCrashes: true})
+		telemetry.Start(telemetry.Config{
+			ReportCrashes: true,
+			TelemetryDir:  os.Getenv("CRASHMONITOR_TELEMETRY_DIR"),
+		})
 		if entry == "start.panic" {
 			go func() {
 				child() // this line is "TestMain.func2:1"
@@ -78,7 +81,7 @@ func TestViaStderr(t *testing.T) {
 	got = sanitize(counter.DecodeStack(got))
 	want := "crash/crash\n" +
 		"runtime.gopanic:--\n" +
-		"golang.org/x/telemetry/internal/crashmonitor_test.grandchild:=66\n" +
+		"golang.org/x/telemetry/internal/crashmonitor_test.grandchild:=69\n" +
 		"golang.org/x/telemetry/internal/crashmonitor_test.child:+2\n" +
 		"golang.org/x/telemetry/internal/crashmonitor_test.TestMain:+9\n" +
 		"main.main:--\n" +
@@ -118,6 +121,8 @@ func waitForExitFile(t *testing.T, exitFile string) {
 // TestStart is an integration test of the crashmonitor feature of [telemetry.Start].
 // Requires go1.23+.
 func TestStart(t *testing.T) {
+	testenv.SkipIfUnsupportedPlatform(t)
+
 	if !crashmonitor.Supported() {
 		t.Skip("crashmonitor not supported")
 	}
@@ -146,7 +151,7 @@ func TestStart(t *testing.T) {
 		got := sanitize(counter.DecodeStack(string(data)))
 		want := "crash/crash\n" +
 			"runtime.gopanic:--\n" +
-			"golang.org/x/telemetry/internal/crashmonitor_test.grandchild:=66\n" +
+			"golang.org/x/telemetry/internal/crashmonitor_test.grandchild:=69\n" +
 			"golang.org/x/telemetry/internal/crashmonitor_test.child:+2\n" +
 			"golang.org/x/telemetry/internal/crashmonitor_test.TestMain.func3:+1\n" +
 			"runtime.goexit:--"
@@ -183,8 +188,10 @@ func runSelf(t *testing.T, entrypoint string) (string, string, []byte) {
 	cmd := exec.Command(exe)
 	cmd.Env = append(os.Environ(),
 		"CRASHMONITOR_TEST_ENTRYPOINT="+entrypoint,
-		"TELEMETRY_FILE="+telemetryFile,
-		"TELEMETRY_EXIT_FILE="+telemetryExitFile)
+		"CRASHMONITOR_TELEMETRY_FILE="+telemetryFile,
+		"CRASHMONITOR_TELEMETRY_EXIT_FILE="+telemetryExitFile,
+		"CRASHMONITOR_TELEMETRY_DIR="+t.TempDir(),
+	)
 	cmd.Stderr = new(bytes.Buffer)
 	cmd.Run() // failure is expected
 	stderr := cmd.Stderr.(*bytes.Buffer).Bytes()
