@@ -71,13 +71,13 @@ program: cmd/go
 version: go1.23rc1
 ---
 counter: go/build/flag/buildmode:{
-  archive
-  c-archive
-  c-shared
-  default
-  exe
-  pie
-  shared
+  archive,
+  c-archive,
+  c-shared,
+  default,
+  exe,
+  pie,
+  shared,
   plugin
 }
 title: cmd/go buildmode values
