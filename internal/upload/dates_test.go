@@ -204,7 +204,7 @@ func TestDates(t *testing.T) {
 			if err := os.MkdirAll(dbg, 0777); err != nil {
 				t.Fatal(err)
 			}
-			uploader, err := NewUploader(RunConfig{
+			uploader, err := newUploader(RunConfig{
 				TelemetryDir: telemetryDir,
 				UploadURL:    srv.URL,
 				Env:          env,
@@ -332,7 +332,7 @@ func readCountFileInfo(t *testing.T, localDir string) *countFileInfo {
 	return &ans
 }
 
-func doTest(t *testing.T, u *Uploader, test *Test, known *countFileInfo) int {
+func doTest(t *testing.T, u *uploader, test *Test, known *countFileInfo) int {
 	// set up directory contents
 	contents := bytes.Join([][]byte{
 		known.buf[:known.beginOffset],

@@ -19,7 +19,7 @@ import (
 	"golang.org/x/telemetry/cmd/gotelemetry/internal/view"
 	"golang.org/x/telemetry/internal/counter"
 	"golang.org/x/telemetry/internal/telemetry"
-	"golang.org/x/telemetry/upload"
+	"golang.org/x/telemetry/internal/upload"
 )
 
 type command struct {

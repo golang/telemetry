@@ -26,18 +26,18 @@ import (
 	"golang.org/x/telemetry/internal/upload"
 )
 
-// createUploader sets up an upload environment for the provided test, with a
+// runConfig sets up an upload environment for the provided test, with a
 // fake proxy allowing the given counters, and a fake upload server.
 //
-// The returned Uploader is ready to upload the given directory.
-// The second return is a function to fetch all uploaded reports.
+// The returned RunConfig is ready to pass to Run to upload the given
+// directory. The second return is a function to fetch all uploaded reports.
 //
-// For convenience, createUploader also sets the mode in telemetryDir to "on",
+// For convenience, runConfig also sets the mode in telemetryDir to "on",
 // back-dated to a time in the past. Callers that want to run the upload with a
 // different mode can reset as necessary.
 //
 // All associated resources are cleaned up with t.Clean.
-func createUploader(t *testing.T, telemetryDir string, counters, stackCounters []string) (*upload.Uploader, func() [][]byte) {
+func runConfig(t *testing.T, telemetryDir string, counters, stackCounters []string) (upload.RunConfig, func() [][]byte) {
 	t.Helper()
 
 	if err := telemetry.NewDir(telemetryDir).SetModeAsOf("on", time.Now().Add(-365*24*time.Hour)); err != nil {
@@ -48,17 +48,12 @@ func createUploader(t *testing.T, telemetryDir string, counters, stackCounters [
 	uc := upload.CreateTestUploadConfig(t, counters, stackCounters)
 	env := configtest.LocalProxyEnv(t, uc, "v1.2.3")
 
-	uploader, err := upload.NewUploader(upload.RunConfig{
+	return upload.RunConfig{
 		TelemetryDir: telemetryDir,
 		UploadURL:    srv.URL,
 		LogWriter:    testWriter{t},
 		Env:          env,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { uploader.Close() })
-	return uploader, uploaded
+	}, uploaded
 }
 
 // testWriter is an io.Writer wrapping t.Log.
@@ -71,7 +66,7 @@ func (w testWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func TestUploader_Basic(t *testing.T) {
+func TestRun_Basic(t *testing.T) {
 	// Check the correctness of a single upload to the local server.
 
 	testenv.SkipIfUnsupportedPlatform(t)
@@ -96,14 +91,14 @@ func TestUploader_Basic(t *testing.T) {
 	// past where the "debug" directory could not be read.
 	// (there is no issue to reference for additional context, unfortunately)
 	logName := filepath.Join(telemetryDir, "debug")
-	err := os.WriteFile(logName, nil, 0666) // must be done before calling NewUploader
+	err := os.WriteFile(logName, nil, 0666) // must be done before calling Run
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Run the upload.
-	uploader, getUploads := createUploader(t, telemetryDir, []string{"knownCounter", "aStack"}, nil)
-	if err := uploader.Run(); err != nil {
+	cfg, getUploads := runConfig(t, telemetryDir, []string{"knownCounter", "aStack"}, nil)
+	if err := upload.Run(cfg); err != nil {
 		t.Fatal(err)
 	}
 
@@ -200,8 +195,8 @@ func checkTelemetryFiles(t *testing.T, telemetryDir string, want telemetryFiles)
 	}
 }
 
-func TestUploader_Retries(t *testing.T) {
-	// Check that the Uploader handles upload server status codes appropriately,
+func TestRun_Retries(t *testing.T) {
+	// Check that the Run handles upload server status codes appropriately,
 	// and that retries behave as expected.
 
 	testenv.SkipIfUnsupportedPlatform(t)
@@ -254,16 +249,12 @@ func TestUploader_Retries(t *testing.T) {
 			env := configtest.LocalProxyEnv(t, uc, "v1.2.3")
 
 			// Run the upload.
-			uploader, err := upload.NewUploader(upload.RunConfig{
+			badCfg := upload.RunConfig{
 				TelemetryDir: telemetryDir,
 				UploadURL:    srv.URL,
 				Env:          env,
-			})
-			if err != nil {
-				t.Fatal(err)
 			}
-			t.Cleanup(func() { uploader.Close() })
-			if err := uploader.Run(); err != nil {
+			if err := upload.Run(badCfg); err != nil {
 				t.Fatal(err)
 			}
 
@@ -271,8 +262,8 @@ func TestUploader_Retries(t *testing.T) {
 			checkTelemetryFiles(t, telemetryDir, test.initialFiles)
 
 			// Now re-run the upload with a succeeding upload server.
-			goodUploader, _ := createUploader(t, telemetryDir, []string{"counter"}, nil)
-			if err := goodUploader.Run(); err != nil {
+			goodCfg, _ := runConfig(t, telemetryDir, []string{"counter"}, nil)
+			if err := upload.Run(goodCfg); err != nil {
 				t.Fatal(err)
 			}
 
@@ -282,8 +273,8 @@ func TestUploader_Retries(t *testing.T) {
 	}
 }
 
-func TestUploader_MultipleUploads(t *testing.T) {
-	// This test checks that Uploader.Run produces multiple reports when counters
+func TestRun_MultipleUploads(t *testing.T) {
+	// This test checks that [upload.Run] produces multiple reports when counters
 	// span more than a week.
 
 	testenv.SkipIfUnsupportedPlatform(t)
@@ -302,8 +293,8 @@ func TestUploader_MultipleUploads(t *testing.T) {
 		t.Fatalf("failed to run program: %s", out)
 	}
 
-	uploader, getUploads := createUploader(t, telemetryDir, []string{"counter1", "counter2"}, nil)
-	if err := uploader.Run(); err != nil {
+	cfg, getUploads := runConfig(t, telemetryDir, []string{"counter1", "counter2"}, nil)
+	if err := upload.Run(cfg); err != nil {
 		t.Fatal(err)
 	}
 
@@ -319,7 +310,7 @@ func TestUploader_MultipleUploads(t *testing.T) {
 	}
 }
 
-func TestUploader_EmptyUpload(t *testing.T) {
+func TestRun_EmptyUpload(t *testing.T) {
 	// This test verifies that an empty counter file does not cause uploads of
 	// another week's reports to fail.
 
@@ -343,8 +334,8 @@ func TestUploader_EmptyUpload(t *testing.T) {
 		t.Fatalf("failed to run program: %s", out)
 	}
 
-	uploader, getUploads := createUploader(t, telemetryDir, []string{"week1", "week2"}, nil)
-	if err := uploader.Run(); err != nil {
+	cfg, getUploads := runConfig(t, telemetryDir, []string{"week1", "week2"}, nil)
+	if err := upload.Run(cfg); err != nil {
 		t.Fatal(err)
 	}
 
@@ -361,7 +352,7 @@ func TestUploader_EmptyUpload(t *testing.T) {
 	}
 }
 
-func TestUploader_MissingDate(t *testing.T) {
+func TestRun_MissingDate(t *testing.T) {
 	// This test verifies that a counter file with corrupt metadata does not
 	// prevent the uploader from uploading another week's reports.
 
@@ -412,8 +403,8 @@ func TestUploader_MissingDate(t *testing.T) {
 		t.Fatalf("failed to run program: %s", out)
 	}
 
-	uploader, getUploads := createUploader(t, telemetryDir, []string{"counter"}, nil)
-	if err := uploader.Run(); err != nil {
+	cfg, getUploads := runConfig(t, telemetryDir, []string{"counter"}, nil)
+	if err := upload.Run(cfg); err != nil {
 		t.Fatal(err)
 	}
 
@@ -428,7 +419,7 @@ func TestUploader_MissingDate(t *testing.T) {
 	}
 }
 
-func TestUploader_ModeHandling(t *testing.T) {
+func TestRun_ModeHandling(t *testing.T) {
 	// This test verifies that the uploader honors the telemetry mode, as well as
 	// its asof date.
 
@@ -458,7 +449,7 @@ func TestUploader_ModeHandling(t *testing.T) {
 				t.Fatalf("failed to run program: %s", out)
 			}
 
-			uploader, getUploads := createUploader(t, telemetryDir, []string{"counter"}, nil)
+			cfg, getUploads := runConfig(t, telemetryDir, []string{"counter"}, nil)
 
 			// Enable telemetry as of 10 days ago. This should prevent the first week
 			// from being uploaded, but not the second.
@@ -466,7 +457,7 @@ func TestUploader_ModeHandling(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := uploader.Run(); err != nil {
+			if err := upload.Run(cfg); err != nil {
 				t.Fatal(err)
 			}
 
@@ -477,7 +468,7 @@ func TestUploader_ModeHandling(t *testing.T) {
 		})
 	}
 }
-func TestUploader_DebugLog(t *testing.T) {
+func TestRun_DebugLog(t *testing.T) {
 	// This test verifies that the uploader honors the telemetry mode, as well as
 	// its asof date.
 
@@ -532,8 +523,8 @@ func TestUploader_DebugLog(t *testing.T) {
 				t.Fatalf("failed to run program: %s", out)
 			}
 
-			uploader, getUploads := createUploader(t, telemetryDir, []string{"counter"}, nil)
-			if err := uploader.Run(); err != nil {
+			cfg, getUploads := runConfig(t, telemetryDir, []string{"counter"}, nil)
+			if err := upload.Run(cfg); err != nil {
 				t.Fatal(err)
 			}
 
