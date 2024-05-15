@@ -7,8 +7,14 @@
 
 package crashmonitor
 
-import "runtime/debug"
+import (
+	"os"
+	"runtime/debug"
+)
 
 func init() {
-	setCrashOutput = debug.SetCrashOutput
+	// TODO(adonovan): remove temporary lambda when the SetCrashOutput transition (#67182) is complete.
+	setCrashOutput = func(f *os.File) error {
+		return debug.SetCrashOutput(f)
+	}
 }
