@@ -55,7 +55,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle("/", cserv)
-	mux.Handle("/merge/", handleMerge(ucfg, buckets))
+	mux.Handle("/merge/", handleMerge(buckets))
 	mux.Handle("/chart/", handleChart(ucfg, buckets))
 	mux.Handle("/queue-tasks/", handleTasks(cfg))
 
@@ -135,7 +135,7 @@ func createHTTPTask(cfg *config.Config, url string) (*taskspb.Task, error) {
 }
 
 // TODO: monitor duration and processed data volume.
-func handleMerge(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
+func handleMerge(s *storage.API) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		date := r.URL.Query().Get("date")
@@ -271,22 +271,23 @@ func charts(cfg *tconfig.Config, date string, d data, xs []float64) *chartdata {
 	for _, p := range cfg.Programs {
 		prog := &program{ID: "charts:" + p.Name, Name: p.Name}
 		result.Programs = append(result.Programs, prog)
-		if p.Name != "cmd/go" {
-			prog.Charts = append(prog.Charts,
-				partition(d, p.Name, "Version", p.Versions, xs),
-			)
+		var charts []*chart
+		if !telemetry.IsToolchainProgram(p.Name) {
+			charts = append(charts, partition(d, p.Name, "Version", p.Versions))
 		}
-		prog.Charts = append(prog.Charts,
-			partition(d, p.Name, "GOOS", cfg.GOOS, xs),
-			partition(d, p.Name, "GOARCH", cfg.GOARCH, xs),
-			partition(d, p.Name, "GoVersion", cfg.GoVersion, xs),
-		)
+		charts = append(charts,
+			partition(d, p.Name, "GOOS", cfg.GOOS),
+			partition(d, p.Name, "GOARCH", cfg.GOARCH),
+			partition(d, p.Name, "GoVersion", cfg.GoVersion))
 		for _, c := range p.Counters {
 			// TODO: add support for histogram counters by getting the counter type
 			// from the chart config.
-			prog.Charts = append(prog.Charts,
-				partition(d, p.Name, c.Name, tconfig.Expand(c.Name), xs),
-			)
+			charts = append(charts, partition(d, p.Name, c.Name, tconfig.Expand(c.Name)))
+		}
+		for _, p := range charts {
+			if p != nil {
+				prog.Charts = append(prog.Charts, p)
+			}
 		}
 	}
 	return result
@@ -300,7 +301,7 @@ func histogram(dat data, program, name string, counters []string, xs []float64) 
 	}
 	for wk := range dat {
 		for _, c := range counters {
-			prefix, _ := parts(c)
+			prefix, _ := splitCounterName(c)
 			pk := programKey{program}
 			gk := graphKey{prefix}
 			ck := counterKey{c}
@@ -311,7 +312,7 @@ func histogram(dat data, program, name string, counters []string, xs []float64) 
 				xk := xKey{x}
 				v := dat[wk][pk][gk][ck][xk]
 				total := dat[wk][pk][gk][counterKey{gk.prefix}][xk]
-				_, bucket := parts(c)
+				_, bucket := splitCounterName(c)
 				if total == 0 {
 					d := &datum{
 						Week: wk.date,
@@ -332,14 +333,16 @@ func histogram(dat data, program, name string, counters []string, xs []float64) 
 	return count
 }
 
-func partition(dat data, program, name string, counters []string, xs []float64) *chart {
+// partition builds a chart for the program and the counter. It can return nil
+// if there is no data for the counter in dat.
+func partition(dat data, program, counterPrefix string, counters []string) *chart {
 	count := &chart{
-		ID:   "charts:" + program + ":" + name,
-		Name: name,
+		ID:   "charts:" + program + ":" + counterPrefix,
+		Name: counterPrefix,
 		Type: "partition",
 	}
 	pk := programKey{program}
-	prefix, _ := parts(name)
+	prefix, _ := splitCounterName(counterPrefix)
 	gk := graphKey{prefix}
 	for wk := range dat {
 		// TODO: when should this be number of reports?
@@ -352,7 +355,8 @@ func partition(dat data, program, name string, counters []string, xs []float64) 
 		// major minor versions we've already added to the dataset.
 		seen := make(map[string]bool)
 		for _, b := range counters {
-			counter := fixCounter(name, b)
+			// TODO(hyangah): let caller normalize names in counters.
+			counter := normalizeCounterName(counterPrefix, b)
 			if seen[counter] {
 				continue
 			}
@@ -360,7 +364,7 @@ func partition(dat data, program, name string, counters []string, xs []float64) 
 			ck := counterKey{counter}
 			// number of reports where count prefix:bucket > 0
 			n := len(dat[wk][pk][gk][ck])
-			_, bucket := parts(counter)
+			_, bucket := splitCounterName(counter)
 			d := &datum{
 				Week:  wk.date,
 				Key:   bucket,
@@ -394,11 +398,13 @@ type xKey struct {
 
 type data map[weekKey]map[programKey]map[graphKey]map[counterKey]map[xKey]int64
 
+// Names of special counters.
+// Unlike other counters, these are constructed from the metadata in the report.
 const (
-	version   = "Version"
-	goos      = "GOOS"
-	goarch    = "GOARCH"
-	goVersion = "GoVersion"
+	versionCounter   = "Version"
+	goosCounter      = "GOOS"
+	goarchCounter    = "GOARCH"
+	goversionCounter = "GoVersion"
 )
 
 // nest groups the report data by week, program, prefix, counter, and x value
@@ -407,12 +413,12 @@ func nest(reports []*telemetry.Report) data {
 	result := make(data)
 	for _, r := range reports {
 		for _, p := range r.Programs {
-			writeCount(result, r.Week, p.Program, version, p.Version, r.X, 1)
-			writeCount(result, r.Week, p.Program, goos, p.GOOS, r.X, 1)
-			writeCount(result, r.Week, p.Program, goarch, p.GOARCH, r.X, 1)
-			writeCount(result, r.Week, p.Program, goVersion, p.GoVersion, r.X, 1)
+			writeCount(result, r.Week, p.Program, versionCounter, p.Version, r.X, 1)
+			writeCount(result, r.Week, p.Program, goosCounter, p.GOOS, r.X, 1)
+			writeCount(result, r.Week, p.Program, goarchCounter, p.GOARCH, r.X, 1)
+			writeCount(result, r.Week, p.Program, goversionCounter, p.GoVersion, r.X, 1)
 			for c, value := range p.Counters {
-				name, _ := parts(c)
+				name, _ := splitCounterName(c)
 				writeCount(result, r.Week, p.Program, name, c, r.X, value)
 			}
 		}
@@ -436,7 +442,8 @@ func writeCount(result data, week, program, prefix, counter string, x float64, v
 	if _, ok := result[wk][pk][gk]; !ok {
 		result[wk][pk][gk] = make(map[counterKey]map[xKey]int64)
 	}
-	counter = fixCounter(prefix, counter)
+	// TODO(hyangah): let caller pass the normalized counter name.
+	counter = normalizeCounterName(prefix, counter)
 	ck := counterKey{counter}
 	if _, ok := result[wk][pk][gk][ck]; !ok {
 		result[wk][pk][gk][ck] = make(map[xKey]int64)
@@ -454,29 +461,38 @@ func writeCount(result data, week, program, prefix, counter string, x float64, v
 	}
 }
 
-// fixCounter groups counters for version and go version by the major minor
-// version. It also adds a prefix to counters derived from report metadata.
-func fixCounter(prefix, counter string) string {
+// normalizeCounterName normalizes the counter name.
+// More specifically, program version, goos, goarch, and goVersion
+// are not a real counter, but information from the metadata in the report.
+// This function constructs pseudo counter names to handle them
+// like other normal counters in aggregation and chart drawing.
+// To limit the cardinality of version and goVersion, this function
+// uses only major and minor version numbers in the pseudo-counter names.
+// If the counter is a normal counter name, it is returned as is.
+func normalizeCounterName(prefix, counter string) string {
 	switch prefix {
-	case version:
+	case versionCounter:
 		if counter == "devel" {
 			return prefix + ":" + counter
 		}
+		if strings.HasPrefix(counter, "go") {
+			return prefix + ":" + goMajorMinor(counter)
+		}
 		return prefix + ":" + semver.MajorMinor(counter)
-	case goos:
+	case goosCounter:
 		return prefix + ":" + counter
-	case goarch:
+	case goarchCounter:
 		return prefix + ":" + counter
-	case goVersion:
+	case goversionCounter:
 		return prefix + ":" + goMajorMinor(counter)
 	}
 	return counter
 }
 
-// parts gets splits the prefix and bucket parts of a counter name
+// splitCounterName gets splits the prefix and bucket splitCounterName of a counter name
 // or a bucket name. For an input with no bucket part prefix and bucket
 // are the same.
-func parts(name string) (prefix, bucket string) {
+func splitCounterName(name string) (prefix, bucket string) {
 	prefix, bucket, found := strings.Cut(name, ":")
 	if !found {
 		bucket = prefix
@@ -486,6 +502,8 @@ func parts(name string) (prefix, bucket string) {
 
 // goMajorMinor gets the go<Maj>,<Min> version for a given go version.
 // For example, go1.20.1 -> go1.20.
+// TODO(hyangah): replace with go/version.Lang (available from go1.22)
+// after our builders stop running go1.21.
 func goMajorMinor(v string) string {
 	v = v[2:]
 	maj, x, ok := cutInt(v)
@@ -512,7 +530,6 @@ func cutInt(x string) (n, rest string, ok bool) {
 	}
 	return x[:i], x[i:], true
 }
-
 func fsys(fromOS bool) fs.FS {
 	var f fs.FS = contentfs.FS
 	if fromOS {

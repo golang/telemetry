@@ -38,6 +38,9 @@ import * as Plot from "@observablehq/plot";
 
 for (const program of Page.Charts.Programs) {
   for (const counter of program.Charts) {
+    if (!counter) {
+      continue;
+    }
     switch (counter.Type) {
       case "partition":
         document

@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/telemetry"
 )
 
@@ -117,6 +119,40 @@ func Test_nest(t *testing.T) {
 }
 
 var reports = []*telemetry.Report{
+	{
+		Week:     "2999-01-01",
+		LastWeek: "2998-01-01",
+		X:        0.123456789,
+		Programs: []*telemetry.ProgramReport{
+			{
+				Program:   "cmd/go",
+				Version:   "go1.2.3",
+				GoVersion: "go1.2.3",
+				GOOS:      "darwin",
+				GOARCH:    "arm64",
+				Counters: map[string]int64{
+					"main": 1,
+				},
+			},
+			{
+				Program:   "example.com/mod/pkg",
+				Version:   "v2.3.4",
+				GoVersion: "go1.2.3",
+				GOOS:      "darwin",
+				GOARCH:    "arm64",
+				Counters: map[string]int64{
+					"main":   1,
+					"flag:a": 2,
+					"flag:b": 3,
+				},
+				// TODO: add support for stacks
+				Stacks: map[string]int64{
+					"panic": 4,
+				},
+			},
+		},
+		Config: "v0.0.1",
+	},
 	{
 		Week:     "2999-01-01",
 		LastWeek: "2998-01-01",
@@ -321,9 +357,150 @@ func Test_partition(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := partition(dat, tt.args.program, tt.args.name, tt.args.buckets, tt.args.xs); !reflect.DeepEqual(got, tt.want) {
+			if got := partition(dat, tt.args.program, tt.args.name, tt.args.buckets); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("histogram() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_charts(t *testing.T) {
+	dat := nest(reports)
+	cfg := &config.Config{
+		UploadConfig: &telemetry.UploadConfig{
+			GOOS:       []string{"darwin"},
+			GOARCH:     []string{"amd64"},
+			GoVersion:  []string{"go1.2.3"},
+			SampleRate: 1,
+			Programs: []*telemetry.ProgramConfig{
+				{
+					Name:     "cmd/go",
+					Versions: []string{"go1.2.3"},
+					Counters: []telemetry.CounterConfig{{
+						Name: "main",
+					}},
+				},
+				{
+					Name:     "cmd/compiler",
+					Versions: []string{"go1.2.3"},
+					Counters: []telemetry.CounterConfig{{
+						Name: "count1",
+					}},
+				},
+				{
+					Name:     "example.com/mod/pkg",
+					Versions: []string{"v0.15.0"},
+					Counters: []telemetry.CounterConfig{{
+						Name: "count2",
+					}},
+				},
+			},
+		},
+	}
+	want := &chartdata{
+		DateRange: [2]string{"2999-01-01", "2999-01-01"},
+		Programs: []*program{
+			{
+				ID:   "charts:cmd/go",
+				Name: "cmd/go",
+				Charts: []*chart{
+					{
+						ID:   "charts:cmd/go:GOOS",
+						Name: "GOOS",
+						Type: "partition",
+						Data: []*datum{{
+							Week:  "2999-01-01",
+							Key:   "darwin",
+							Value: 1,
+						}},
+					},
+					{
+						ID:   "charts:cmd/go:GOARCH",
+						Name: "GOARCH",
+						Type: "partition",
+						Data: []*datum{{
+							Week:  "2999-01-01",
+							Key:   "amd64",
+							Value: 0,
+						}},
+					},
+					{
+						ID:   "charts:cmd/go:GoVersion",
+						Name: "GoVersion",
+						Type: "partition",
+						Data: []*datum{{
+							Week:  "2999-01-01",
+							Key:   "go1.2",
+							Value: 1,
+						}},
+					},
+					{
+						ID:   "charts:cmd/go:main",
+						Name: "main",
+						Type: "partition",
+						Data: []*datum{{
+							Week:  "2999-01-01",
+							Key:   "main",
+							Value: 1,
+						}},
+					},
+				},
+			},
+			{
+				ID:   "charts:cmd/compiler",
+				Name: "cmd/compiler",
+			},
+			{
+				ID:   "charts:example.com/mod/pkg",
+				Name: "example.com/mod/pkg",
+				Charts: []*chart{
+					{
+						ID:   "charts:example.com/mod/pkg:Version",
+						Name: "Version",
+						Type: "partition",
+						Data: []*datum{{
+							Week:  "2999-01-01",
+							Key:   "v0.15",
+							Value: 0,
+						}},
+					},
+					{
+						ID:   "charts:example.com/mod/pkg:GOOS",
+						Name: "GOOS",
+						Type: "partition",
+						Data: []*datum{{
+							Week:  "2999-01-01",
+							Key:   "darwin",
+							Value: 0.5,
+						}},
+					},
+					{
+						ID:   "charts:example.com/mod/pkg:GOARCH",
+						Name: "GOARCH",
+						Type: "partition",
+						Data: []*datum{{
+							Week:  "2999-01-01",
+							Key:   "amd64",
+							Value: 0.5,
+						}},
+					},
+					{
+						ID:   "charts:example.com/mod/pkg:GoVersion",
+						Name: "GoVersion",
+						Type: "partition",
+						Data: []*datum{{
+							Week:  "2999-01-01",
+							Key:   "go1.2",
+							Value: 1,
+						}},
+					},
+				},
+			},
+		},
+		NumReports: 1,
+	}
+	got := charts(cfg, "2999-01-01", dat, []float64{0.12345})
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("charts = %+v\n, (-want +got): %v", got, diff)
 	}
 }

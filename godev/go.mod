@@ -1,6 +1,6 @@
 module golang.org/x/telemetry/godev
 
-go 1.20
+go 1.21.0
 
 require (
 	cloud.google.com/go/cloudtasks v1.12.4
