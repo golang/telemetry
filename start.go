@@ -110,11 +110,15 @@ func Start(config Config) *StartResult {
 	}
 
 	// Crash monitoring and uploading both require a sidecar process.
-	if (config.ReportCrashes && crashmonitor.Supported()) || (config.Upload && mode != "off") {
+	var (
+		reportCrashes = config.ReportCrashes && crashmonitor.Supported()
+		upload        = config.Upload && mode != "off"
+	)
+	if reportCrashes || upload {
 		switch v := os.Getenv(telemetryChildVar); v {
 		case "":
 			// The subprocess started by parent has X_TELEMETRY_CHILD=1.
-			parent(config, result)
+			parent(reportCrashes, result)
 		case "1":
 			// golang/go#67211: be sure to set telemetryChildVar before running the
 			// child, because the child itself invokes the go command to download the
@@ -126,7 +130,7 @@ func Start(config Config) *StartResult {
 			// delegated go commands would fork themselves recursively. Short-circuit
 			// this recursion.
 			os.Setenv(telemetryChildVar, "2")
-			child(config)
+			child(reportCrashes, upload, config.UploadStartTime, config.UploadURL)
 			os.Exit(0)
 		case "2":
 			// Do nothing: see note above.
@@ -161,7 +165,7 @@ var daemonize = func(cmd *exec.Cmd) {}
 // further forking should occur.
 const telemetryChildVar = "X_TELEMETRY_CHILD"
 
-func parent(config Config, result *StartResult) {
+func parent(reportCrashes bool, result *StartResult) {
 	// This process is the application (parent).
 	// Fork+exec the telemetry child.
 	exe, err := os.Executable()
@@ -204,7 +208,7 @@ func parent(config Config, result *StartResult) {
 		cmd.Stderr = childLog
 	}
 
-	if config.ReportCrashes {
+	if reportCrashes {
 		pipe, err := cmd.StdinPipe()
 		if err != nil {
 			log.Fatalf("StdinPipe: %v", err)
@@ -223,7 +227,7 @@ func parent(config Config, result *StartResult) {
 	}()
 }
 
-func child(config Config) {
+func child(reportCrashes, upload bool, uploadStartTime time.Time, uploadURL string) {
 	log.SetPrefix(fmt.Sprintf("telemetry-sidecar (pid %v): ", os.Getpid()))
 
 	// Start crashmonitoring and uploading depending on what's requested
@@ -232,15 +236,15 @@ func child(config Config) {
 	// upload to finish before exiting
 	var g errgroup.Group
 
-	if config.Upload {
+	if reportCrashes {
 		g.Go(func() error {
-			uploaderChild(config.UploadStartTime, config.UploadURL)
+			crashmonitor.Child()
 			return nil
 		})
 	}
-	if config.ReportCrashes {
+	if upload {
 		g.Go(func() error {
-			crashmonitor.Child()
+			uploaderChild(uploadStartTime, uploadURL)
 			return nil
 		})
 	}
