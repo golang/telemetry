@@ -188,10 +188,9 @@ func parent(reportCrashes bool, result *StartResult) {
 	// to gather the output of the parent.
 	//
 	// By default, we discard the child process's stderr,
-	// but in line with the uploader, log to a file in local/debug
+	// but in line with the uploader, log to a file in debug
 	// only if that directory was created by the user.
-	localDebug := filepath.Join(telemetry.Default.LocalDir(), "debug")
-	fd, err := os.Stat(localDebug)
+	fd, err := os.Stat(telemetry.Default.DebugDir())
 	if err != nil {
 		if !os.IsNotExist(err) {
 			log.Fatalf("failed to stat debug directory: %v", err)
@@ -199,7 +198,7 @@ func parent(reportCrashes bool, result *StartResult) {
 	} else if fd.IsDir() {
 		// local/debug exists and is a directory. Set stderr to a log file path
 		// in local/debug.
-		childLogPath := filepath.Join(localDebug, "sidecar.log")
+		childLogPath := filepath.Join(telemetry.Default.DebugDir(), "sidecar.log")
 		childLog, err := os.OpenFile(childLogPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
 		if err != nil {
 			log.Fatalf("opening sidecar log file for child: %v", err)
