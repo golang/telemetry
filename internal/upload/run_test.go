@@ -543,8 +543,6 @@ func TestRun_DebugLog(t *testing.T) {
 }
 
 func TestRun_Concurrent(t *testing.T) {
-	t.Skip("Run is not concurrency safe")
-
 	testenv.SkipIfUnsupportedPlatform(t)
 
 	prog := regtest.NewIncProgram(t, "prog1", "counter")
