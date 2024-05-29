@@ -103,3 +103,38 @@ issue: https://go.dev/issue/67244
 program: cmd/compile
 depth: 16
 version: go1.23rc1
+---
+counter: govulncheck/scan:{symbol,package,module}
+title: Scan Level Distribution
+description: measure govulncheck scan level distribution
+type: partition
+issue: https://go.dev/issue/67678
+program: golang.org/x/vuln/cmd/govulncheck
+---
+counter: govulncheck/mode:{source,binary,extract,query,convert}
+title: Scan Mode Distribution
+description: measure govulncheck scan mode distribution
+type: partition
+issue: https://go.dev/issue/67678
+program: golang.org/x/vuln/cmd/govulncheck
+---
+counter: govulncheck/format:{text,json,sarif,openvex}
+title: Output Format Distribution
+description: measure govulncheck output format distribution
+type: partition
+issue: https://go.dev/issue/67678
+program: golang.org/x/vuln/cmd/govulncheck
+---
+counter: govulncheck/show:{none,traces,color,verbose,version}
+title: Show Options Distribution
+description: measure govulncheck show flag distribution
+type: partition
+issue: https://go.dev/issue/67678
+program: golang.org/x/vuln/cmd/govulncheck
+---
+counter: govulncheck/assumptions:{multi-patterns,no-binary-platform,no-relative-path,no-go-root,local-replace,unknown-pkg-mod-path}
+title: Code Invariants Distribution
+description: measure distribution of failed govulncheck internal assumptions
+type: partition
+issue: https://go.dev/issue/67678
+program: golang.org/x/vuln/cmd/govulncheck
