@@ -24,6 +24,10 @@ func TestRotateCounters(t *testing.T) {
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
 	defer restore()
+
+	now := getnow()
+	CounterTime = func() time.Time { return now }
+
 	var f file
 	defer close(&f)
 	c := f.New("gophers")
@@ -68,10 +72,13 @@ func TestRotateCounters(t *testing.T) {
 	if v, err := Read(c); err != nil || v != 3 {
 		t.Errorf("Read gave %d, %v, expected 3, nil", v, err)
 	}
+
 	// move into the future and rotate the file, remapping it
-	now := getnow()
-	CounterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
+	now = now.Add(7 * 24 * time.Hour)
 	f.rotate()
+	if got, want := f.timeBegin.Format("2006-01-02"), now.Format("2006-01-02"); got != want {
+		t.Errorf("f.timeBegin = %q, want %q", got, want)
+	}
 
 	// c has value 0 in the new file
 	// but c won't have a pointer until the next Inc()
@@ -101,7 +108,7 @@ func TestRotateCounters(t *testing.T) {
 
 	// simulate failure to remap
 	oldmap := memmap
-	CounterTime = func() time.Time { return now.Add(14 * 24 * time.Hour) }
+	now = now.Add(7 * 24 * time.Hour)
 	memmap = func(*os.File, *mmap.Data) (mmap.Data, error) { return mmap.Data{}, fmt.Errorf("too bad") }
 	f.rotate()
 	memmap = oldmap
@@ -139,6 +146,7 @@ func getnow() time.Time {
 	now := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 	return now
 }
+
 func TestRotate(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 

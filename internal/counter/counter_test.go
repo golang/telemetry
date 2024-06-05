@@ -320,7 +320,7 @@ func TestWeekends(t *testing.T) {
 			var f file
 			c := f.New("gophers")
 			c.Add(7)
-			f.rotate()
+			f.rotate1()
 			fis, err := os.ReadDir(telemetry.Default.LocalDir())
 			if err != nil {
 				t.Fatal(err)
