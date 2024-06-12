@@ -1,6 +1,8 @@
 # Contributing to Go
 
-Go is an open source project.
+
+Go is an Open source project.
+THIS IS FORKED NOT TO CONTRUBUTE BUT TO LEARN GITHUB
 
 It is the work of hundreds of contributors. We appreciate your help!
 
