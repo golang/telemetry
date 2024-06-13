@@ -6,17 +6,17 @@
  */
 
 interface Page {
-  Charts: ChartData;
+  Charts: ChartData | null;
 }
 
 interface ChartData {
-  Programs: Program[];
+  Programs: Program[] | null;
 }
 
 interface Program {
   ID: string;
   Name: string;
-  Charts: Chart[];
+  Charts: Chart[] | null;
 }
 
 interface Chart {
@@ -36,11 +36,8 @@ declare const Page: Page;
 import * as d3 from "d3";
 import * as Plot from "@observablehq/plot";
 
-for (const program of Page.Charts.Programs) {
-  for (const counter of program.Charts) {
-    if (!counter) {
-      continue;
-    }
+for (const program of Page.Charts?.Programs || []) {
+  for (const counter of program?.Charts || []) {
     switch (counter.Type) {
       case "partition":
         document
