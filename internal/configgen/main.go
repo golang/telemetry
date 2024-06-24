@@ -205,8 +205,7 @@ func generate(gcfgs []chartconfig.ChartConfig, padding padding) (*telemetry.Uplo
 			for _, v := range ucfg.GoVersion {
 				if !version.IsValid(v) {
 					// The proxy toolchain versions list go1.9.2rc2, which is invalid.
-					// Skip it. Note: this also filters out "devel", but that is added
-					// back below.
+					// Skip it.
 					continue
 				}
 
@@ -231,12 +230,6 @@ func generate(gcfgs []chartconfig.ChartConfig, padding padding) (*telemetry.Uplo
 				}
 			}
 			p.Versions = padVersions(versions[:i], prereleasesForProgram(p.Name), padding)
-		}
-		// Allow collecting counters for devel versions of gopls and toolchain
-		// programs.
-		// TODO(golang/go#62271): revert once no longer needed
-		if p.Name == "golang.org/x/tools/gopls" || telemetry.IsToolchainProgram(p.Name) {
-			p.Versions = append(p.Versions, "devel") // added at the end.
 		}
 		ucfg.Programs = append(ucfg.Programs, p)
 	}
@@ -376,8 +369,6 @@ func goVersions() ([]string, error) {
 		vers = append(vers, v)
 	}
 	sort.Sort(byGoVersion(vers))
-	// TODO(golang/go#62271): temporarily monitor 'devel'.
-	vers = append(vers, "devel")
 	return vers, nil
 }
 
