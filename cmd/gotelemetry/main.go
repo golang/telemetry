@@ -226,12 +226,17 @@ func runOn(_ []string) {
 }
 
 func telemetryOnMessage() string {
-	return `Telemetry uploading is now enabled and data will be periodically sent to https://telemetry.go.dev/. Uploaded data is used to help improve the Go toolchain and related tools, and it will be published as part of a public dataset.
+	return `Telemetry uploading is now enabled.
+Data will be sent periodically to https://telemetry.go.dev/.
+Uploaded data is used to help improve the Go toolchain and related tools,
+and it will be published as part of a public dataset.
 
 For more details, see https://telemetry.go.dev/privacy.
-This data is collected in accordance with the Google Privacy Policy (https://policies.google.com/privacy).
+This data is collected in accordance with the Google Privacy Policy
+(https://policies.google.com/privacy).
 
-To disable telemetry uploading, but keep local data collection, run “gotelemetry local”.
+To disable telemetry uploading, but keep local data collection,
+run “gotelemetry local”.
 To disable both collection and uploading, run “gotelemetry off“.`
 }
 
