@@ -52,18 +52,19 @@ func runConfig(t *testing.T, telemetryDir string, counters, stackCounters []stri
 	return upload.RunConfig{
 		TelemetryDir: telemetryDir,
 		UploadURL:    srv.URL,
-		LogWriter:    testWriter{t},
+		LogWriter:    testWriter{"", t},
 		Env:          env,
 	}, uploaded
 }
 
 // testWriter is an io.Writer wrapping t.Log.
 type testWriter struct {
-	t *testing.T
+	prefix string
+	t      *testing.T
 }
 
 func (w testWriter) Write(p []byte) (n int, err error) {
-	w.t.Log(strings.TrimSuffix(string(p), "\n")) // trim newlines added by logging
+	w.t.Log(w.prefix + strings.TrimSuffix(string(p), "\n")) // trim newlines added by logging
 	return len(p), nil
 }
 
@@ -548,7 +549,7 @@ func TestRun_Concurrent(t *testing.T) {
 	prog := regtest.NewIncProgram(t, "prog1", "counter")
 
 	telemetryDir := t.TempDir()
-	now := time.Now()
+	now := time.Now().UTC()
 
 	// Seed two weeks of uploads.
 	// These should *all* be uploaded as they will be neither too old,
@@ -563,14 +564,17 @@ func TestRun_Concurrent(t *testing.T) {
 	}
 
 	cfg, getUploads := runConfig(t, telemetryDir, []string{"counter"}, nil)
+	cfg.StartTime = now // avoid date skew with counter time
 
 	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {
 		i := i
 		wg.Add(1)
+		cfg2 := cfg
+		cfg2.LogWriter = testWriter{fmt.Sprintf("uploader #%d: ", i), t} // use a unique log prefix for this uploader
 		go func() {
 			defer wg.Done()
-			if err := upload.Run(cfg); err != nil {
+			if err := upload.Run(cfg2); err != nil {
 				t.Errorf("upload.Run #%d failed: %v", i, err)
 			}
 		}()
