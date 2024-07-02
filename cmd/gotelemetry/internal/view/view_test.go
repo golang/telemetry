@@ -7,9 +7,11 @@
 package view
 
 import (
+	"fmt"
 	"html/template"
 	"reflect"
 	"testing"
+	"time"
 
 	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/telemetry"
@@ -96,32 +98,59 @@ func Test_summary(t *testing.T) {
 	}
 }
 
-func TestDomain(t *testing.T) {
-	tests := []struct {
-		weeks []string
-		want  [2]string
-	}{
-		{
-			[]string{"2023-10-03"},
-			[2]string{"2023-10-01", "2023-10-08"},
-		},
-		{
-			[]string{"2023-10-03", "2023-10-07"},
-			[2]string{"2023-10-01", "2023-10-08"},
-		},
-		{
-			[]string{"2023-10-03", "2023-10-08"},
-			[2]string{"2023-10-01", "2023-10-15"},
-		},
-		{
-			[]string{"2023-10-01", "2023-10-15"},
-			[2]string{"2023-10-01", "2023-10-22"},
-		},
+func Test_reportsDomain(t *testing.T) {
+	mustParseDate := func(date string) time.Time {
+		ts, err := time.Parse("2006-01-02", date)
+		if err != nil {
+			t.Fatalf("failed to parse date %q: %v", date, err)
+		}
+		return ts
 	}
 
-	for _, test := range tests {
-		if got := domain(test.weeks); got != test.want {
-			t.Errorf("domain(%v) = %v, want %v", test.weeks, got, test.want)
-		}
+	tests := []struct {
+		name        string
+		reportDates []string
+		want        [2]time.Time
+		wantErr     bool
+	}{
+		{
+			name:    "empty",
+			wantErr: true,
+		},
+		{
+			name:        "one",
+			reportDates: []string{"2024-01-08"},
+			want:        [2]time.Time{mustParseDate("2024-01-01"), mustParseDate("2024-01-08")},
+		},
+		{
+			name:        "two",
+			reportDates: []string{"2024-04-08", "2024-06-01"},
+			want:        [2]time.Time{mustParseDate("2024-04-01"), mustParseDate("2024-06-01")},
+		},
+		{
+			name:        "three",
+			reportDates: []string{"2024-04-08", "2024-01-08", "2024-06-01"},
+			want:        [2]time.Time{mustParseDate("2024-01-01"), mustParseDate("2024-06-01")},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reports := make([]*telemetryReport, len(tt.reportDates))
+			for i, date := range tt.reportDates {
+				weekEnd, err := parseReportDate(date)
+				if err != nil {
+					t.Fatalf("parseReport(%v) failed: %v", date, err)
+				}
+				reports[i] = &telemetryReport{
+					WeekEnd: weekEnd,
+					ID:      fmt.Sprintf("report-%d", i),
+				}
+			}
+			got, err := reportsDomain(reports)
+			if tt.wantErr && err == nil ||
+				err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("reportsDomain() = (%v, %v), want (%v, err=%v)", got, err, tt.want, tt.wantErr)
+			}
+		})
 	}
 }

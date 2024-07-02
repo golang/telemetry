@@ -17,6 +17,7 @@ declare global {
   interface ChartData {
     Programs: Program[];
     DateRange: [string, string];
+    UploadDay: Plot.TimeIntervalName
   }
 
   interface Program {
@@ -84,7 +85,7 @@ function drawCharts() {
         tip: true,
         x: (d: Datum) => new Date(d.Week),
         y: (d: Datum) => d.Value,
-        interval: "week",
+        interval: Page.Charts.UploadDay,
         fill: (d: Datum) => {
           const n = Number(d.Key);
           return isNaN(n) ? d.Key : n;
@@ -94,6 +95,7 @@ function drawCharts() {
       const chart = Plot.plot({
         nice: true,
         x: {
+          type: "utc",
           domain: Page.Charts.DateRange.map((d) => new Date(d)),
           label: "Week",
         },
@@ -190,4 +192,4 @@ function debounce<T extends (...args: unknown[]) => unknown>(
   };
 }
 
-export {};
+export { };

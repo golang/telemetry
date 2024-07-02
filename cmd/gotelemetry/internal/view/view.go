@@ -128,7 +128,10 @@ There is nothing to report.`, telemetry.Default.LocalDir())
 		if err != nil {
 			return err
 		}
-		charts := charts(append(reports, pending(files, cfg)...), cfg)
+		charts, err := charts(append(reports, pending(files, cfg)...), cfg)
+		if err != nil {
+			return err
+		}
 		data := page{
 			Config:          cfg,
 			PrettyConfig:    string(cfgJSON),
@@ -188,10 +191,15 @@ func reports(dir string, cfg *config.Config) ([]*telemetryReport, error) {
 		}
 		var report *telemetry.Report
 		if err := json.Unmarshal(data, &report); err != nil {
-			log.Printf("unmarshal report file failed: %v", err)
+			log.Printf("unmarshal report file %v failed: %v, skipping...", e.Name(), err)
 			continue
 		}
-		reports = append(reports, newTelemetryReport(report, cfg))
+		wrapped, err := newTelemetryReport(report, cfg)
+		if err != nil {
+			log.Printf("processing report file %v failed: %v, skipping", e.Name(), err)
+			continue
+		}
+		reports = append(reports, wrapped)
 	}
 	// sort the reports descending by week.
 	sort.Slice(reports, func(i, j int) bool {
@@ -204,6 +212,7 @@ func reports(dir string, cfg *config.Config) ([]*telemetryReport, error) {
 type telemetryReport struct {
 	*telemetry.Report
 	ID       string
+	WeekEnd  time.Time // parsed telemetry.Report.Week
 	Programs []*telemetryProgram
 }
 
@@ -213,7 +222,11 @@ type telemetryProgram struct {
 	Summary template.HTML
 }
 
-func newTelemetryReport(t *telemetry.Report, cfg *config.Config) *telemetryReport {
+func newTelemetryReport(t *telemetry.Report, cfg *config.Config) (*telemetryReport, error) {
+	weekEnd, err := parseReportDate(t.Week)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected Week %q in the report", t.Week)
+	}
 	var prgms []*telemetryProgram
 	for _, p := range t.Programs {
 		meta := map[string]string{
@@ -235,9 +248,10 @@ func newTelemetryReport(t *telemetry.Report, cfg *config.Config) *telemetryRepor
 	}
 	return &telemetryReport{
 		Report:   t,
+		WeekEnd:  weekEnd,
 		ID:       "reports:" + t.Week,
 		Programs: prgms,
-	}
+	}, nil
 }
 
 // files reads the local counter files from a directory.
@@ -381,6 +395,10 @@ type chartdata struct {
 	Programs []*program
 	// DateRange is used to align the week intervals for each of the charts.
 	DateRange [2]string
+	// UploadDay is the day of the week the reports are uploaded.
+	// This is used as d3 chart time interval name
+	// to customize the date range bining in the charts.
+	UploadDay string
 }
 
 type program struct {
@@ -398,7 +416,7 @@ type counter struct {
 }
 
 type datum struct {
-	Week      string
+	Week      string // End of the week in UTC. YYYY-MM-DDT00:00:00Z format.
 	Program   string
 	Version   string
 	GOARCH    string
@@ -408,11 +426,36 @@ type datum struct {
 	Value     int64
 }
 
+// formatDateTime formats the date to the format that
+// includes time zone. Telemetry uses UTC for date string
+// parsing, but JavaScript Date parsing uses local time
+// unless the date string include the time zone info.
+func formatDateTime(date time.Time) string {
+	return date.Format("2006-01-02T15:04:05Z") // UTC
+}
+
+// parseReportDate parses the date string in the format
+// used byt the telemetry report.
+func parseReportDate(s string) (time.Time, error) {
+	return time.Parse("2006-01-02", s)
+}
+
 // charts returns chartdata for a set of telemetry reports. It uses the config
 // to determine if the programs and counters are active.
-func charts(reports []*telemetryReport, cfg *config.Config) *chartdata {
+func charts(reports []*telemetryReport, cfg *config.Config) (*chartdata, error) {
 	data := grouped(reports)
-	result := &chartdata{DateRange: reportsDomain(reports)}
+	// domain is a [min, max] array used in d3.js where min is the minimum
+	// observable time and max is the maximum observable time; both values
+	// are inclusive.
+	domain, err := reportsDomain(reports)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &chartdata{
+		DateRange: [2]string{formatDateTime(domain[0]), formatDateTime(domain[1])},
+		UploadDay: strings.ToLower(domain[1].Weekday().String()),
+	}
 	for pg, pgdata := range data {
 		prog := &program{ID: "charts:" + pg.Name, Name: pg.Name, Active: cfg.HasProgram(pg.Name)}
 		result.Programs = append(result.Programs, prog)
@@ -440,37 +483,25 @@ func charts(reports []*telemetryReport, cfg *config.Config) *chartdata {
 	sort.Slice(result.Programs, func(i, j int) bool {
 		return result.Programs[i].Name < result.Programs[j].Name
 	})
-	return result
+	return result, nil
 }
 
-// reportsDomain computes a common reportsDomain to use for all reports, assuming a week
-// centered around sunday (the default bin behavior in the observablehq
-// plotting library).
-//
-// TODO(rfindley): use the actual weekday file to compute better bins
-// right-aligned to the upload date, or figure something else out.
-func reportsDomain(reports []*telemetryReport) [2]string {
-	var weeks []string
+// reportsDomain computes a common reportsDomain.
+func reportsDomain(reports []*telemetryReport) ([2]time.Time, error) {
+	var start, end time.Time
 	for _, r := range reports {
-		weeks = append(weeks, r.Week)
+		if start.IsZero() || start.After(r.WeekEnd) {
+			start = r.WeekEnd
+		}
+		if end.IsZero() || r.WeekEnd.After(end) {
+			end = r.WeekEnd
+		}
 	}
-	sort.Strings(weeks)
-	return domain(weeks)
-}
-
-func domain(weeks []string) [2]string {
-	start := weeks[0]
-	const timeFormat = "2006-01-02"
-	if st, err := time.Parse(timeFormat, start); err == nil {
-		st = st.AddDate(0, 0, -int(st.Weekday()-time.Sunday)) // adjust to preceding Sunday
-		start = st.Format(timeFormat)
+	if start.IsZero() || end.IsZero() {
+		return [2]time.Time{}, fmt.Errorf("no report with valid Week data")
 	}
-	end := weeks[len(weeks)-1]
-	if et, err := time.Parse(timeFormat, end); err == nil {
-		et = et.AddDate(0, 0, int(time.Sunday+7-et.Weekday()))
-		end = et.Format(timeFormat) // adjust to next Saturday
-	}
-	return [2]string{start, end}
+	start = start.AddDate(0, 0, -7) // 7 days before the first report.
+	return [2]time.Time{start, end}, nil
 }
 
 type programKey struct {
@@ -485,6 +516,16 @@ type counterKey struct {
 func grouped(reports []*telemetryReport) map[programKey]map[counterKey][]*datum {
 	result := make(map[programKey]map[counterKey][]*datum)
 	for _, r := range reports {
+		// Adjust the Week string to include the time zone info.
+		// JS's Date.parse uses local time, otherwise.
+		//
+		// r.Week is the end of the week interval in UTC.
+		// If r.Week is 2024-01-08, the report is the data
+		// for the d3 domain[2024-01-01T00:00:00Z, 2024-01-08T00:00:00Z).
+		// Note: the end is exclusive.
+		// To make the report data align with the d3 domain,
+		// adjust the time to the start of the week interval.
+		weekStart := formatDateTime(r.WeekEnd.AddDate(0, 0, -7))
 		for _, e := range r.Programs {
 			pgkey := programKey{e.Program}
 			if _, ok := result[pgkey]; !ok {
@@ -497,7 +538,7 @@ func grouped(reports []*telemetryReport) map[programKey]map[counterKey][]*datum 
 					key = bucket
 				}
 				element := &datum{
-					Week:      r.Week,
+					Week:      weekStart,
 					Program:   e.Program,
 					Version:   e.Version,
 					GOARCH:    e.GOARCH,
@@ -512,7 +553,7 @@ func grouped(reports []*telemetryReport) map[programKey]map[counterKey][]*datum 
 			for counter, value := range e.Stacks {
 				summary, _, _ := strings.Cut(counter, "\n")
 				element := &datum{
-					Week:      r.Week,
+					Week:      weekStart,
 					Program:   e.Program,
 					Version:   e.Version,
 					GOARCH:    e.GOARCH,
@@ -534,7 +575,11 @@ func grouped(reports []*telemetryReport) map[programKey]map[counterKey][]*datum 
 func pending(files []*counterFile, cfg *config.Config) []*telemetryReport {
 	reports := make(map[string]*telemetry.Report)
 	for _, f := range files {
-		tb, _ := time.Parse(time.RFC3339, f.Meta["TimeEnd"])
+		tb, err := time.Parse(time.RFC3339, f.Meta["TimeEnd"])
+		if err != nil {
+			log.Printf("skipping malformed %v: unexpected TimeEnd value %q", f.ID, f.Meta["TimeEnd"])
+			continue
+		}
 		week := tb.Format("2006-01-02")
 		if _, ok := reports[week]; !ok {
 			reports[week] = &telemetry.Report{Week: week}
@@ -559,7 +604,12 @@ func pending(files []*counterFile, cfg *config.Config) []*telemetryReport {
 	}
 	var result []*telemetryReport
 	for _, r := range reports {
-		result = append(result, newTelemetryReport(r, cfg))
+		wrapped, err := newTelemetryReport(r, cfg)
+		if err != nil {
+			log.Printf("skipping the invalid report from week %v: %v", r.Week, err)
+			continue
+		}
+		result = append(result, wrapped)
 	}
 	return result
 }
