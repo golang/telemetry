@@ -413,51 +413,73 @@ func nest(reports []*telemetry.Report) data {
 	result := make(data)
 	for _, r := range reports {
 		for _, p := range r.Programs {
-			writeCount(result, r.Week, p.Program, versionCounter, p.Version, r.X, 1)
-			writeCount(result, r.Week, p.Program, goosCounter, p.GOOS, r.X, 1)
-			writeCount(result, r.Week, p.Program, goarchCounter, p.GOARCH, r.X, 1)
-			writeCount(result, r.Week, p.Program, goversionCounter, p.GoVersion, r.X, 1)
+			result.writeCount(r.Week, p.Program, versionCounter, p.Version, r.X, 1)
+			result.writeCount(r.Week, p.Program, goosCounter, p.GOOS, r.X, 1)
+			result.writeCount(r.Week, p.Program, goarchCounter, p.GOARCH, r.X, 1)
+			result.writeCount(r.Week, p.Program, goversionCounter, p.GoVersion, r.X, 1)
 			for c, value := range p.Counters {
-				name, _ := splitCounterName(c)
-				writeCount(result, r.Week, p.Program, name, c, r.X, value)
+				prefix, _ := splitCounterName(c)
+				result.writeCount(r.Week, p.Program, prefix, c, r.X, value)
 			}
 		}
 	}
 	return result
 }
 
+// readCount reads the count value based on the input keys.
+// Return nil if any key does not exist.
+func (d data) readCount(week, program, prefix, counter string, x float64) (int64, error) {
+	wk := weekKey{week}
+	if _, ok := d[wk]; !ok {
+		return -1, fmt.Errorf("missing weekKey %q", week)
+	}
+	pk := programKey{program}
+	if _, ok := d[wk][pk]; !ok {
+		return -1, fmt.Errorf("missing programKey %q", program)
+	}
+	gk := graphKey{prefix}
+	if _, ok := d[wk][pk][gk]; !ok {
+		return -1, fmt.Errorf("missing graphKey key %q", prefix)
+	}
+	ck := counterKey{counter}
+	if _, ok := d[wk][pk][gk][ck]; !ok {
+		return -1, fmt.Errorf("missing counterKey %v", counter)
+	}
+	return d[wk][pk][gk][ck][xKey{x}], nil
+}
+
 // writeCount writes the counter values to the result. When a report contains
 // multiple program reports for the same program, the value of the counters
 // in that report are summed together.
-func writeCount(result data, week, program, prefix, counter string, x float64, value int64) {
+func (d data) writeCount(week, program, prefix, counter string, x float64, value int64) {
 	wk := weekKey{week}
-	if _, ok := result[wk]; !ok {
-		result[wk] = make(map[programKey]map[graphKey]map[counterKey]map[xKey]int64)
+	if _, ok := d[wk]; !ok {
+		d[wk] = make(map[programKey]map[graphKey]map[counterKey]map[xKey]int64)
 	}
 	pk := programKey{program}
-	if _, ok := result[wk][pk]; !ok {
-		result[wk][pk] = make(map[graphKey]map[counterKey]map[xKey]int64)
+	if _, ok := d[wk][pk]; !ok {
+		d[wk][pk] = make(map[graphKey]map[counterKey]map[xKey]int64)
 	}
 	gk := graphKey{prefix}
-	if _, ok := result[wk][pk][gk]; !ok {
-		result[wk][pk][gk] = make(map[counterKey]map[xKey]int64)
+	if _, ok := d[wk][pk][gk]; !ok {
+		d[wk][pk][gk] = make(map[counterKey]map[xKey]int64)
 	}
 	// TODO(hyangah): let caller pass the normalized counter name.
 	counter = normalizeCounterName(prefix, counter)
 	ck := counterKey{counter}
-	if _, ok := result[wk][pk][gk][ck]; !ok {
-		result[wk][pk][gk][ck] = make(map[xKey]int64)
+	if _, ok := d[wk][pk][gk][ck]; !ok {
+		d[wk][pk][gk][ck] = make(map[xKey]int64)
 	}
 	xk := xKey{x}
-	result[wk][pk][gk][ck][xk] += value
+	d[wk][pk][gk][ck][xk] += value
 	// record the total for all counters with the prefix
 	// as the bucket name.
 	if prefix != counter {
 		ck = counterKey{prefix}
-		if _, ok := result[wk][pk][gk][ck]; !ok {
-			result[wk][pk][gk][ck] = make(map[xKey]int64)
+		if _, ok := d[wk][pk][gk][ck]; !ok {
+			d[wk][pk][gk][ck] = make(map[xKey]int64)
 		}
-		result[wk][pk][gk][ck][xk] += value
+		d[wk][pk][gk][ck][xk] += value
 	}
 }
 

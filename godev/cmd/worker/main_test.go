@@ -559,3 +559,77 @@ func TestNormalizeCounterName(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteCount(t *testing.T) {
+	type keyValue struct {
+		week, program, prefix, counter string
+		x                              float64
+		value                          int64
+	}
+	testcases := []struct {
+		name   string
+		inputs []keyValue
+		wants  []keyValue
+	}{
+		{
+			name: "program version counter should have value",
+			inputs: []keyValue{
+				{"2987-07-01", "golang.org/x/tools/gopls", "Version", "v0.15.3", 0.00009, 1},
+			},
+			wants: []keyValue{
+				{"2987-07-01", "golang.org/x/tools/gopls", "Version", "Version:v0.15", 0.00009, 1},
+				{"2987-07-01", "golang.org/x/tools/gopls", "Version", "Version", 0.00009, 1},
+			},
+		},
+		{
+			name: "only one count with same prefix and counter",
+			inputs: []keyValue{
+				{"2987-06-30", "cmd/go", "go/invocations", "go/invocations", 0.86995, 84},
+			},
+			wants: []keyValue{
+				{"2987-06-30", "cmd/go", "go/invocations", "go/invocations", 0.86995, 84},
+			},
+		},
+		{
+			name: "sum together when calling multiple times",
+			inputs: []keyValue{
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 1},
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 2},
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 3},
+			},
+			wants: []keyValue{
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:windows", 0.86018, 6},
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS", 0.86018, 6},
+			},
+		},
+		{
+			name: "sum together when the prefix is the same",
+			inputs: []keyValue{
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 1},
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 2},
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "linux", 0.86018, 4},
+			},
+			wants: []keyValue{
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:windows", 0.86018, 3},
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:linux", 0.86018, 4},
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS", 0.86018, 7},
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := make(data)
+			for _, input := range tc.inputs {
+				d.writeCount(input.week, input.program, input.prefix, input.counter, input.x, input.value)
+			}
+
+			for _, want := range tc.wants {
+				got, _ := d.readCount(want.week, want.program, want.prefix, want.counter, want.x)
+				if want.value != got {
+					t.Errorf("d[%q][%q][%q][%q][%v] = %v, want %v", want.week, want.program, want.prefix, want.counter, want.x, got, want.value)
+				}
+			}
+		})
+	}
+}
