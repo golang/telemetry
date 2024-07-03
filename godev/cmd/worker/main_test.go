@@ -504,3 +504,58 @@ func Test_charts(t *testing.T) {
 		t.Errorf("charts = %+v\n, (-want +got): %v", got, diff)
 	}
 }
+
+func TestNormalizeCounterName(t *testing.T) {
+	testcases := []struct {
+		name    string
+		prefix  string
+		counter string
+		want    string
+	}{
+		{
+			name:    "strip patch version for Version",
+			prefix:  "Version",
+			counter: "v0.15.3",
+			want:    "Version:v0.15",
+		},
+		{
+			name:    "strip patch go version for Version",
+			prefix:  "Version",
+			counter: "go1.12.3",
+			want:    "Version:go1.12",
+		},
+		{
+			name:    "concatenate devel for Version",
+			prefix:  "Version",
+			counter: "devel",
+			want:    "Version:devel",
+		},
+		{
+			name:    "concatenate for GOOS",
+			prefix:  "GOOS",
+			counter: "darwin",
+			want:    "GOOS:darwin",
+		},
+		{
+			name:    "concatenate for GOARCH",
+			prefix:  "GOARCH",
+			counter: "amd64",
+			want:    "GOARCH:amd64",
+		},
+		{
+			name:    "strip patch version for GoVersion",
+			prefix:  "GoVersion",
+			counter: "go1.12.3",
+			want:    "GoVersion:go1.12",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := normalizeCounterName(tc.prefix, tc.counter)
+			if tc.want != got {
+				t.Errorf("normalizeCounterName(%q, %q) = %q, want %q", tc.prefix, tc.counter, got, tc.want)
+			}
+		})
+	}
+}
