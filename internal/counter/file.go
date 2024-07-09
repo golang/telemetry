@@ -36,7 +36,22 @@ type file struct {
 	buildInfo          *debug.BuildInfo
 	timeBegin, timeEnd time.Time
 	err                error
-	current            atomic.Pointer[mappedFile] // may be read without holding mu, but may be nil
+	// current holds the current file mapping, which may change when the file is
+	// rotated or extended.
+	//
+	// current may be read without holding mu, but may be nil.
+	//
+	// The cleanup logic for file mappings is complicated, because invalidating
+	// counter pointers is reentrant: [file.invalidateCounters] may call
+	// [file.lookup], which acquires mu. Therefore, writing current must be done
+	// as follows:
+	//  1. record the previous value of current
+	//  2. Store a new value in current
+	//  3. unlock mu
+	//  4. call invalidateCounters
+	//  5. close the previous mapped value from (1)
+	// TODO(rfindley): simplify
+	current atomic.Pointer[mappedFile]
 }
 
 var defaultFile file
@@ -292,7 +307,7 @@ func (f *file) rotate1() time.Time {
 	}
 	name := filepath.Join(dir, baseName)
 
-	m, err := openMapped(name, meta, nil)
+	m, err := openMapped(name, meta)
 	if err != nil {
 		// Mapping failed:
 		// If there used to be a mapped file, after cleanup
@@ -334,8 +349,10 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 	cleanup = nop
 	if newM != nil {
 		f.current.Store(newM)
-		// TODO(rfindley): shouldn't this close f.current?
-		cleanup = f.invalidateCounters
+		cleanup = func() {
+			f.invalidateCounters()
+			current.close()
+		}
 	}
 	return v, cleanup
 }
@@ -386,7 +403,7 @@ type mappedFile struct {
 
 // existing should be nil the first time this is called for a file,
 // and when remapping, should be the previous mappedFile.
-func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, err error) {
+func openMapped(name string, meta string) (_ *mappedFile, err error) {
 	hdr, err := mappedHeader(meta)
 	if err != nil {
 		return nil, err
@@ -402,13 +419,13 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, 
 		f:    f,
 		meta: meta,
 	}
-	// without this files cannot be cleanedup on Windows (affects tests)
-	runtime.SetFinalizer(m, (*mappedFile).close)
+
 	defer func() {
 		if err != nil {
 			m.close()
 		}
 	}()
+
 	info, err := f.Stat()
 	if err != nil {
 		return nil, err
@@ -433,16 +450,11 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, 
 	}
 
 	// Map into memory.
-	var mapping mmap.Data
-	if existing != nil {
-		mapping, err = memmap(f, existing.mapping)
-	} else {
-		mapping, err = memmap(f, nil)
-	}
+	mapping, err := memmap(f)
 	if err != nil {
 		return nil, err
 	}
-	m.mapping = &mapping
+	m.mapping = mapping
 	if !bytes.HasPrefix(m.mapping.Data, hdr) {
 		return nil, fmt.Errorf("counter: header mismatch")
 	}
@@ -597,7 +609,11 @@ func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, 
 	}()
 
 	v, headOff, head, ok := m.lookup(name)
-	for !ok {
+	for tries := 0; !ok; tries++ {
+		if tries >= 10 {
+			debugPrintf("corrupt: failed to remap after 10 tries")
+			return nil, nil, errCorrupt
+		}
 		// Lookup found an invalid pointer,
 		// perhaps because the file has grown larger than the mapping.
 		limit := m.load32(m.hdrLen + limitOff)
@@ -606,10 +622,12 @@ func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, 
 			debugPrintf("corrupt1\n")
 			return nil, nil, errCorrupt
 		}
-		newM, err := openMapped(m.f.Name(), m.meta, m)
+		newM, err := openMapped(m.f.Name(), m.meta)
 		if err != nil {
 			return nil, nil, err
 		}
+		// If m != orig, this is at least the second time around the loop
+		// trying to open the mapping. Close the previous attempt.
 		if m != orig {
 			m.close()
 		}
@@ -690,8 +708,16 @@ func (m *mappedFile) extend(end uint32) (*mappedFile, error) {
 			return nil, err
 		}
 	}
-	newM, err := openMapped(m.f.Name(), m.meta, m)
-	m.f.Close()
+	newM, err := openMapped(m.f.Name(), m.meta)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(newM.mapping.Data)) < int64(end) {
+		// File system or logic bug: new file is somehow not extended.
+		// See go.dev/issue/68311, where this appears to have been happening.
+		newM.close()
+		return nil, errCorrupt
+	}
 	return newM, err
 }
 

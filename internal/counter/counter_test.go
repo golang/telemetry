@@ -35,7 +35,6 @@ func TestBasic(t *testing.T) {
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
 	var f file
 	defer close(&f)
 	c := f.New("gophers")
@@ -82,9 +81,9 @@ func TestParallel(t *testing.T) {
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
 	var f file
 	defer close(&f)
+
 	c := f.New("manygophers")
 
 	var wg sync.WaitGroup
@@ -122,8 +121,9 @@ func TestParallel(t *testing.T) {
 	}
 }
 
-// this is needed in Windows so that the generated testing.go file
-// can clean up the temporary test directory
+// close ensures that the given mapped file is closed. On Windows, this is
+// necessary prior to test cleanup.
+// TODO(rfindley): rename.
 func close(f *file) {
 	mf := f.current.Load()
 	if mf == nil {
@@ -137,7 +137,7 @@ func TestLarge(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
+
 	var f file
 	defer close(&f)
 	f.rotate()
@@ -184,7 +184,6 @@ func TestRepeatedNew(t *testing.T) {
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
 	var f file
 	defer close(&f)
 	f.rotate()
@@ -224,7 +223,7 @@ func TestNewFile(t *testing.T) {
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
+
 	now := CounterTime().UTC()
 	year, month, day := now.Date()
 	// preserve time location as done in (*file).filename.
@@ -357,8 +356,9 @@ func TestWeekends(t *testing.T) {
 			if weekends != ends.Weekday() {
 				t.Errorf("weekends %s unexpecteledy not end day %s", weekends, ends.Weekday())
 			}
-			// needed for Windows
+			// On Windows, we must unmap f.current before removing files below.
 			close(&f)
+
 			// remove files for the next iteration of the loop
 			for _, f := range fis {
 				os.Remove(filepath.Join(telemetry.Default.LocalDir(), f.Name()))
@@ -377,7 +377,6 @@ func TestStack(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
 	var f file
 	defer close(&f)
 	f.rotate()
@@ -508,10 +507,9 @@ func setup(t *testing.T) {
 	telemetry.Default = telemetry.NewDir(t.TempDir()) // new dir for each test
 	os.MkdirAll(telemetry.Default.LocalDir(), 0777)
 	os.MkdirAll(telemetry.Default.UploadDir(), 0777)
-}
-
-func restore() {
-	CounterTime = func() time.Time { return time.Now().UTC() }
+	t.Cleanup(func() {
+		CounterTime = func() time.Time { return time.Now().UTC() }
+	})
 }
 
 func (f *file) New(name string) *Counter {

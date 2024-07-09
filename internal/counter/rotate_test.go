@@ -23,7 +23,6 @@ func TestRotateCounters(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
 
 	now := getnow()
 	CounterTime = func() time.Time { return now }
@@ -109,7 +108,7 @@ func TestRotateCounters(t *testing.T) {
 	// simulate failure to remap
 	oldmap := memmap
 	now = now.Add(7 * 24 * time.Hour)
-	memmap = func(*os.File, *mmap.Data) (mmap.Data, error) { return mmap.Data{}, fmt.Errorf("too bad") }
+	memmap = func(*os.File) (*mmap.Data, error) { return nil, fmt.Errorf("too bad") }
 	f.rotate()
 	memmap = oldmap
 
@@ -153,7 +152,6 @@ func TestRotate(t *testing.T) {
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	now := getnow()
 	setup(t)
-	defer restore()
 	// pretend something was uploaded
 	os.WriteFile(filepath.Join(telemetry.Default.UploadDir(), "anything"), []byte{}, 0666)
 	var f file

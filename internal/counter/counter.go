@@ -246,6 +246,7 @@ func (c *Counter) releaseLock(state counterStateBits) {
 	}
 }
 
+// add wraps the atomic.Uint64.Add operation to handle integer overflow.
 func (c *Counter) add(n uint64) uint64 {
 	count := c.ptr.count
 	for {
@@ -340,7 +341,7 @@ func readFile(f *file) (*File, error) {
 func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) {
 	// TODO: Document the format of the stackCounters names.
 
-	data, err := os.ReadFile(name)
+	data, err := readMapped(name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read from file: %v", err)
 	}
@@ -358,4 +359,27 @@ func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) 
 		}
 	}
 	return counters, stackCounters, nil
+}
+
+// readMapped reads the contents of the given file by memory mapping.
+//
+// This avoids file synchronization issues.
+func readMapped(name string) ([]byte, error) {
+	f, err := os.OpenFile(name, os.O_RDWR, 0666)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	mapping, err := memmap(f)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]byte, fi.Size())
+	copy(data, mapping.Data)
+	munmap(mapping)
+	return data, nil
 }

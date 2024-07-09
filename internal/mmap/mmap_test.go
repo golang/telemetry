@@ -39,14 +39,14 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func openMapped(name string) (*os.File, mmap.Data, error) {
+func openMapped(name string) (*os.File, *mmap.Data, error) {
 	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
-		return nil, mmap.Data{}, fmt.Errorf("open failed: %v", err)
+		return nil, nil, fmt.Errorf("open failed: %v", err)
 	}
-	data, err := mmap.Mmap(f, nil)
+	data, err := mmap.Mmap(f)
 	if err != nil {
-		return nil, mmap.Data{}, fmt.Errorf("Mmap failed: %v", err)
+		return nil, nil, fmt.Errorf("Mmap failed: %v", err)
 	}
 	return f, data, nil
 }
@@ -99,5 +99,68 @@ func TestSharedMemory(t *testing.T) {
 	v := (*atomic.Uint64)(unsafe.Pointer(&data[0]))
 	if got := v.Load(); got != concurrency {
 		t.Errorf("incremented %d times, want %d", got, concurrency)
+	}
+}
+
+func TestMultipleMaps(t *testing.T) {
+	testenv.SkipIfUnsupportedPlatform(t)
+
+	// This test verifies that multiple views of an mmapp'ed file may
+	// simultaneously exist for the current process. This is relied upon by
+	// counter concurrency logic.
+
+	dir := t.TempDir()
+	name := filepath.Join(dir, "shared.count")
+
+	var zero [8]byte
+	if err := os.WriteFile(name, zero[:], 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	var (
+		mappings []*mmap.Data
+		values   []*atomic.Uint64 // mapped counts
+	)
+
+	const nMaps = 3
+	for i := 0; i < nMaps; i++ {
+		f, mapping, err := openMapped(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mappings = append(mappings, mapping)
+		i := i
+		defer func() {
+			if i > 0 {
+				mmap.Munmap(mapping)
+			}
+			f.Close()
+		}()
+		values = append(values, (*atomic.Uint64)(unsafe.Pointer(&mapping.Data[0])))
+	}
+
+	var wg sync.WaitGroup
+	const nAdds = 100
+	for _, v := range values {
+		v := v
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 100; i++ {
+				v.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	for i, v := range values {
+		if got, want := v.Load(), uint64(nMaps*nAdds); got != want {
+			t.Errorf("counter %d has value %d, want %d", i, got, want)
+		}
+	}
+	mmap.Munmap(mappings[0]) // other mappings should remain valid
+	for i, v := range values[1:] {
+		if got, want := v.Load(), uint64(nMaps*nAdds); got != want {
+			t.Errorf("counter %d has value %d, want %d", i, got, want)
+		}
 	}
 }
