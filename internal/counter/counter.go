@@ -15,15 +15,31 @@ import (
 	"sync/atomic"
 )
 
-// Note: not using internal/godebug, so that internal/godebug can use internal/counter.
-var debugCounter = strings.Contains(os.Getenv("GODEBUG"), "countertrace=1")
+var (
+	// Note: not using internal/godebug, so that internal/godebug can use
+	// internal/counter.
+	debugCounter = strings.Contains(os.Getenv("GODEBUG"), "countertrace=1")
+	CrashOnBugs  = false // for testing; if set, exit on fatal log messages
+)
 
-func debugPrintf(format string, args ...interface{}) {
+// debugPrintf formats a debug message if GODEBUG=countertrace=1.
+func debugPrintf(format string, args ...any) {
 	if debugCounter {
 		if len(format) == 0 || format[len(format)-1] != '\n' {
 			format += "\n"
 		}
 		fmt.Fprintf(os.Stderr, "counter: "+format, args...)
+	}
+}
+
+// debugFatalf logs a fatal error if GODEBUG=countertrace=1.
+func debugFatalf(format string, args ...any) {
+	if debugCounter || CrashOnBugs {
+		if len(format) == 0 || format[len(format)-1] != '\n' {
+			format += "\n"
+		}
+		fmt.Fprintf(os.Stderr, "counter bug: "+format, args...)
+		os.Exit(1)
 	}
 }
 

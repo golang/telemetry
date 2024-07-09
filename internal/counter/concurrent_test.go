@@ -20,6 +20,11 @@ import (
 	"golang.org/x/telemetry/internal/testenv"
 )
 
+func init() {
+	// Catch any bugs encountered while mapping counters.
+	counter.CrashOnBugs = true
+}
+
 func TestConcurrentExtension(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 
