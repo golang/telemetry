@@ -353,11 +353,11 @@ func readFile(f *file) (*File, error) {
 }
 
 // ReadFile reads the counters and stack counters from the given file.
-// This is the implementation of x/telemetry/counter/countertest.Read
+// This is the implementation of x/telemetry/counter/countertest.ReadFile.
 func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) {
 	// TODO: Document the format of the stackCounters names.
 
-	data, err := readMapped(name)
+	data, err := ReadMapped(name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read from file: %v", err)
 	}
@@ -377,10 +377,10 @@ func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) 
 	return counters, stackCounters, nil
 }
 
-// readMapped reads the contents of the given file by memory mapping.
+// ReadMapped reads the contents of the given file by memory mapping.
 //
 // This avoids file synchronization issues.
-func readMapped(name string) ([]byte, error) {
+func ReadMapped(name string) ([]byte, error) {
 	f, err := os.OpenFile(name, os.O_RDWR, 0666)
 	if err != nil {
 		return nil, err

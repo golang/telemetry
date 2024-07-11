@@ -15,6 +15,7 @@ import (
 	"testing"
 	"unsafe"
 
+	"golang.org/x/telemetry/internal/counter"
 	"golang.org/x/telemetry/internal/mmap"
 	"golang.org/x/telemetry/internal/testenv"
 )
@@ -92,7 +93,7 @@ func TestSharedMemory(t *testing.T) {
 
 	wg.Wait()
 
-	data, err := os.ReadFile(name)
+	data, err := counter.ReadMapped(name)
 	if err != nil {
 		t.Fatalf("final read failed: %v", err)
 	}
