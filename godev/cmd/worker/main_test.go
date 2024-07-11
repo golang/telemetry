@@ -295,7 +295,6 @@ func Test_partition(t *testing.T) {
 		program string
 		name    string
 		buckets []string
-		xs      []float64
 	}
 	tests := []struct {
 		name string
@@ -303,14 +302,13 @@ func Test_partition(t *testing.T) {
 		want *chart
 	}{
 		{
-			"versions counter",
-			args{
-				"example.com/mod/pkg",
-				"Version",
-				[]string{"v1.2.3", "v2.3.4"},
-				[]float64{0.123456789, 0.987654321},
+			name: "major.minor.patch version counter",
+			args: args{
+				program: "example.com/mod/pkg",
+				name:    "Version",
+				buckets: []string{"v1.2.3", "v2.3.4"},
 			},
-			&chart{
+			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
 				Name: "Version",
 				Type: "partition",
@@ -329,14 +327,63 @@ func Test_partition(t *testing.T) {
 			},
 		},
 		{
-			"goos counter",
-			args{
-				"example.com/mod/pkg",
-				"GOOS",
-				[]string{"darwin", "linux"},
-				[]float64{0.123456789, 0.987654321},
+			name: "major.minor version counter should have same result as major.minor.patch",
+			args: args{
+				program: "example.com/mod/pkg",
+				name:    "Version",
+				buckets: []string{"v1.2", "v2.3"},
 			},
-			&chart{
+			want: &chart{
+				ID:   "charts:example.com/mod/pkg:Version",
+				Name: "Version",
+				Type: "partition",
+				Data: []*datum{
+					{
+						Week:  "2999-01-01",
+						Key:   "v1.2",
+						Value: 1,
+					},
+					{
+						Week:  "2999-01-01",
+						Key:   "v2.3",
+						Value: 0.5,
+					},
+				},
+			},
+		},
+		{
+			name: "duplicated counter should be ignored",
+			args: args{
+				program: "example.com/mod/pkg",
+				name:    "Version",
+				buckets: []string{"v1.2.3", "v2.3.4", "v1.2.3"},
+			},
+			want: &chart{
+				ID:   "charts:example.com/mod/pkg:Version",
+				Name: "Version",
+				Type: "partition",
+				Data: []*datum{
+					{
+						Week:  "2999-01-01",
+						Key:   "v1.2",
+						Value: 1,
+					},
+					{
+						Week:  "2999-01-01",
+						Key:   "v2.3",
+						Value: 0.5,
+					},
+				},
+			},
+		},
+		{
+			name: "goos counter",
+			args: args{
+				program: "example.com/mod/pkg",
+				name:    "GOOS",
+				buckets: []string{"darwin", "linux"},
+			},
+			want: &chart{
 				ID:   "charts:example.com/mod/pkg:GOOS",
 				Name: "GOOS",
 				Type: "partition",
@@ -357,8 +404,8 @@ func Test_partition(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := partition(dat, tt.args.program, tt.args.name, tt.args.buckets); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("histogram() = %v, want %v", got, tt.want)
+			if got := dat.partition(tt.args.program, tt.args.name, tt.args.buckets); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("partition() = %v, want %v", got, tt.want)
 			}
 		})
 	}

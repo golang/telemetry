@@ -273,16 +273,16 @@ func charts(cfg *tconfig.Config, date string, d data, xs []float64) *chartdata {
 		result.Programs = append(result.Programs, prog)
 		var charts []*chart
 		if !telemetry.IsToolchainProgram(p.Name) {
-			charts = append(charts, partition(d, p.Name, "Version", p.Versions))
+			charts = append(charts, d.partition(p.Name, "Version", p.Versions))
 		}
 		charts = append(charts,
-			partition(d, p.Name, "GOOS", cfg.GOOS),
-			partition(d, p.Name, "GOARCH", cfg.GOARCH),
-			partition(d, p.Name, "GoVersion", cfg.GoVersion))
+			d.partition(p.Name, "GOOS", cfg.GOOS),
+			d.partition(p.Name, "GOARCH", cfg.GOARCH),
+			d.partition(p.Name, "GoVersion", cfg.GoVersion))
 		for _, c := range p.Counters {
 			// TODO: add support for histogram counters by getting the counter type
 			// from the chart config.
-			charts = append(charts, partition(d, p.Name, c.Name, tconfig.Expand(c.Name)))
+			charts = append(charts, d.partition(p.Name, c.Name, tconfig.Expand(c.Name)))
 		}
 		for _, p := range charts {
 			if p != nil {
@@ -335,7 +335,7 @@ func histogram(dat data, program, name string, counters []string, xs []float64) 
 
 // partition builds a chart for the program and the counter. It can return nil
 // if there is no data for the counter in dat.
-func partition(dat data, program, counterPrefix string, counters []string) *chart {
+func (d data) partition(program, counterPrefix string, counters []string) *chart {
 	count := &chart{
 		ID:   "charts:" + program + ":" + counterPrefix,
 		Name: counterPrefix,
@@ -344,10 +344,10 @@ func partition(dat data, program, counterPrefix string, counters []string) *char
 	pk := programKey{program}
 	prefix, _ := splitCounterName(counterPrefix)
 	gk := graphKey{prefix}
-	for wk := range dat {
+	for wk := range d {
 		// TODO: when should this be number of reports?
 		// total := len(xs)
-		total := len(dat[wk][pk][gk][counterKey{gk.prefix}])
+		total := len(d[wk][pk][gk][counterKey{gk.prefix}])
 		if total == 0 {
 			return nil
 		}
@@ -363,7 +363,7 @@ func partition(dat data, program, counterPrefix string, counters []string) *char
 			seen[counter] = true
 			ck := counterKey{counter}
 			// number of reports where count prefix:bucket > 0
-			n := len(dat[wk][pk][gk][ck])
+			n := len(d[wk][pk][gk][ck])
 			_, bucket := splitCounterName(counter)
 			d := &datum{
 				Week:  wk.date,
@@ -427,7 +427,7 @@ func nest(reports []*telemetry.Report) data {
 }
 
 // readCount reads the count value based on the input keys.
-// Return nil if any key does not exist.
+// Return error if any key does not exist.
 func (d data) readCount(week, program, prefix, counter string, x float64) (int64, error) {
 	wk := weekKey{week}
 	if _, ok := d[wk]; !ok {
