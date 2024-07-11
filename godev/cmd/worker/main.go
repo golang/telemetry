@@ -81,14 +81,14 @@ func handleTasks(cfg *config.Config) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		now := time.Now().UTC()
 		for i := 7; i > 0; i-- {
-			date := now.AddDate(0, 0, -1*i).Format("2006-01-02")
+			date := now.AddDate(0, 0, -1*i).Format(time.DateOnly)
 			url := cfg.WorkerURL + "/merge/?date=" + date
 			if _, err := createHTTPTask(cfg, url); err != nil {
 				return err
 			}
 		}
 		for i := 8; i > 1; i-- {
-			date := now.AddDate(0, 0, -1*i).Format("2006-01-02")
+			date := now.AddDate(0, 0, -1*i).Format(time.DateOnly)
 			url := cfg.WorkerURL + "/chart/?date=" + date
 			if _, err := createHTTPTask(cfg, url); err != nil {
 				return err
@@ -139,7 +139,7 @@ func handleMerge(s *storage.API) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		date := r.URL.Query().Get("date")
-		if _, err := time.Parse("2006-01-02", date); err != nil {
+		if _, err := time.Parse(time.DateOnly, date); err != nil {
 			return content.Error(err, http.StatusBadRequest)
 		}
 		it := s.Upload.Objects(ctx, date)
@@ -188,7 +188,7 @@ func handleChart(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
 		ctx := r.Context()
 		// TODO: use start date and end date to create a timeseries of data.
 		date := r.URL.Query().Get("date")
-		if _, err := time.Parse("2006-01-02", date); err != nil {
+		if _, err := time.Parse(time.DateOnly, date); err != nil {
 			return content.Error(err, http.StatusBadRequest)
 		}
 		in, err := s.Merge.Object(date + ".json").NewReader(ctx)

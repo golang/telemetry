@@ -196,7 +196,7 @@ func handleUpload(ucfg *tconfig.Config, buckets *storage.API, log *slog.Logger) 
 // validate validates the telemetry report data against the latest config.
 func validate(r *telemetry.Report, cfg *tconfig.Config) error {
 	// TODO: reject/drop data arrived too early or too late.
-	if _, err := time.Parse("2006-01-02", r.Week); err != nil {
+	if _, err := time.Parse(time.DateOnly, r.Week); err != nil {
 		return fmt.Errorf("invalid week %s", r.Week)
 	}
 	if !semver.IsValid(r.Config) {

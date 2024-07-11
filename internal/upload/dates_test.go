@@ -227,7 +227,7 @@ func TestDates(t *testing.T) {
 }
 
 func mustParseDate(d string) time.Time {
-	x, err := time.Parse("2006-01-02", d)
+	x, err := time.Parse(time.DateOnly, d)
 	if err != nil {
 		log.Fatalf("couldn't parse time %s", d)
 	}
@@ -236,13 +236,13 @@ func mustParseDate(d string) time.Time {
 
 // return a day more than 'old' before 'today'
 func olderThan(t *testing.T, today string, old time.Duration, nm string) string {
-	x, err := time.Parse("2006-01-02", today)
+	x, err := time.Parse(time.DateOnly, today)
 	if err != nil {
 		t.Errorf("%q not a day in test %s (%v)", today, nm, err)
 		return today // so test should fail
 	}
 	ans := x.Add(-old - 24*time.Hour)
-	msg := ans.Format("2006-01-02")
+	msg := ans.Format(time.DateOnly)
 	return msg
 }
 

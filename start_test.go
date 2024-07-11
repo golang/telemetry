@@ -58,7 +58,7 @@ func runProg(prog string) int {
 	}
 
 	// Get the fake time used by all programs.
-	asof, err := time.Parse("2006-01-02", mustGetEnv(asofEnv))
+	asof, err := time.Parse(time.DateOnly, mustGetEnv(asofEnv))
 	if err != nil {
 		log.Fatalf("parsing %s: %v", asofEnv, err)
 	}
@@ -101,7 +101,7 @@ func execProg(t *testing.T, telemetryDir, prog string, asof time.Time, env ...st
 	cmd := exec.Command(exe, "** TestStart **") // this unused arg is just for ps(1)
 	cmd.Stderr = os.Stderr
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, asofEnv+"="+asof.Format("2006-01-02"))
+	cmd.Env = append(cmd.Env, asofEnv+"="+asof.Format(time.DateOnly))
 	cmd.Env = append(cmd.Env, telemetryDirEnv+"="+telemetryDir)
 	cmd.Env = append(cmd.Env, runStartEnv+"="+prog) // see TestMain
 	cmd.Env = append(cmd.Env, env...)

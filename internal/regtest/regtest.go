@@ -52,7 +52,7 @@ func NewProgram(t *testing.T, name string, fn func() int) Program {
 		// We are running the separate process that was spawned by RunProg.
 		fmt.Fprintf(os.Stderr, "running program %q\n", name)
 		if asofEnvVarValue != "" {
-			asof, err := time.Parse("2006-01-02", asofEnvVarValue)
+			asof, err := time.Parse(time.DateOnly, asofEnvVarValue)
 			if err != nil {
 				log.Fatalf("error parsing asof time %q: %v", asof, err)
 			}
@@ -116,7 +116,7 @@ func RunProgAsOf(t *testing.T, telemetryDir string, asof time.Time, prog Program
 	cmd := exec.Command(testBin, "-test.run", fmt.Sprintf("^%s$", testName))
 	cmd.Env = append(os.Environ(), telemetryDirEnvVar+"="+telemetryDir, entryPointEnvVar+"="+string(prog))
 	if !asof.IsZero() {
-		cmd.Env = append(cmd.Env, asofEnvVar+"="+asof.Format("2006-01-02"))
+		cmd.Env = append(cmd.Env, asofEnvVar+"="+asof.Format(time.DateOnly))
 	}
 	return cmd.CombinedOutput()
 }
