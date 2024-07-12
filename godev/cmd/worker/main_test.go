@@ -53,54 +53,54 @@ func Test_nest(t *testing.T) {
 				},
 			},
 			data{
-				weekKey{"2999-01-01"}: {
-					programKey{"example.com/mod/pkg"}: {
-						graphKey{"Version"}: {
-							counterKey{"Version"}: {
-								xKey{0.1234567890}: 1,
+				weekName("2999-01-01"): {
+					programName("example.com/mod/pkg"): {
+						graphName("Version"): {
+							counterName("Version"): {
+								reportID(0.1234567890): 1,
 							},
-							counterKey{"Version:v1.2"}: {
-								xKey{0.1234567890}: 1,
-							},
-						},
-						graphKey{"GOOS"}: {
-							counterKey{"GOOS"}: {
-								xKey{0.1234567890}: 1,
-							},
-							counterKey{"GOOS:darwin"}: {
-								xKey{0.1234567890}: 1,
+							counterName("Version:v1.2"): {
+								reportID(0.1234567890): 1,
 							},
 						},
-						graphKey{"GOARCH"}: {
-							counterKey{"GOARCH"}: {
-								xKey{0.1234567890}: 1,
+						graphName("GOOS"): {
+							counterName("GOOS"): {
+								reportID(0.1234567890): 1,
 							},
-							counterKey{"GOARCH:arm64"}: {
-								xKey{0.1234567890}: 1,
-							},
-						},
-						graphKey{"GoVersion"}: {
-							counterKey{"GoVersion"}: {
-								xKey{0.1234567890}: 1,
-							},
-							counterKey{"GoVersion:go1.2"}: {
-								xKey{0.1234567890}: 1,
+							counterName("GOOS:darwin"): {
+								reportID(0.1234567890): 1,
 							},
 						},
-						graphKey{"main"}: {
-							counterKey{"main"}: {
-								xKey{0.1234567890}: 1,
+						graphName("GOARCH"): {
+							counterName("GOARCH"): {
+								reportID(0.1234567890): 1,
+							},
+							counterName("GOARCH:arm64"): {
+								reportID(0.1234567890): 1,
 							},
 						},
-						graphKey{"flag"}: {
-							counterKey{"flag"}: {
-								xKey{0.1234567890}: 5,
+						graphName("GoVersion"): {
+							counterName("GoVersion"): {
+								reportID(0.1234567890): 1,
 							},
-							counterKey{"flag:a"}: {
-								xKey{0.1234567890}: 2,
+							counterName("GoVersion:go1.2"): {
+								reportID(0.1234567890): 1,
 							},
-							counterKey{"flag:b"}: {
-								xKey{0.1234567890}: 3,
+						},
+						graphName("main"): {
+							counterName("main"): {
+								reportID(0.1234567890): 1,
+							},
+						},
+						graphName("flag"): {
+							counterName("flag"): {
+								reportID(0.1234567890): 5,
+							},
+							counterName("flag:a"): {
+								reportID(0.1234567890): 2,
+							},
+							counterName("flag:b"): {
+								reportID(0.1234567890): 3,
 							},
 						},
 					},
@@ -218,75 +218,6 @@ var reports = []*telemetry.Report{
 		},
 		Config: "v0.0.1",
 	},
-}
-
-func Test_histogram(t *testing.T) {
-	dat := nest(reports)
-	type args struct {
-		program string
-		name    string
-		buckets []string
-		xs      []float64
-	}
-	tests := []struct {
-		name string
-		args args
-		want *chart
-	}{
-		{
-			"flag histogram",
-			args{
-				"example.com/mod/pkg",
-				"flag:{a,b,c}",
-				[]string{"flag:a", "flag:b", "flag:c"},
-				[]float64{0.123456789, 0.987654321},
-			},
-			&chart{
-				ID:   "charts:example.com/mod/pkg:flag:{a,b,c}",
-				Name: "flag:{a,b,c}",
-				Type: "histogram",
-				Data: []*datum{
-					{
-						Week:  "2999-01-01",
-						Key:   "a",
-						Value: 0.4,
-					},
-					{
-						Week:  "2999-01-01",
-						Key:   "a",
-						Value: 0.4166666666666667,
-					},
-					{
-						Week:  "2999-01-01",
-						Key:   "b",
-						Value: 0.6,
-					},
-					{
-						Week:  "2999-01-01",
-						Key:   "b",
-						Value: 0.5,
-					},
-					{
-						Week:  "2999-01-01",
-						Key:   "c",
-						Value: 0,
-					},
-					{
-						Week:  "2999-01-01",
-						Key:   "c",
-						Value: 0.08333333333333333,
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := histogram(dat, tt.args.program, tt.args.name, tt.args.buckets, tt.args.xs); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("histogram() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 func Test_partition(t *testing.T) {

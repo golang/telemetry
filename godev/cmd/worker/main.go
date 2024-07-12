@@ -293,46 +293,6 @@ func charts(cfg *tconfig.Config, date string, d data, xs []float64) *chartdata {
 	return result
 }
 
-func histogram(dat data, program, name string, counters []string, xs []float64) *chart {
-	count := &chart{
-		ID:   "charts:" + program + ":" + name,
-		Name: name,
-		Type: "histogram",
-	}
-	for wk := range dat {
-		for _, c := range counters {
-			prefix, _ := splitCounterName(c)
-			pk := programKey{program}
-			gk := graphKey{prefix}
-			ck := counterKey{c}
-
-			// TODO: consider using pre-computed distribution buckets to reduce the size
-			// of the output.
-			for _, x := range xs {
-				xk := xKey{x}
-				v := dat[wk][pk][gk][ck][xk]
-				total := dat[wk][pk][gk][counterKey{gk.prefix}][xk]
-				_, bucket := splitCounterName(c)
-				if total == 0 {
-					d := &datum{
-						Week: wk.date,
-						Key:  bucket,
-					}
-					count.Data = append(count.Data, d)
-					continue
-				}
-				d := &datum{
-					Week:  wk.date,
-					Key:   bucket,
-					Value: float64(v) / float64(total),
-				}
-				count.Data = append(count.Data, d)
-			}
-		}
-	}
-	return count
-}
-
 // partition builds a chart for the program and the counter. It can return nil
 // if there is no data for the counter in dat.
 func (d data) partition(program, counterPrefix string, counters []string) *chart {
@@ -341,13 +301,13 @@ func (d data) partition(program, counterPrefix string, counters []string) *chart
 		Name: counterPrefix,
 		Type: "partition",
 	}
-	pk := programKey{program}
+	pk := programName(program)
 	prefix, _ := splitCounterName(counterPrefix)
-	gk := graphKey{prefix}
+	gk := graphName(prefix)
 	for wk := range d {
 		// TODO: when should this be number of reports?
 		// total := len(xs)
-		if total := len(d[wk][pk][gk][counterKey{gk.prefix}]); total == 0 {
+		if total := len(d[wk][pk][gk][counterName(gk)]); total == 0 {
 			return nil
 		}
 		// We group versions into major minor buckets, we must skip
@@ -360,12 +320,12 @@ func (d data) partition(program, counterPrefix string, counters []string) *chart
 				continue
 			}
 			seen[counter] = true
-			ck := counterKey{counter}
+			ck := counterName(counter)
 			// number of reports where count prefix:bucket > 0
 			n := len(d[wk][pk][gk][ck])
 			_, bucket := splitCounterName(counter)
 			d := &datum{
-				Week:  wk.date,
+				Week:  string(wk),
 				Key:   bucket,
 				Value: float64(n),
 			}
@@ -375,27 +335,28 @@ func (d data) partition(program, counterPrefix string, counters []string) *chart
 	return count
 }
 
-type weekKey struct {
-	date string
-}
+// weekName is the date of the report week in the format "YYYY-MM-DD".
+type weekName string
 
-type programKey struct {
-	program string
-}
+// programName is the package path of the program, as used in
+// telemetry.ProgramReport and chartconfig.Program.
+// e.g. golang.org/x/tools/gopls, cmd/go.
+type programName string
 
-type graphKey struct {
-	prefix string
-}
+// graphName is the graph name.
+// A graph plots distribution or timeseries of related counters.
+type graphName string
 
-type counterKey struct {
-	counter string
-}
+// counterName is the counter name.
+type counterName string
 
-type xKey struct {
-	X float64
-}
+// reportID is the upload report ID.
+// The current implementation uses telemetry.Report.X,
+// a random number, computed by the uploader when creating a Report object.
+// See x/telemetry/internal/upload.(*uploader).createReport.
+type reportID float64
 
-type data map[weekKey]map[programKey]map[graphKey]map[counterKey]map[xKey]int64
+type data map[weekName]map[programName]map[graphName]map[counterName]map[reportID]int64
 
 // Names of special counters.
 // Unlike other counters, these are constructed from the metadata in the report.
@@ -428,57 +389,71 @@ func nest(reports []*telemetry.Report) data {
 // readCount reads the count value based on the input keys.
 // Return error if any key does not exist.
 func (d data) readCount(week, program, prefix, counter string, x float64) (int64, error) {
-	wk := weekKey{week}
+	wk := weekName(week)
 	if _, ok := d[wk]; !ok {
 		return -1, fmt.Errorf("missing weekKey %q", week)
 	}
-	pk := programKey{program}
+	pk := programName(program)
 	if _, ok := d[wk][pk]; !ok {
 		return -1, fmt.Errorf("missing programKey %q", program)
 	}
-	gk := graphKey{prefix}
+	gk := graphName(prefix)
 	if _, ok := d[wk][pk][gk]; !ok {
 		return -1, fmt.Errorf("missing graphKey key %q", prefix)
 	}
-	ck := counterKey{counter}
+	ck := counterName(counter)
 	if _, ok := d[wk][pk][gk][ck]; !ok {
 		return -1, fmt.Errorf("missing counterKey %v", counter)
 	}
-	return d[wk][pk][gk][ck][xKey{x}], nil
+	return d[wk][pk][gk][ck][reportID(x)], nil
 }
 
 // writeCount writes the counter values to the result. When a report contains
 // multiple program reports for the same program, the value of the counters
 // in that report are summed together.
 func (d data) writeCount(week, program, prefix, counter string, x float64, value int64) {
-	wk := weekKey{week}
+	wk := weekName(week)
 	if _, ok := d[wk]; !ok {
-		d[wk] = make(map[programKey]map[graphKey]map[counterKey]map[xKey]int64)
+		d[wk] = make(map[programName]map[graphName]map[counterName]map[reportID]int64)
 	}
-	pk := programKey{program}
+	pk := programName(program)
 	if _, ok := d[wk][pk]; !ok {
-		d[wk][pk] = make(map[graphKey]map[counterKey]map[xKey]int64)
+		d[wk][pk] = make(map[graphName]map[counterName]map[reportID]int64)
 	}
-	gk := graphKey{prefix}
+	// We want to group and plot bucket/histogram counters with the same prefix.
+	// Use the prefix as the graph name.
+	gk := graphName(prefix)
 	if _, ok := d[wk][pk][gk]; !ok {
-		d[wk][pk][gk] = make(map[counterKey]map[xKey]int64)
+		d[wk][pk][gk] = make(map[counterName]map[reportID]int64)
 	}
 	// TODO(hyangah): let caller pass the normalized counter name.
 	counter = normalizeCounterName(prefix, counter)
-	ck := counterKey{counter}
+	ck := counterName(counter)
 	if _, ok := d[wk][pk][gk][ck]; !ok {
-		d[wk][pk][gk][ck] = make(map[xKey]int64)
+		d[wk][pk][gk][ck] = make(map[reportID]int64)
 	}
-	xk := xKey{x}
-	d[wk][pk][gk][ck][xk] += value
-	// record the total for all counters with the prefix
-	// as the bucket name.
+
+	// x is a random number sent with each upload report.
+	// Since there is no identifier for the uploader, we use x as the uploader ID
+	// to approximate the number of unique uploader.
+	id := reportID(x)
+	d[wk][pk][gk][ck][id] += value
+	// TODO: each uploader should send the report only once.
+	// Shouldn't we overwrite, instead of summing?
+
+	// If the counter is an instance of a bucket counter or histogram counter
+	// record the value with a special counter (prefix). For example, if
+	// there are gopls/client:vscode-go, gopls/vlient:vim-go, ...,
+	// we compute the total number of gopls/client:* by summing up all values
+	// with a special counter name "gopls/client".
+	// TODO(hyangah): why do we want to compute the fraction, instead of showing
+	// the absolute number of reports?
 	if prefix != counter {
-		ck = counterKey{prefix}
+		ck = counterName(prefix)
 		if _, ok := d[wk][pk][gk][ck]; !ok {
-			d[wk][pk][gk][ck] = make(map[xKey]int64)
+			d[wk][pk][gk][ck] = make(map[reportID]int64)
 		}
-		d[wk][pk][gk][ck][xk] += value
+		d[wk][pk][gk][ck][id] += value
 	}
 }
 
