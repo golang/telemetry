@@ -586,7 +586,7 @@ func TestRun_Concurrent(t *testing.T) {
 	for i, upload := range uploads {
 		var got telemetry.Report
 		if err := json.Unmarshal(upload, &got); err != nil {
-			t.Fatal(err)
+			t.Fatalf("error unmarshalling uploaded report: %v\ncontents:%s", err, upload)
 		}
 		if got, want := len(got.Programs), 1; got != want {
 			t.Fatalf("got %d programs in upload #%d, want %d", got, i, want)
