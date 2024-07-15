@@ -14,8 +14,43 @@
   --border-radius: 0.25rem;
 }
 
+.Breadcrumb {
+  background-color: var(--color-background-accented);
+}
+.Breadcrumb ol {
+  list-style: none;
+  align-items: center;
+  padding: 0;
+  margin: 1.5rem 0;
+  display: inline-flex;
+}
+.Breadcrumb li {
+  display: flex;
+  font-size: 0.875rem;
+}
+.Breadcrumb li:not(:last-child):after {
+  /* TODO(rfindley): use this arrow instead, from go.dev */
+  /* background: url("arrow-forward.svg") no-repeat; */
+  content: '>';
+  display: block;
+  height: 1rem;
+  margin: 0 0.8125rem;
+  width: 1rem;
+  text-align: center;
+}
+
+.Hero {
+  background-color: var(--color-background-accented);
+  padding: 1rem 0;
+}
+.Hero h1 {
+  font-size: 2.25rem;
+  font-weight: normal;
+  margin: 0;
+}
+
 .Container {
-  margin: 2rem 0 5rem;
+  margin: 0 0 5rem;
 }
 
 .Content {

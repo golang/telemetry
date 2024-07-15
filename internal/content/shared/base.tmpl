@@ -17,8 +17,19 @@
   <link rel="stylesheet" href="/static/base.min.css">
 </head>
 <body>
+	{{with .Breadcrumbs}}
+  <nav class="Breadcrumb">
+    <div class="Content">
+      <ol>
+        {{range .}}
+        <li>{{if .Link}}<a href="{{.Link}}">{{.Label}}</a>{{else}}{{.Label}}{{end}}</li>
+        {{end}}
+      </ol>
+    </div>
+  </nav>
+  {{end}}
   <div class="Container">
-    <div class="Content">{{block "content" .}}{{.Content}}{{end}}</div>
+    {{block "content" .}}{{.Content}}{{end}}
   </div>
 </body>
 </html>

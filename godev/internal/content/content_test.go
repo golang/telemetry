@@ -145,7 +145,7 @@ func Test_stat(t *testing.T) {
 
 func handleTemplate(fsys fs.FS) HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) error {
-		return Template(w, fsys, "data.html", "Data from Handler", http.StatusOK)
+		return Template(w, fsys, "data.html", nil, "Data from Handler", http.StatusOK)
 	}
 }
 

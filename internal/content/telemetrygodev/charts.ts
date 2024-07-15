@@ -35,6 +35,7 @@ declare const Page: Page;
 
 import * as d3 from "d3";
 import * as Plot from "@observablehq/plot";
+import { treeNavController } from "../shared/treenav";
 
 for (const program of Page.Charts?.Programs || []) {
   for (const counter of program?.Charts || []) {
@@ -56,6 +57,10 @@ for (const program of Page.Charts?.Programs || []) {
         break;
     }
   }
+}
+
+for (const el of document.querySelectorAll<HTMLElement>(".js-Tree")) {
+  treeNavController(el);
 }
 
 function partition({ Data, Name }: Chart) {

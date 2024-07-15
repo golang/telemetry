@@ -1,0 +1,47 @@
+/*!
+ * Copyright 2024 The Go Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ */
+
+@import url("../shared/chartbrowser.css");
+
+p {
+  /* Reset from _typography.css */
+  max-width: none;
+}
+
+.Charts {
+  margin-top: 1rem;
+}
+.Centered {
+  display: flex;
+  justify-content: center;
+}
+.Charts-heading {
+  margin: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.Charts-heading h2 {
+  margin: 0;
+}
+.Charts-heading ul {
+  margin: 0.5rem 0 0 0;
+  list-style: none;
+  display: inline-flex;
+  padding: 0;
+}
+.Charts-heading li {
+  list-style: none;
+  display: inline-flex;
+}
+.Charts-heading li:not(:last-child):after {
+  content: '|';
+  display: block;
+  height: 1rem;
+  margin: 0 0.8125rem;
+  width: 1rem;
+  text-align: center;
+}

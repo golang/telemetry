@@ -10,13 +10,14 @@ html {
   scroll-padding-top: 4rem;
 }
 
-.Breadcrumb {
+/* TODO(rfindley): refactor to share breadcrumb logic with telemetry.go.dev */
+.ViewBreadcrumb {
   position: sticky;
   top: 0;
   z-index: 1000;
 }
 
-.Breadcrumb ol {
+.ViewBreadcrumb ol {
   align-items: center;
   border-bottom: var(--border);
   display: inline-flex;
@@ -35,16 +36,16 @@ html {
   transition: top 0.1s ease-in 0.1s;
 }
 
-.Breadcrumb ol:empty {
+.ViewBreadcrumb ol:empty {
   top: -3.0625rem;
 }
 
-.Breadcrumb li:not(:last-child)::after {
+.ViewBreadcrumb li:not(:last-child)::after {
   content: ">";
   margin-left: 1rem;
 }
 
-.Breadcrumb li:last-child a {
+.ViewBreadcrumb li:last-child a {
   color: var(--color-text-subtle);
 }
 

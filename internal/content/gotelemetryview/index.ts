@@ -7,7 +7,7 @@
 
 import * as Plot from "@observablehq/plot";
 
-import "../shared/base";
+import { debounce } from "../shared/treenav";
 
 declare global {
   interface Page {
@@ -17,7 +17,7 @@ declare global {
   interface ChartData {
     Programs: Program[];
     DateRange: [string, string];
-    UploadDay: Plot.TimeIntervalName
+    UploadDay: Plot.TimeIntervalName;
   }
 
   interface Program {
@@ -181,15 +181,4 @@ function breadcrumbController() {
   }
 }
 
-function debounce<T extends (...args: unknown[]) => unknown>(
-  callback: T,
-  wait: number
-) {
-  let timeout: number;
-  return (...args: unknown[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => callback(...args), wait);
-  };
-}
-
-export { };
+export {};

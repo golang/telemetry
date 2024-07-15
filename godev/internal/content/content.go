@@ -137,7 +137,7 @@ func (c *contentServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		switch path.Ext(filepath) {
 		case ".html":
-			err = Template(w, c.fsys, filepath, nil, http.StatusOK)
+			err = Template(w, c.fsys, filepath, nil, nil, http.StatusOK)
 		case ".md":
 			err = markdown(w, c.fsys, filepath, http.StatusOK)
 		default:
@@ -150,13 +150,14 @@ func (c *contentServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Template executes a template response.
-func Template(w http.ResponseWriter, fsys fs.FS, tmplPath string, data any, code int) error {
+// TODO(rfindley): this abstraction no longer holds its weight. Refactor.
+func Template(w http.ResponseWriter, fsys fs.FS, tmplPath string, funcs template.FuncMap, data any, code int) error {
 	patterns, err := tmplPatterns(fsys, tmplPath)
 	if err != nil {
 		return err
 	}
 	patterns = append(patterns, tmplPath)
-	tmpl, err := template.ParseFS(fsys, patterns...)
+	tmpl, err := template.New("").Funcs(funcs).ParseFS(fsys, patterns...)
 	if err != nil {
 		return err
 	}
@@ -210,6 +211,8 @@ func Text(w http.ResponseWriter, data any, code int) error {
 	return nil
 }
 
+// TODO(rfindley): this docstring is stale, and Status should be a pure
+// function.
 // Text renders an http status code as a text response.
 func Status(w http.ResponseWriter, code int) error {
 	if code < http.StatusBadRequest {
@@ -232,6 +235,8 @@ func (e *contentError) Error() string { return e.err.Error() }
 
 // handleErr writes an error as an HTTP response with a status code.
 func handleErr(w http.ResponseWriter, req *http.Request, err error, code int) {
+	// TODO(rfindley): should we log here? Do we need to scrub errors before
+	// logging?
 	if cerr, ok := err.(*contentError); ok {
 		code = cerr.Code
 	}
@@ -277,7 +282,7 @@ func markdown(w http.ResponseWriter, fsys fs.FS, tmplPath string, code int) erro
 	if !ok {
 		return errors.New("missing layout for template " + tmplPath)
 	}
-	return Template(w, fsys, layout.(string), data, code)
+	return Template(w, fsys, layout.(string), nil, data, code)
 }
 
 // stat trys to coerce a urlPath into an openable file then returns the

@@ -12,62 +12,26 @@
 <link rel="stylesheet" href="/static/charts.min.css">
 
 <main id="main">
-  <div class="Container">
-    <div class="Content">
-      <h1>Go Telemetry / {{index .Charts.DateRange 1}}</h1>
-      <p>These charts were generated with data from {{.Charts.NumReports}} reports.</p>
+<section>
+<div class="Hero">
+<div class="Content">
+  <h1>Daily charts for {{.Date}}</h1>
+  <p>Generated from {{.Charts.NumReports}} reports.</p>
+</div>
+</div>
+</section>
 
-      <section class="Index">
-        <h2 id="index">Index</h2>
-        <ul>
-          <li>
-            <a href="#charts">Charts</a>
-            <ul>
-              {{range .Charts.Programs}}
-              <li>
-                <a href="#{{.ID}}">{{.Name}}</a>
-                <ul>
-                  {{range .Charts}}
-                  {{with .}}
-                  <li>
-                    <a href="#{{.ID}}">{{.Name}}</a>
-                  </li>
-                  {{end}}
-                  {{end}}
-                </ul>
-              </li>
-              {{end}}
-            </ul>
-          </li>
-        </ul>
-      </section>
-
-      <section class="Charts">
-        <h2 id="charts">Charts</h2>
-        {{range .Charts.Programs}}
-        <div class="Chart">
-          <h3 id="{{.ID}}">
-            {{.Name}}
-          </h3>
-          {{range .Charts}}
-          {{with .}}
-          <div>
-            <h4 id="{{.ID}}">
-              {{.Name}}
-            </h4>
-            <div data-chart-id="{{.ID}}"></div>
-          </div>
-          {{end}}
-          {{end}}
-        </div>
-        {{end}}
-      </section>
-    </div>
+<section>
+<div class="Content">
+  <div class="Charts">
+  {{template "chartbrowser" .}}
   </div>
-</main>
+</div>
+</section>
 
 <script>
   window.Page = {{.}};
 </script>
 <script src="/static/charts.min.js"></script>
+
 {{end}}

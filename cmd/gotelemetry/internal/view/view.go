@@ -629,7 +629,18 @@ func renderTemplate(w http.ResponseWriter, fsys fs.FS, tmplPath string, data any
 		return err
 	}
 	patterns = append(patterns, tmplPath)
-	tmpl, err := template.ParseFS(fsys, patterns...)
+	funcs := template.FuncMap{
+		"chartName": func(name string) string {
+			name, _, _ = strings.Cut(name, ":")
+			return name
+		},
+		"programName": func(name string) string {
+			name = strings.TrimPrefix(name, "golang.org/")
+			name = strings.TrimPrefix(name, "github.com/")
+			return name
+		},
+	}
+	tmpl, err := template.New("").Funcs(funcs).ParseFS(fsys, patterns...)
 	if err != nil {
 		return err
 	}
