@@ -60,6 +60,9 @@ for (const program of Page.Charts?.Programs || []) {
 
 function partition({ Data, Name }: Chart) {
   Data ??= [];
+
+  const max = Data.map((d) => d.Value).reduce((a, b) => Math.max(a, b), 0);
+
   return Plot.plot({
     color: {
       type: "ordinal",
@@ -73,8 +76,8 @@ function partition({ Data, Name }: Chart) {
       domain: Data.map((d) => d.Key),
     },
     y: {
-      label: "Frequency",
-      domain: [0, 1],
+      label: "Count",
+      domain: [0, max + 1], // adjust domain to prevent rendering issues, especially with all-zero data.
     },
     width: 1024,
     style: "overflow:visible;background:transparent;margin-bottom:3rem;",

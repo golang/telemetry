@@ -316,12 +316,12 @@ func Test_partition(t *testing.T) {
 					{
 						Week:  "2999-01-01",
 						Key:   "v1.2",
-						Value: 1,
+						Value: 2,
 					},
 					{
 						Week:  "2999-01-01",
 						Key:   "v2.3",
-						Value: 0.5,
+						Value: 1,
 					},
 				},
 			},
@@ -341,12 +341,12 @@ func Test_partition(t *testing.T) {
 					{
 						Week:  "2999-01-01",
 						Key:   "v1.2",
-						Value: 1,
+						Value: 2,
 					},
 					{
 						Week:  "2999-01-01",
 						Key:   "v2.3",
-						Value: 0.5,
+						Value: 1,
 					},
 				},
 			},
@@ -366,12 +366,12 @@ func Test_partition(t *testing.T) {
 					{
 						Week:  "2999-01-01",
 						Key:   "v1.2",
-						Value: 1,
+						Value: 2,
 					},
 					{
 						Week:  "2999-01-01",
 						Key:   "v2.3",
-						Value: 0.5,
+						Value: 1,
 					},
 				},
 			},
@@ -391,12 +391,12 @@ func Test_partition(t *testing.T) {
 					{
 						Week:  "2999-01-01",
 						Key:   "darwin",
-						Value: 0.5,
+						Value: 1,
 					},
 					{
 						Week:  "2999-01-01",
 						Key:   "linux",
-						Value: 0.5,
+						Value: 1,
 					},
 				},
 			},
@@ -518,7 +518,7 @@ func Test_charts(t *testing.T) {
 						Data: []*datum{{
 							Week:  "2999-01-01",
 							Key:   "darwin",
-							Value: 0.5,
+							Value: 1,
 						}},
 					},
 					{
@@ -528,7 +528,7 @@ func Test_charts(t *testing.T) {
 						Data: []*datum{{
 							Week:  "2999-01-01",
 							Key:   "amd64",
-							Value: 0.5,
+							Value: 1,
 						}},
 					},
 					{
@@ -538,7 +538,7 @@ func Test_charts(t *testing.T) {
 						Data: []*datum{{
 							Week:  "2999-01-01",
 							Key:   "go1.2",
-							Value: 1,
+							Value: 2,
 						}},
 					},
 				},

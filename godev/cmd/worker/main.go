@@ -347,8 +347,7 @@ func (d data) partition(program, counterPrefix string, counters []string) *chart
 	for wk := range d {
 		// TODO: when should this be number of reports?
 		// total := len(xs)
-		total := len(d[wk][pk][gk][counterKey{gk.prefix}])
-		if total == 0 {
+		if total := len(d[wk][pk][gk][counterKey{gk.prefix}]); total == 0 {
 			return nil
 		}
 		// We group versions into major minor buckets, we must skip
@@ -368,7 +367,7 @@ func (d data) partition(program, counterPrefix string, counters []string) *chart
 			d := &datum{
 				Week:  wk.date,
 				Key:   bucket,
-				Value: float64(n) / float64(total),
+				Value: float64(n),
 			}
 			count.Data = append(count.Data, d)
 		}
