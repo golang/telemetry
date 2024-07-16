@@ -5,8 +5,10 @@
 package main
 
 import (
+	"net/url"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/telemetry/internal/config"
@@ -15,7 +17,7 @@ import (
 
 func Test_nest(t *testing.T) {
 	type args struct {
-		reports []*telemetry.Report
+		reports []telemetry.Report
 	}
 	tests := []struct {
 		name string
@@ -25,7 +27,7 @@ func Test_nest(t *testing.T) {
 		{
 			"single report",
 			args{
-				[]*telemetry.Report{
+				[]telemetry.Report{
 					{
 						Week:     "2999-01-01",
 						LastWeek: "2998-01-01",
@@ -118,7 +120,7 @@ func Test_nest(t *testing.T) {
 	}
 }
 
-var reports = []*telemetry.Report{
+var reports = []telemetry.Report{
 	{
 		Week:     "2999-01-01",
 		LastWeek: "2998-01-01",
@@ -342,7 +344,7 @@ func Test_partition(t *testing.T) {
 	}
 }
 
-func Test_charts(t *testing.T) {
+func TestCharts(t *testing.T) {
 	dat := nest(reports)
 	cfg := &config.Config{
 		UploadConfig: &telemetry.UploadConfig{
@@ -477,7 +479,7 @@ func Test_charts(t *testing.T) {
 		},
 		NumReports: 1,
 	}
-	got := charts(cfg, "2999-01-01", dat, []float64{0.12345})
+	got := charts(cfg, "2999-01-01", "2999-01-01", dat, []float64{0.12345})
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("charts = %+v\n, (-want +got): %v", got, diff)
 	}
@@ -606,6 +608,77 @@ func TestWriteCount(t *testing.T) {
 				got, _ := d.readCount(want.week, want.program, want.prefix, want.counter, want.x)
 				if want.value != got {
 					t.Errorf("d[%q][%q][%q][%q][%v] = %v, want %v", want.week, want.program, want.prefix, want.counter, want.x, got, want.value)
+				}
+			}
+		})
+	}
+}
+
+func TestParseDateRange(t *testing.T) {
+	testcases := []struct {
+		name      string
+		url       string
+		wantStart time.Time
+		wantEnd   time.Time
+		wantErr   bool
+	}{
+		{
+			name:      "regular key start & end input",
+			url:       "http://localhost:8082/chart/?start=2024-06-10&end=2024-06-17",
+			wantStart: time.Date(2024, 06, 10, 0, 0, 0, 0, time.UTC),
+			wantEnd:   time.Date(2024, 06, 17, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:      "regular key date input",
+			url:       "http://localhost:8082/chart/?date=2024-06-11",
+			wantStart: time.Date(2024, 06, 11, 0, 0, 0, 0, time.UTC),
+			wantEnd:   time.Date(2024, 06, 11, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:    "malformatted value for start",
+			url:     "http://localhost:8082/chart/?start=2024-066-01&end=2024-06-17",
+			wantErr: true,
+		},
+		{
+			name:    "malformatted value for start",
+			url:     "http://localhost:8082/chart/?start=2024-06-10&end=2024-06-179",
+			wantErr: true,
+		},
+		{
+			name:    "end is earlier than start",
+			url:     "http://localhost:8082/chart/?start=2024-06-17&end=2024-06-10",
+			wantErr: true,
+		},
+		{
+			name:    "have only start but missing end",
+			url:     "http://localhost:8082/chart/?start=2024-06-01",
+			wantErr: true,
+		},
+		{
+			name:    "key date and start used together",
+			url:     "http://localhost:8082/chart/?start=2024-06-17&date=2024-06-19",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			url, err := url.Parse(tc.url)
+			if err != nil {
+				t.Fatalf("failed to parse url %q: %v", url, err)
+			}
+
+			gotStart, gotEnd, err := parseDateRange(url)
+			if tc.wantErr && err == nil {
+				t.Errorf("parseDateRange %v should return error but return nil", tc.url)
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("parseDateRange %v should return nil but return error: %v", tc.url, err)
+			}
+
+			if !tc.wantErr {
+				if !gotStart.Equal(tc.wantStart) || !gotEnd.Equal(tc.wantEnd) {
+					t.Errorf("parseDateRange(%s) = (%s, %s), want (%s, %s)", tc.url, gotStart.Format(time.DateOnly), gotEnd.Format(time.DateOnly), tc.wantStart.Format(time.DateOnly), tc.wantEnd.Format(time.DateOnly))
 				}
 			}
 		})

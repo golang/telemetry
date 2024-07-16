@@ -14,6 +14,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -183,41 +184,93 @@ func handleMerge(s *storage.API) content.HandlerFunc {
 	}
 }
 
+func fileName(start, end time.Time) string {
+	if start.Equal(end) {
+		return end.Format(time.DateOnly) + ".json"
+	}
+
+	return start.Format(time.DateOnly) + "_" + end.Format(time.DateOnly) + ".json"
+}
+
+// parseDateRange returns the start and end date from the given url.
+func parseDateRange(url *url.URL) (start, end time.Time, _ error) {
+	if dateString := url.Query().Get("date"); dateString != "" {
+		if url.Query().Get("start") != "" || url.Query().Get("end") != "" {
+			return time.Time{}, time.Time{}, content.Error(fmt.Errorf("start or end key should be empty when date key is being used"), http.StatusBadRequest)
+		}
+		date, err := time.Parse(time.DateOnly, dateString)
+		if err != nil {
+			return time.Time{}, time.Time{}, content.Error(err, http.StatusBadRequest)
+		}
+		return date, date, nil
+	}
+
+	var err error
+	startString := url.Query().Get("start")
+	start, err = time.Parse(time.DateOnly, startString)
+	if err != nil {
+		return time.Time{}, time.Time{}, content.Error(err, http.StatusBadRequest)
+	}
+	endString := url.Query().Get("end")
+	end, err = time.Parse(time.DateOnly, endString)
+	if err != nil {
+		return time.Time{}, time.Time{}, content.Error(err, http.StatusBadRequest)
+	}
+	if end.Before(start) {
+		return time.Time{}, time.Time{}, content.Error(fmt.Errorf("end date is earlier than start"), http.StatusBadRequest)
+	}
+	return start, end, nil
+}
+
+func readMergedReports(ctx context.Context, fileName string, s *storage.API) ([]telemetry.Report, error) {
+	in, err := s.Merge.Object(fileName).NewReader(ctx)
+	if errors.Is(err, storage.ErrObjectNotExist) {
+		return nil, content.Error(fmt.Errorf("merge file %s not found", fileName), http.StatusNotFound)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer in.Close()
+
+	var reports []telemetry.Report
+	scanner := bufio.NewScanner(in)
+	for scanner.Scan() {
+		var report telemetry.Report
+		if err := json.Unmarshal(scanner.Bytes(), &report); err != nil {
+			return nil, err
+		}
+		reports = append(reports, report)
+	}
+
+	return reports, nil
+}
+
 func handleChart(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
-		// TODO: use start date and end date to create a timeseries of data.
-		date := r.URL.Query().Get("date")
-		if _, err := time.Parse(time.DateOnly, date); err != nil {
-			return content.Error(err, http.StatusBadRequest)
-		}
-		in, err := s.Merge.Object(date + ".json").NewReader(ctx)
-		if errors.Is(err, storage.ErrObjectNotExist) {
-			return content.Error(err, http.StatusNotFound)
-		}
+
+		start, end, err := parseDateRange(r.URL)
 		if err != nil {
 			return err
 		}
-		defer in.Close()
 
-		var reports []*telemetry.Report
+		var reports []telemetry.Report
 		var xs []float64
-		scanner := bufio.NewScanner(in)
-		for scanner.Scan() {
-			var report telemetry.Report
-			if err := json.Unmarshal(scanner.Bytes(), &report); err != nil {
+		for date := start; !date.After(end); date = date.AddDate(0, 0, 1) {
+			dailyReports, err := readMergedReports(ctx, date.Format(time.DateOnly) + ".json", s)
+			if err != nil {
 				return err
 			}
-			reports = append(reports, &report)
-			xs = append(xs, report.X)
-		}
-		if err := in.Close(); err != nil {
-			return err
+			for _, r := range dailyReports {
+				reports = append(reports, r)
+				xs = append(xs, r.X)
+			}
 		}
 
 		data := nest(reports)
-		charts := charts(cfg, date, data, xs)
-		obj := fmt.Sprintf("%s.json", date)
+		charts := charts(cfg, start.Format(time.DateOnly), end.Format(time.DateOnly), data, xs)
+
+		obj := fileName(start, end)
 		out, err := s.Chart.Object(obj).NewWriter(ctx)
 		if err != nil {
 			return err
@@ -231,7 +284,7 @@ func handleChart(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
 			return err
 		}
 
-		msg := fmt.Sprintf("processed %d reports into %s", len(reports), s.Chart.URI()+"/"+obj)
+		msg := fmt.Sprintf("processed %d reports from date %s to %s into %s", len(reports), start.Format(time.DateOnly), end.Format(time.DateOnly), s.Chart.URI()+"/"+obj)
 		return content.Text(w, msg, http.StatusOK)
 	}
 }
@@ -266,8 +319,10 @@ type datum struct {
 	Value float64
 }
 
-func charts(cfg *tconfig.Config, date string, d data, xs []float64) *chartdata {
-	result := &chartdata{DateRange: [2]string{date, date}, NumReports: len(xs)}
+func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chartdata {
+	// TODO(hxjiang): charts will generate aggregated charts using data from
+	// the start date to the end date.
+	result := &chartdata{DateRange: [2]string{end, end}, NumReports: len(xs)}
 	for _, p := range cfg.Programs {
 		prog := &program{ID: "charts:" + p.Name, Name: p.Name}
 		result.Programs = append(result.Programs, prog)
@@ -369,7 +424,7 @@ const (
 
 // nest groups the report data by week, program, prefix, counter, and x value
 // summing together counter values for each program report in a report.
-func nest(reports []*telemetry.Report) data {
+func nest(reports []telemetry.Report) data {
 	result := make(data)
 	for _, r := range reports {
 		for _, p := range r.Programs {
