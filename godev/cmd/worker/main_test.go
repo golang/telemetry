@@ -15,112 +15,7 @@ import (
 	"golang.org/x/telemetry/internal/telemetry"
 )
 
-func Test_nest(t *testing.T) {
-	type args struct {
-		reports []telemetry.Report
-	}
-	tests := []struct {
-		name string
-		args args
-		want data
-	}{
-		{
-			"single report",
-			args{
-				[]telemetry.Report{
-					{
-						Week:     "2999-01-01",
-						LastWeek: "2998-01-01",
-						X:        0.123456789,
-						Programs: []*telemetry.ProgramReport{
-							{
-								Program:   "example.com/mod/pkg",
-								Version:   "v1.2.3",
-								GoVersion: "go1.2.3",
-								GOOS:      "darwin",
-								GOARCH:    "arm64",
-								Counters: map[string]int64{
-									"main":   1,
-									"flag:a": 2,
-									"flag:b": 3,
-								},
-								// TODO: add support for stacks
-								Stacks: map[string]int64{
-									"panic": 4,
-								},
-							},
-						},
-						Config: "v0.0.1",
-					},
-				},
-			},
-			data{
-				weekName("2999-01-01"): {
-					programName("example.com/mod/pkg"): {
-						graphName("Version"): {
-							counterName("Version"): {
-								reportID(0.1234567890): 1,
-							},
-							counterName("Version:v1.2"): {
-								reportID(0.1234567890): 1,
-							},
-						},
-						graphName("GOOS"): {
-							counterName("GOOS"): {
-								reportID(0.1234567890): 1,
-							},
-							counterName("GOOS:darwin"): {
-								reportID(0.1234567890): 1,
-							},
-						},
-						graphName("GOARCH"): {
-							counterName("GOARCH"): {
-								reportID(0.1234567890): 1,
-							},
-							counterName("GOARCH:arm64"): {
-								reportID(0.1234567890): 1,
-							},
-						},
-						graphName("GoVersion"): {
-							counterName("GoVersion"): {
-								reportID(0.1234567890): 1,
-							},
-							counterName("GoVersion:go1.2"): {
-								reportID(0.1234567890): 1,
-							},
-						},
-						graphName("main"): {
-							counterName("main"): {
-								reportID(0.1234567890): 1,
-							},
-						},
-						graphName("flag"): {
-							counterName("flag"): {
-								reportID(0.1234567890): 5,
-							},
-							counterName("flag:a"): {
-								reportID(0.1234567890): 2,
-							},
-							counterName("flag:b"): {
-								reportID(0.1234567890): 3,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := nest(tt.args.reports)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("pivot() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-var reports = []telemetry.Report{
+var exampleReports = []telemetry.Report{
 	{
 		Week:     "2999-01-01",
 		LastWeek: "2998-01-01",
@@ -222,8 +117,113 @@ var reports = []telemetry.Report{
 	},
 }
 
-func Test_partition(t *testing.T) {
-	dat := nest(reports)
+func TestNest(t *testing.T) {
+	type args struct {
+		reports []telemetry.Report
+	}
+	tests := []struct {
+		name string
+		args args
+		want data
+	}{
+		{
+			name: "single report",
+			args: args{
+				[]telemetry.Report{
+					{
+						Week:     "2999-01-01",
+						LastWeek: "2998-01-01",
+						X:        0.123456789,
+						Programs: []*telemetry.ProgramReport{
+							{
+								Program:   "example.com/mod/pkg",
+								Version:   "v1.2.3",
+								GoVersion: "go1.2.3",
+								GOOS:      "darwin",
+								GOARCH:    "arm64",
+								Counters: map[string]int64{
+									"main":   1,
+									"flag:a": 2,
+									"flag:b": 3,
+								},
+								// TODO: add support for stacks
+								Stacks: map[string]int64{
+									"panic": 4,
+								},
+							},
+						},
+						Config: "v0.0.1",
+					},
+				},
+			},
+			want: data{
+				weekName("2999-01-01"): {
+					programName("example.com/mod/pkg"): {
+						graphName("Version"): {
+							counterName("Version"): {
+								reportID(0.1234567890): 1,
+							},
+							counterName("Version:v1.2"): {
+								reportID(0.1234567890): 1,
+							},
+						},
+						graphName("GOOS"): {
+							counterName("GOOS"): {
+								reportID(0.1234567890): 1,
+							},
+							counterName("GOOS:darwin"): {
+								reportID(0.1234567890): 1,
+							},
+						},
+						graphName("GOARCH"): {
+							counterName("GOARCH"): {
+								reportID(0.1234567890): 1,
+							},
+							counterName("GOARCH:arm64"): {
+								reportID(0.1234567890): 1,
+							},
+						},
+						graphName("GoVersion"): {
+							counterName("GoVersion"): {
+								reportID(0.1234567890): 1,
+							},
+							counterName("GoVersion:go1.2"): {
+								reportID(0.1234567890): 1,
+							},
+						},
+						graphName("main"): {
+							counterName("main"): {
+								reportID(0.1234567890): 1,
+							},
+						},
+						graphName("flag"): {
+							counterName("flag"): {
+								reportID(0.1234567890): 5,
+							},
+							counterName("flag:a"): {
+								reportID(0.1234567890): 2,
+							},
+							counterName("flag:b"): {
+								reportID(0.1234567890): 3,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := nest(tt.args.reports)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("nest() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPartition(t *testing.T) {
+	exampleData := nest(exampleReports)
 	type args struct {
 		program string
 		name    string
@@ -231,11 +231,13 @@ func Test_partition(t *testing.T) {
 	}
 	tests := []struct {
 		name string
+		data data
 		args args
 		want *chart
 	}{
 		{
 			name: "major.minor.patch version counter",
+			data: exampleData,
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "Version",
@@ -261,6 +263,7 @@ func Test_partition(t *testing.T) {
 		},
 		{
 			name: "major.minor version counter should have same result as major.minor.patch",
+			data: exampleData,
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "Version",
@@ -286,6 +289,7 @@ func Test_partition(t *testing.T) {
 		},
 		{
 			name: "duplicated counter should be ignored",
+			data: exampleData,
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "Version",
@@ -311,6 +315,7 @@ func Test_partition(t *testing.T) {
 		},
 		{
 			name: "goos counter",
+			data: exampleData,
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "GOOS",
@@ -334,18 +339,105 @@ func Test_partition(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "three days, multiple versions",
+			data: data{
+				"2999-01-01": {"example.com/mod/pkg": {"Version": {
+					"Version":      {0.1: 5},
+					"Version:v1.2": {0.1: 2},
+					"Version:v2.3": {0.1: 3},
+				},
+				}},
+				"2999-01-04": {"example.com/mod/pkg": {"Version": {
+					"Version":      {0.3: 2, 0.4: 5},
+					"Version:v1.2": {0.3: 2},
+					"Version:v2.3": {0.4: 5},
+				},
+				}},
+				"2999-01-05": {"example.com/mod/pkg": {"Version": {
+					"Version":      {0.5: 6},
+					"Version:v2.3": {0.5: 6},
+				}}},
+			},
+			args: args{
+				program: "example.com/mod/pkg",
+				name:    "Version",
+				buckets: []string{"v1.2.3", "v2.3.4"},
+			},
+			want: &chart{
+				ID:   "charts:example.com/mod/pkg:Version",
+				Name: "Version",
+				Type: "partition",
+				Data: []*datum{
+					{
+						Week:  "2999-01-05",
+						Key:   "v1.2",
+						Value: 2,
+					},
+					{
+						Week:  "2999-01-05",
+						Key:   "v2.3",
+						Value: 3,
+					},
+				},
+			},
+		},
+		{
+			name: "three days, multiple GOOS",
+			data: data{
+				"2999-01-01": {"example.com/mod/pkg": {"GOOS": {
+					"GOOS":        {0.1: 4, 0.2: 4, 0.3: 2},
+					"GOOS:darwin": {0.1: 2, 0.2: 2, 0.3: 2},
+					"GOOS:linux":  {0.1: 2, 0.2: 2},
+				},
+				}},
+				"2999-01-02": {"example.com/mod/pkg": {"GOOS": {
+					"GOOS":        {0.4: 2, 0.5: 2, 0.6: 5},
+					"GOOS:darwin": {0.4: 2, 0.5: 2},
+					"GOOS:linux":  {0.6: 5},
+				},
+				}},
+				"2999-01-03": {"example.com/mod/pkg": {"GOOS": {
+					"GOOS":        {0.6: 3},
+					"GOOS:darwin": {0.6: 3},
+				},
+				}},
+			},
+			args: args{
+				program: "example.com/mod/pkg",
+				name:    "GOOS",
+				buckets: []string{"darwin", "linux"},
+			},
+			want: &chart{
+				ID:   "charts:example.com/mod/pkg:GOOS",
+				Name: "GOOS",
+				Type: "partition",
+				Data: []*datum{
+					{
+						Week:  "2999-01-03",
+						Key:   "darwin",
+						Value: 6,
+					},
+					{
+						Week:  "2999-01-03",
+						Key:   "linux",
+						Value: 3,
+					},
+				},
+			},
+		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := dat.partition(tt.args.program, tt.args.name, tt.args.buckets); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("partition() = %v, want %v", got, tt.want)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.data.partition(tc.args.program, tc.args.name, tc.args.buckets); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("partition() = %v, want %v", got, tc.want)
 			}
 		})
 	}
 }
 
 func TestCharts(t *testing.T) {
-	dat := nest(reports)
+	exampleData := nest(exampleReports)
 	cfg := &config.Config{
 		UploadConfig: &telemetry.UploadConfig{
 			GOOS:       []string{"darwin"},
@@ -479,7 +571,7 @@ func TestCharts(t *testing.T) {
 		},
 		NumReports: 1,
 	}
-	got := charts(cfg, "2999-01-01", "2999-01-01", dat, []float64{0.12345})
+	got := charts(cfg, "2999-01-01", "2999-01-01", exampleData, []float64{0.12345})
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("charts = %+v\n, (-want +got): %v", got, diff)
 	}

@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -257,7 +258,7 @@ func handleChart(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
 		var reports []telemetry.Report
 		var xs []float64
 		for date := start; !date.After(end); date = date.AddDate(0, 0, 1) {
-			dailyReports, err := readMergedReports(ctx, date.Format(time.DateOnly) + ".json", s)
+			dailyReports, err := readMergedReports(ctx, date.Format(time.DateOnly)+".json", s)
 			if err != nil {
 				return err
 			}
@@ -320,9 +321,7 @@ type datum struct {
 }
 
 func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chartdata {
-	// TODO(hxjiang): charts will generate aggregated charts using data from
-	// the start date to the end date.
-	result := &chartdata{DateRange: [2]string{end, end}, NumReports: len(xs)}
+	result := &chartdata{DateRange: [2]string{start, end}, NumReports: len(xs)}
 	for _, p := range cfg.Programs {
 		prog := &program{ID: "charts:" + p.Name, Name: p.Name}
 		result.Programs = append(result.Programs, prog)
@@ -359,7 +358,15 @@ func (d data) partition(program, counterPrefix string, counters []string) *chart
 	pk := programName(program)
 	prefix, _ := splitCounterName(counterPrefix)
 	gk := graphName(prefix)
+
+	var (
+		counts = make(map[string]float64) // bucket name -> total count
+		end    weekName                   // latest week observed
+	)
 	for wk := range d {
+		if wk >= end {
+			end = wk
+		}
 		// TODO: when should this be number of reports?
 		// total := len(xs)
 		if total := len(d[wk][pk][gk][counterName(gk)]); total == 0 {
@@ -379,14 +386,25 @@ func (d data) partition(program, counterPrefix string, counters []string) *chart
 			// number of reports where count prefix:bucket > 0
 			n := len(d[wk][pk][gk][ck])
 			_, bucket := splitCounterName(counter)
-			d := &datum{
-				Week:  string(wk),
-				Key:   bucket,
-				Value: float64(n),
-			}
-			count.Data = append(count.Data, d)
+
+			counts[bucket] += float64(n)
 		}
 	}
+
+	// datum.Week always points to the end date
+	for k, v := range counts {
+		d := &datum{
+			Week:  string(end),
+			Key:   k,
+			Value: v,
+		}
+		count.Data = append(count.Data, d)
+	}
+	// Sort the data based on bucket name to ensure deterministic output.
+	sort.Slice(count.Data, func(i, j int) bool {
+		return count.Data[i].Key < count.Data[j].Key
+	})
+
 	return count
 }
 
@@ -581,6 +599,7 @@ func cutInt(x string) (n, rest string, ok bool) {
 	}
 	return x[:i], x[i:], true
 }
+
 func fsys(fromOS bool) fs.FS {
 	var f fs.FS = contentfs.FS
 	if fromOS {
