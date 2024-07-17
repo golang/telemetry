@@ -370,7 +370,7 @@ func (d data) partition(program, counterPrefix string, counters []string) *chart
 		// TODO: when should this be number of reports?
 		// total := len(xs)
 		if total := len(d[wk][pk][gk][counterName(gk)]); total == 0 {
-			return nil
+			continue
 		}
 		// We group versions into major minor buckets, we must skip
 		// major minor versions we've already added to the dataset.
@@ -389,6 +389,10 @@ func (d data) partition(program, counterPrefix string, counters []string) *chart
 
 			counts[bucket] += float64(n)
 		}
+	}
+
+	if len(counts) == 0 {
+		return nil
 	}
 
 	// datum.Week always points to the end date

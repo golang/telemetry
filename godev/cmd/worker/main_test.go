@@ -426,6 +426,70 @@ func TestPartition(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "two days data, missing GOOS in first day",
+			data: data{
+				"2999-01-01": {"example.com/mod/pkg": {"Version": {
+					"Version":      {0.1: 2},
+					"Version:v1.2": {0.1: 2},
+				},
+				}},
+				"2999-01-02": {"example.com/mod/pkg": {"GOOS": {
+					"GOOS":        {0.3: 4},
+					"GOOS:darwin": {0.3: 2},
+					"GOOS:linux":  {0.3: 2},
+				},
+				}},
+			},
+			args: args{
+				program: "example.com/mod/pkg",
+				name:    "GOOS",
+				buckets: []string{"darwin", "linux"},
+			},
+			want: &chart{
+				ID:   "charts:example.com/mod/pkg:GOOS",
+				Name: "GOOS",
+				Type: "partition",
+				Data: []*datum{
+					{
+						Week:  "2999-01-02",
+						Key:   "darwin",
+						Value: 1,
+					},
+					{
+						Week:  "2999-01-02",
+						Key:   "linux",
+						Value: 1,
+					},
+				},
+			},
+		},
+		{
+			name: "three days, missing version data all days",
+			data: data{
+				"2999-01-01": {"example.com/mod/pkg": {"GOOS": {
+					"GOOS":        {0.1: 2},
+					"GOOS:darwin": {0.1: 2},
+				},
+				}},
+				"2999-01-02": {"example.com/mod/pkg": {"GOOS": {
+					"GOOS":       {0.6: 5},
+					"GOOS:linux": {0.6: 5},
+				},
+				}},
+				"2999-01-03": {"example.com/mod/pkg": {"GOOS": {
+					"GOOS":        {0.6: 3},
+					"GOOS:darwin": {0.6: 3},
+				},
+				}},
+			},
+			args: args{
+				program: "example.com/mod/pkg",
+				name:    "Version",
+				buckets: []string{"v1.2.3", "v2.3.4"},
+			},
+			want: nil,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
