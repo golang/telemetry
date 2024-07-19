@@ -17,7 +17,7 @@ svg g[aria-label="tip"] g {
 }
 .Chartbrowser-index {
   flex: 1 1;
-  padding-right: 2rem;
+  padding: 0 1.5rem 0 0;
 }
 .Chartbrowser-heading {
   font-weight: bold;
@@ -42,13 +42,12 @@ svg g[aria-label="tip"] g {
 .Chartbrowser-program {
   font-weight: normal;
   margin: 0 0 1rem 0;
-  color: var(--color-text-subtle);
 }
 .Chartbrowser-program:not(:first-of-type) {
   margin-top: 2rem;
 }
 .Chartbrowser-chart {
-  background-color: var(--color-background-accented);
+  background-color: var(--color-background);
   border: 1px solid transparent;
   margin-bottom: 1rem;
   padding: 0.875rem;

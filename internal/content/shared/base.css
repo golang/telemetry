@@ -29,9 +29,8 @@
   font-size: 0.875rem;
 }
 .Breadcrumb li:not(:last-child):after {
-  /* TODO(rfindley): use this arrow instead, from go.dev */
-  /* background: url("arrow-forward.svg") no-repeat; */
-  content: '>';
+  background: url("./arrow-forward.svg") no-repeat;
+  content: "";
   display: block;
   height: 1rem;
   margin: 0 0.8125rem;
