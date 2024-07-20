@@ -60,6 +60,7 @@ func main() {
 	mux.Handle("/merge/", handleMerge(buckets))
 	mux.Handle("/chart/", handleChart(ucfg, buckets))
 	mux.Handle("/queue-tasks/", handleTasks(cfg))
+	mux.Handle("/copy/", handleCopy(cfg, buckets))
 
 	mw := middleware.Chain(
 		middleware.Log(slog.Default()),
@@ -72,9 +73,53 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+cfg.WorkerPort, mw(mux)))
 }
 
+// handleCopy copies uploaded reports from prod gcs bucket to dev gcs buckets.
+func handleCopy(cfg *config.Config, dest *storage.API) content.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		const prodBucket = "prod-telemetry-uploaded"
+
+		if cfg.UploadBucket == prodBucket {
+			return content.Text(w, fmt.Sprintf("do not need to copy from %s to %s", prodBucket, cfg.UploadBucket), http.StatusOK)
+		}
+
+		ctx := r.Context()
+		sourceBucket, err := storage.NewBucket(ctx, cfg, "prod-telemetry-uploaded")
+		if err != nil {
+			return err
+		}
+
+		destBucket := dest.Upload
+
+		start, end, err := parseDateRange(r.URL)
+		if err != nil {
+			return err
+		}
+
+		for date := start; !date.After(end); date = date.AddDate(0, 0, 1) {
+			it := sourceBucket.Objects(ctx, date.Format(time.DateOnly))
+			for {
+				fileName, err := it.Next()
+				if errors.Is(err, storage.ErrObjectIteratorDone) {
+					break
+				}
+				if err != nil {
+					return err
+				}
+
+				if err := storage.Copy(ctx, destBucket.Object(fileName), sourceBucket.Object(fileName)); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	}
+}
+
 // handleTasks will populate the task queue that processes report
 // data. Cloud Scheduler will be instrumented to call this endpoint
-// daily to merge reports and generate chart data.
+// daily to copy uploaded reports, merge reports and generate chart data.
+// The copy tasks will copy uploaded data from prod to dev.
 // The merge tasks will merge the previous 7 days reports.
 // The chart tasks generate daily and weekly charts for the 7 days preceding
 // today.
@@ -85,6 +130,14 @@ func main() {
 func handleTasks(cfg *config.Config) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		now := time.Now().UTC()
+
+		// Copy the past 20 days uploaded reports from prod to dev gcs bucket.
+		if cfg.Env != "prod" {
+			url := cfg.WorkerURL + "/copy/?start=" + now.Format(time.DateOnly) + "&end=" + now.AddDate(0, 0, -1*20).Format(time.DateOnly)
+			if _, err := createHTTPTask(cfg, url); err != nil {
+				return err
+			}
+		}
 		for i := 7; i > 0; i-- {
 			date := now.AddDate(0, 0, -1*i).Format(time.DateOnly)
 			url := cfg.WorkerURL + "/merge/?date=" + date

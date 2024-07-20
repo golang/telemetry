@@ -9,6 +9,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -47,6 +48,27 @@ type ObjectIterator interface {
 type GCSBucket struct {
 	*storage.BucketHandle
 	url string
+}
+
+// Copy read the content from the source and write the content to the dest.
+func Copy(ctx context.Context, dest, source ObjectHandle) error {
+	reader, err := source.NewReader(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create reader for source: %w", err)
+	}
+	defer reader.Close()
+
+	writer, err := dest.NewWriter(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create writer for destination: %w", err)
+	}
+	defer writer.Close()
+
+	if _, err := io.Copy(writer, reader); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewGCSBucket(ctx context.Context, project, bucket string) (BucketHandle, error) {

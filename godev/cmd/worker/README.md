@@ -26,6 +26,20 @@ worker will retrieve the report for the provided date from the merge bucket.
 Use this endpoint to generate an aggregate chart file containing data from the
 provided date range (inclusive) from the merge bucket.
 
+### `/copy` (dev env only)
+
+This endpoint facilitates the copying of uploaded reports from the prod
+environment's "uploaded" bucket to the dev environment's "uploaded" bucket.
+
+Since we don't have clients regularly uploading data to dev, copying seeds the
+dev environment with data.
+
+Similar to the /chart endpoint, /copy also supports the following query
+parameters:
+
+- `/?date=<YYYY-MM-DD>``: Copies reports for a specific date.
+- `/?start=<YYYY-MM-DD>&end=<YYYY-MM-DD>``: Copies reports within a specified date range.
+
 ### `/queue-tasks`
 
 The queue-tasks endpoint is responsible for task distribution. When invoked, it

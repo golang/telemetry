@@ -86,21 +86,49 @@ func runTest(t *testing.T, ctx context.Context, s BucketHandle) {
 	if diff := cmp.Diff(list2, []string{"prefix/test-object"}); diff != "" {
 		t.Errorf("Objects() mismatch (-want +got):\n%s", diff)
 	}
+
+	// check that the destination file have same content as source.
+	copyData := jsondata{"foo", "bar", map[string]int{"copy": 1}}
+	if err := write(ctx, s, "prefix/source-file", copyData); err != nil {
+		t.Fatal(err)
+	}
+	if err := Copy(ctx, s.Object("prefix/dest-file"), s.Object("prefix/source-file")); err != nil {
+		t.Errorf("Copy() should not return err: %v", err)
+	}
+	got, err := read(ctx, s, "prefix/dest-file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(copyData, got); diff != "" {
+		t.Errorf("data write read mismatch (-wrote +read):\n%s", diff)
+	}
+
+	// check that copy twice have same result.
+	if err := Copy(ctx, s.Object("prefix/dest-file"), s.Object("prefix/source-file")); err != nil {
+		t.Errorf("Copy() should not return err: %v", err)
+	}
+	got, err = read(ctx, s, "prefix/dest-file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(copyData, got); diff != "" {
+		t.Errorf("data write read mismatch (-wrote +read):\n%s", diff)
+	}
 }
 
 func write(ctx context.Context, s BucketHandle, object string, data any) error {
-	obj, err := s.Object("prefix/test-object").NewWriter(ctx)
+	obj, err := s.Object(object).NewWriter(ctx)
 	if err != nil {
 		return err
 	}
-	if err := json.NewEncoder(obj).Encode(writeData); err != nil {
+	if err := json.NewEncoder(obj).Encode(data); err != nil {
 		return err
 	}
 	return obj.Close()
 }
 
 func read(ctx context.Context, s BucketHandle, object string) (any, error) {
-	obj, err := s.Object("prefix/test-object").NewReader(ctx)
+	obj, err := s.Object(object).NewReader(ctx)
 	if err != nil {
 		return nil, err
 	}

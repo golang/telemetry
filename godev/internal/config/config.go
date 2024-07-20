@@ -44,6 +44,9 @@ type Config struct {
 	// or storage emulator modes.
 	LocalStorage string
 
+	// Env represents the deployment environment this worker handles.
+	Env string
+
 	// MergedBucket is the storage bucket for merged reports. The worker merges the
 	// reports from the upload bucket and saves them here.
 	MergedBucket string
@@ -93,6 +96,7 @@ func NewConfig() *Config {
 		StorageEmulatorHost: env("GO_TELEMETRY_STORAGE_EMULATOR_HOST", "localhost:8081"),
 		LocalStorage:        env("GO_TELEMETRY_LOCAL_STORAGE", ".localstorage"),
 		ChartDataBucket:     environment + "-telemetry-charted",
+		Env:                 environment,
 		MergedBucket:        environment + "-telemetry-merged",
 		UploadBucket:        environment + "-telemetry-uploaded",
 		UploadConfig:        env("GO_TELEMETRY_UPLOAD_CONFIG", "./config/config.json"),

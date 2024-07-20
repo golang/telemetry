@@ -13,22 +13,22 @@ type API struct {
 }
 
 func NewAPI(ctx context.Context, cfg *config.Config) (*API, error) {
-	upload, err := newBucket(ctx, cfg, cfg.UploadBucket)
+	upload, err := NewBucket(ctx, cfg, cfg.UploadBucket)
 	if err != nil {
 		return nil, err
 	}
-	merge, err := newBucket(ctx, cfg, cfg.MergedBucket)
+	merge, err := NewBucket(ctx, cfg, cfg.MergedBucket)
 	if err != nil {
 		return nil, err
 	}
-	chart, err := newBucket(ctx, cfg, cfg.ChartDataBucket)
+	chart, err := NewBucket(ctx, cfg, cfg.ChartDataBucket)
 	if err != nil {
 		return nil, err
 	}
 	return &API{upload, merge, chart}, nil
 }
 
-func newBucket(ctx context.Context, cfg *config.Config, name string) (BucketHandle, error) {
+func NewBucket(ctx context.Context, cfg *config.Config, name string) (BucketHandle, error) {
 	if cfg.UseGCS {
 		return NewGCSBucket(ctx, cfg.ProjectID, name)
 	}
