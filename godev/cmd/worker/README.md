@@ -9,11 +9,22 @@ the value of the data param and encodes each report as newline separated JSON in
 a merged report. It returns the number of reports merged and the location of the
 merged report.
 
-### `/chart/?date=<YYYY-MM-DD>`
+### `/chart`
 
-The chart endpoint reads the report from the merge bucket from the given date
-and generates chart data for that report. It returns the number of reports used
-in generated the report and the location of the chart data.
+The /chart endpoint reads the file named 'YYYY-MM-DD.json' containing reports
+from the given date from the merge bucket and generates chart data based on
+these reports. It returns the number of reports used to generate the chart and
+the location where the chart data is stored.
+
+#### `/chart/?date=<YYYY-MM-DD>`
+
+Use this endpoint to generate charts from a report on a specific date. The
+worker will retrieve the report for the provided date from the merge bucket.
+
+#### `/chart/?start=<YYYY-MM-DD>&end=<YYYY-MM-DD>`
+
+Use this endpoint to generate an aggregate chart file containing data from the
+provided date range (inclusive) from the merge bucket.
 
 ## Local Development
 
