@@ -74,9 +74,12 @@ func main() {
 
 // handleTasks will populate the task queue that processes report
 // data. Cloud Scheduler will be instrumented to call this endpoint
-// daily to merge reports and generate chart data. The merge tasks
-// will merge the previous weeks reports and the chart tasks will do
-// the same minus one day.
+// daily to merge reports and generate chart data.
+// The merge tasks will merge the previous 7 days reports.
+// The chart tasks generate daily and weekly charts for the 7 days preceding
+// today.
+// - Daily chart: utilizes data exclusively from the specific date.
+// - Weekly chart: encompasses 7 days of data, concluding on the specified date.
 // TODO(golang/go#62575): adjust the date range to align with report
 // upload cutoff.
 func handleTasks(cfg *config.Config) content.HandlerFunc {
@@ -89,9 +92,20 @@ func handleTasks(cfg *config.Config) content.HandlerFunc {
 				return err
 			}
 		}
+		// TODO(hxjiang): have an endpoint to produce all the json instead of a hard
+		// coded one day delay.
 		for i := 8; i > 1; i-- {
+			// Daily chart: generate chart using one day's data.
 			date := now.AddDate(0, 0, -1*i).Format(time.DateOnly)
 			url := cfg.WorkerURL + "/chart/?date=" + date
+			if _, err := createHTTPTask(cfg, url); err != nil {
+				return err
+			}
+
+			// Weekly chart: generate chart using past 7 days' data.
+			end := now.AddDate(0, 0, -1*i)
+			start := end.AddDate(0, 0, -6)
+			url = cfg.WorkerURL + "/chart/?start=" + start.Format(time.DateOnly) + "&end=" + end.Format(time.DateOnly)
 			if _, err := createHTTPTask(cfg, url); err != nil {
 				return err
 			}

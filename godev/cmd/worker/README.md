@@ -26,6 +26,15 @@ worker will retrieve the report for the provided date from the merge bucket.
 Use this endpoint to generate an aggregate chart file containing data from the
 provided date range (inclusive) from the merge bucket.
 
+### `/queue-tasks`
+
+The queue-tasks endpoint is responsible for task distribution. When invoked, it
+triggers the following actions:
+
+- call merge endpoint to merge uploaded reports for the past 7 days.
+- call chart endpoint to generate daily charts for the 7 days preceding today.
+- call chart endpoint to generate weekly charts for the past 8 days.
+
 ## Local Development
 
 For local development, simply build and run. It serves on localhost:8082.
