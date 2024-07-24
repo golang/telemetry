@@ -76,7 +76,7 @@ func newHandler(ctx context.Context, cfg *config.Config) http.Handler {
 	mux.Handle("/", handleRoot(render, fsys, buckets.Chart, logger))
 	mux.Handle("/config", handleConfig(fsys, ucfg))
 	// TODO(rfindley): restrict this routing to POST
-	mux.Handle("/upload/", handleUpload(ucfg, buckets.Upload, logger))
+	mux.Handle("/upload/", handleUpload(ucfg, buckets.Upload))
 	mux.Handle("/charts/", handleCharts(render, buckets.Chart))
 	mux.Handle("/data/", handleData(render, buckets.Merge))
 
@@ -267,28 +267,16 @@ func loadCharts(ctx context.Context, date string, bucket storage.BucketHandle) (
 	return charts, nil
 }
 
-func handleUpload(ucfg *tconfig.Config, uploadBucket storage.BucketHandle, log *slog.Logger) content.HandlerFunc {
+func handleUpload(ucfg *tconfig.Config, uploadBucket storage.BucketHandle) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method == "POST" {
 			ctx := r.Context()
-			// Log the error, but only the first 80 characters.
-			// This prevents excessive logging related to broken payloads.
-			// The first line should give us a sense of the failure mode.
-			warn := func(msg string, err error) {
-				errs := []rune(err.Error())
-				if len(errs) > 80 {
-					errs = append(errs[:79], '…')
-				}
-				log.WarnContext(ctx, msg+": "+string(errs))
-			}
 			var report telemetry.Report
 			if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
-				warn("invalid JSON payload", err)
-				return content.Error(err, http.StatusBadRequest)
+				return content.Error(fmt.Errorf("invalid JSON payload: %v", err), http.StatusBadRequest)
 			}
 			if err := validate(&report, ucfg); err != nil {
-				warn("invalid report", err)
-				return content.Error(err, http.StatusBadRequest)
+				return content.Error(fmt.Errorf("invalid report: %v", err), http.StatusBadRequest)
 			}
 			// TODO: capture metrics for collisions.
 			name := fmt.Sprintf("%s/%g.json", report.Week, report.X)

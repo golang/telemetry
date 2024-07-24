@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"path"
 	"strconv"
@@ -234,12 +235,20 @@ type contentError struct {
 func (e *contentError) Error() string { return e.err.Error() }
 
 // handleErr writes an error as an HTTP response with a status code.
+//
+// err must be non-nil when calling this function.
 func handleErr(w http.ResponseWriter, req *http.Request, err error, code int) {
-	// TODO(rfindley): should we log here? Do we need to scrub errors before
-	// logging?
 	if cerr, ok := err.(*contentError); ok {
 		code = cerr.Code
 	}
+	// Log the error, but only the first 80 characters.
+	// This prevents excessive logging related to broken payloads.
+	// The first line should give us a sense of the failure mode.
+	errs := []rune(err.Error())
+	if len(errs) > 80 {
+		errs = append(errs[:79], '…')
+	}
+	slog.WarnContext(req.Context(), fmt.Sprintf("request for %q failed with status %d: %s", req.URL.Path, code, string(errs)))
 	if code == http.StatusInternalServerError {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), code)
 	} else {

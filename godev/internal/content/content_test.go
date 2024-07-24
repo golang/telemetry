@@ -5,8 +5,10 @@
 package content
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -21,6 +23,13 @@ import (
 func TestServer_ServeHTTP(t *testing.T) {
 	testenv.NeedsGo1Point(t, 23) // output of some http helpers changed in Go 1.23
 	fsys := os.DirFS("testdata")
+
+	// Reset the default logger after this test.
+	// The default loggers is mutated in the tests below.
+	defer func(l *slog.Logger) {
+		slog.SetDefault(l)
+	}(slog.Default())
+
 	server := Server(fsys,
 		Handler("/data", handleTemplate(fsys)),
 		Handler("/json", handleJSON()),
@@ -30,78 +39,95 @@ func TestServer_ServeHTTP(t *testing.T) {
 	)
 
 	tests := []struct {
-		path     string
-		wantOut  string
-		wantCode int
+		path              string
+		wantOut           string
+		wantCode          int
+		wantLogContaining string // if empty, expect no logs
 	}{
 		{
 			"/index.html",
 			"redirect.html.out",
 			http.StatusMovedPermanently,
+			"",
 		},
 		{
 			"/index",
 			"redirect.out",
 			http.StatusMovedPermanently,
+			"",
 		},
 		{
 			"/json",
 			"json.out",
 			http.StatusOK,
+			"",
 		},
 		{
 			"/text",
 			"text.out",
 			http.StatusOK,
+			"",
 		},
 		{
 			"/error",
 			"error.out",
 			http.StatusBadRequest,
+			"Oh no",
 		},
 		{
 			"/teapot",
 			"teapot.out",
 			http.StatusTeapot,
+			"418",
 		},
 		{
 			"/style.css",
 			"style.css.out",
 			http.StatusOK,
+			"",
 		},
 		{
 			"/",
 			"index.html.out",
 			http.StatusOK,
+			"",
 		},
 		{
 			"/data",
 			"data.html.out",
 			http.StatusOK,
+			"",
 		},
 		{
 			"/markdown",
 			"markdown.md.out",
 			http.StatusOK,
+			"",
 		},
 		{
 			"/404",
 			"404.html.out",
 			http.StatusNotFound,
+			"404",
 		},
 		{
 			"/subdir",
 			"subdir/index.html.out",
 			http.StatusOK,
+			"",
 		},
 		{
 			"/noindex/",
 			"noindex/noindex.html.out",
 			http.StatusOK,
+			"",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
+			var buf bytes.Buffer
+			slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+
 			rr := httptest.NewRecorder()
 			req, err := http.NewRequest("GET", tt.path, nil)
 			if err != nil {
@@ -115,10 +141,13 @@ func TestServer_ServeHTTP(t *testing.T) {
 			}
 			wantBody := strings.TrimSpace(string(data))
 			if diff := cmp.Diff(wantBody, got); diff != "" {
-				t.Errorf("GET %s response body mismatch (-want, +got):\n%s", tt.path, diff)
+				t.Errorf("response body mismatch (-want, +got):\n%s", diff)
 			}
 			if rr.Code != tt.wantCode {
-				t.Errorf("GET %s response code = %d, want %d", tt.path, rr.Code, tt.wantCode)
+				t.Errorf("response code = %d, want %d", rr.Code, tt.wantCode)
+			}
+			if !strings.Contains(buf.String(), tt.wantLogContaining) {
+				t.Errorf("no log containing %q", tt.wantLogContaining)
 			}
 		})
 	}
@@ -169,6 +198,6 @@ func handleTeapot() HandlerFunc {
 
 func handleError() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		return Error(errors.New("Bad Request"), http.StatusBadRequest)
+		return Error(errors.New("Oh no! Bad Request"), http.StatusBadRequest)
 	}
 }
