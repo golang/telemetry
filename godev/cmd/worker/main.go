@@ -24,6 +24,7 @@ import (
 	taskspb "cloud.google.com/go/cloudtasks/apiv2/cloudtaskspb"
 	"golang.org/x/exp/slog"
 	"golang.org/x/mod/semver"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/telemetry/godev/internal/config"
 	"golang.org/x/telemetry/godev/internal/content"
 	ilog "golang.org/x/telemetry/godev/internal/log"
@@ -95,6 +96,11 @@ func handleCopy(cfg *config.Config, dest *storage.API) content.HandlerFunc {
 			return err
 		}
 
+		// Copy files concurrently.
+		const concurrency = 10
+		g, ctx := errgroup.WithContext(ctx)
+		g.SetLimit(concurrency)
+
 		for date := start; !date.After(end); date = date.AddDate(0, 0, 1) {
 			it := sourceBucket.Objects(ctx, date.Format(time.DateOnly))
 			for {
@@ -102,17 +108,16 @@ func handleCopy(cfg *config.Config, dest *storage.API) content.HandlerFunc {
 				if errors.Is(err, storage.ErrObjectIteratorDone) {
 					break
 				}
-				if err != nil {
-					return err
-				}
-
-				if err := storage.Copy(ctx, destBucket.Object(fileName), sourceBucket.Object(fileName)); err != nil {
-					return err
-				}
+				g.Go(func() error {
+					if err != nil {
+						return err
+					}
+					return storage.Copy(ctx, destBucket.Object(fileName), sourceBucket.Object(fileName))
+				})
 			}
 		}
 
-		return nil
+		return g.Wait()
 	}
 }
 
