@@ -111,7 +111,7 @@ type breadcrumb struct {
 }
 
 type indexPage struct {
-	ChartDate  string
+	ChartTitle string
 	Charts     map[string]any
 	ChartError string // if set, the error
 }
@@ -131,6 +131,10 @@ func handleRoot(render renderer, fsys fs.FS, chartBucket storage.BucketHandle, l
 		page := indexPage{}
 
 		ctx := r.Context()
+		var (
+			chartDate string // end date of chart data
+			chartObj  string // object name of chart file
+		)
 		it := chartBucket.Objects(ctx, "")
 		for {
 			obj, err := it.Next()
@@ -145,12 +149,31 @@ func handleRoot(render renderer, fsys fs.FS, chartBucket storage.BucketHandle, l
 				// charts bucket. Defensively check for json files.
 				continue // not a chart object
 			}
-			page.ChartDate = date
+			// Chart objects may be for a single date (<date>.json), or for a date
+			// span (<start>_<end>.json).
+			_, end, aggregate := strings.Cut(date, "_")
+			if aggregate {
+				date = end
+			}
+			if date >= chartDate {
+				chartDate = date
+				// Prefer aggregate charts to daily charts, but consider the latest
+				// available date.
+				if aggregate || date > chartDate {
+					chartObj = obj
+				}
+			}
 		}
-		if page.ChartDate == "" {
+		if chartObj == "" {
 			page.ChartError = "No data."
 		} else {
-			charts, err := loadCharts(ctx, page.ChartDate, chartBucket)
+			start, end, aggregate := strings.Cut(strings.TrimSuffix(chartObj, ".json"), "_")
+			if aggregate {
+				page.ChartTitle = fmt.Sprintf("Uploaded data for %s-%s", start, end)
+			} else {
+				page.ChartTitle = fmt.Sprintf("Uploaded data for %s", start)
+			}
+			charts, err := loadCharts(ctx, chartObj, chartBucket)
 			if err != nil {
 				log.ErrorContext(ctx, fmt.Sprintf("error loading index charts: %v", err))
 				page.ChartError = "Error loading charts."
@@ -250,8 +273,8 @@ func handleData(render renderer, mergeBucket storage.BucketHandle) content.Handl
 	}
 }
 
-func loadCharts(ctx context.Context, date string, bucket storage.BucketHandle) (map[string]any, error) {
-	reader, err := bucket.Object(date + ".json").NewReader(ctx)
+func loadCharts(ctx context.Context, chartObj string, bucket storage.BucketHandle) (map[string]any, error) {
+	reader, err := bucket.Object(chartObj).NewReader(ctx)
 	if err != nil {
 		return nil, err
 	}
