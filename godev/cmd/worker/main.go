@@ -133,7 +133,7 @@ func handleTasks(cfg *config.Config) content.HandlerFunc {
 
 		// Copy the past 20 days uploaded reports from prod to dev gcs bucket.
 		if cfg.Env != "prod" {
-			url := cfg.WorkerURL + "/copy/?start=" + now.Format(time.DateOnly) + "&end=" + now.AddDate(0, 0, -1*20).Format(time.DateOnly)
+			url := cfg.WorkerURL + "/copy/?start=" + now.AddDate(0, 0, -1*20).Format(time.DateOnly) + "&end=" + now.Format(time.DateOnly)
 			if _, err := createHTTPTask(cfg, url); err != nil {
 				return err
 			}
