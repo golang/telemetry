@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -52,8 +53,18 @@ func openMapped(name string) (*os.File, *mmap.Data, error) {
 	return f, data, nil
 }
 
+// Via golang/go#68389 and golang/go#68458, we learned that 64-bit atomics were
+// unreliable on linux/arm in Go 1.21. This was fixed in
+// https://go.dev/cl/525637, but only for ARMv7 and later.
+func skipIfLinuxArm(t *testing.T) {
+	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
+		t.Skipf("64-bit atomics may not work on linux/arm")
+	}
+}
+
 func TestSharedMemory(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
+	skipIfLinuxArm(t)
 
 	// This test verifies that Mmap'ed files are usable for concurrent
 	// cross-process atomic operations.
@@ -105,6 +116,7 @@ func TestSharedMemory(t *testing.T) {
 
 func TestMultipleMaps(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
+	skipIfLinuxArm(t)
 
 	// This test verifies that multiple views of an mmapp'ed file may
 	// simultaneously exist for the current process. This is relied upon by
