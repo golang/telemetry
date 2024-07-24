@@ -50,15 +50,25 @@ type GCSBucket struct {
 	url string
 }
 
-// Copy read the content from the source and write the content to the dest.
-func Copy(ctx context.Context, dest, source ObjectHandle) error {
-	reader, err := source.NewReader(ctx)
+// Copy read the content from the source and write the content to the
+// destination.
+func Copy(ctx context.Context, dst, src ObjectHandle) error {
+	srcGCS, srcOk := src.(*GCSObject)
+	dstGCS, dstOk := dst.(*GCSObject)
+	if srcOk && dstOk {
+		if _, err := dstGCS.CopierFrom(srcGCS.ObjectHandle).Run(ctx); err != nil {
+			return fmt.Errorf("failed to use gcs copier to copy from %s to %s: %w", srcGCS.ObjectName(), dstGCS.ObjectName(), err)
+		}
+		return nil
+	}
+
+	reader, err := src.NewReader(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create reader for source: %w", err)
 	}
 	defer reader.Close()
 
-	writer, err := dest.NewWriter(ctx)
+	writer, err := dst.NewWriter(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create writer for destination: %w", err)
 	}
