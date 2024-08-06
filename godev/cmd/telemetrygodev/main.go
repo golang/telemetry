@@ -233,7 +233,7 @@ func handleChart(ctx context.Context, w http.ResponseWriter, date string, render
 	// TODO(rfindley): refactor to return a content.HandlerFunc once we can use Go 1.22 routing.
 	page := chartPage{Date: date}
 	var err error
-	page.Charts, err = loadCharts(ctx, date, chartBucket)
+	page.Charts, err = loadCharts(ctx, date+".json", chartBucket)
 	if errors.Is(err, storage.ErrObjectNotExist) {
 		return content.Status(w, http.StatusNotFound)
 	} else if err != nil {
