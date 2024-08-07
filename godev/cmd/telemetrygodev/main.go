@@ -167,12 +167,7 @@ func handleRoot(render renderer, fsys fs.FS, chartBucket storage.BucketHandle, l
 		if chartObj == "" {
 			page.ChartError = "No data."
 		} else {
-			start, end, aggregate := strings.Cut(strings.TrimSuffix(chartObj, ".json"), "_")
-			if aggregate {
-				page.ChartTitle = fmt.Sprintf("Uploaded data for %s-%s", start, end)
-			} else {
-				page.ChartTitle = fmt.Sprintf("Uploaded data for %s", start)
-			}
+			page.ChartTitle = chartTitle(chartObj)
 			charts, err := loadCharts(ctx, chartObj, chartBucket)
 			if err != nil {
 				log.ErrorContext(ctx, fmt.Sprintf("error loading index charts: %v", err))
@@ -183,6 +178,14 @@ func handleRoot(render renderer, fsys fs.FS, chartBucket storage.BucketHandle, l
 		}
 		return render(w, "index.html", page)
 	}
+}
+
+func chartTitle(objName string) string {
+	start, end, aggregate := strings.Cut(strings.TrimSuffix(objName, ".json"), "_")
+	if aggregate {
+		return fmt.Sprintf("Aggregate charts for %s to %s", start, end)
+	}
+	return fmt.Sprintf("Charts for %s", start)
 }
 
 type chartsPage []string
@@ -217,8 +220,9 @@ func handleCharts(render renderer, chartBucket storage.BucketHandle) content.Han
 }
 
 type chartPage struct {
-	Date   string
-	Charts map[string]any
+	Date       string
+	ChartTitle string
+	Charts     map[string]any
 }
 
 func (p chartPage) Breadcrumbs() []breadcrumb {
@@ -233,7 +237,9 @@ func handleChart(ctx context.Context, w http.ResponseWriter, date string, render
 	// TODO(rfindley): refactor to return a content.HandlerFunc once we can use Go 1.22 routing.
 	page := chartPage{Date: date}
 	var err error
-	page.Charts, err = loadCharts(ctx, date+".json", chartBucket)
+	objName := date + ".json"
+	page.ChartTitle = chartTitle(objName)
+	page.Charts, err = loadCharts(ctx, objName, chartBucket)
 	if errors.Is(err, storage.ErrObjectNotExist) {
 		return content.Status(w, http.StatusNotFound)
 	} else if err != nil {

@@ -70,8 +70,8 @@ function partition({ Data, Name }: Chart) {
 
   return Plot.plot({
     color: {
-      type: "ordinal",
-      scheme: "Spectral",
+      type: "categorical",
+      scheme: "set2",
     },
     nice: true,
     x: {
@@ -85,7 +85,14 @@ function partition({ Data, Name }: Chart) {
       domain: [0, max + 1], // adjust domain to prevent rendering issues, especially with all-zero data.
     },
     width: 1024,
-    style: "overflow:visible;background:transparent;margin-bottom:3rem;",
+    style: {
+      overflow: "visible",
+      background: "transparent",
+      marginBottom: "3rem",
+      fontSize: "0.8rem",
+      marginTop: "1rem",
+    },
+    insetTop: 20, // leave enough space between the axis label and marks
     marks: [
       Plot.barY(Data, {
         tip: true,
