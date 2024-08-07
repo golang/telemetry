@@ -81,7 +81,7 @@ function partition({ Data, Name }: Chart) {
       domain: Data.map((d) => d.Key),
     },
     y: {
-      label: "Count",
+      label: "Reports", // currently, partition charts count the number of reports, not counter totals.
       domain: [0, max + 1], // adjust domain to prevent rendering issues, especially with all-zero data.
     },
     width: 1024,
