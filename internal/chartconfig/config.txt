@@ -138,3 +138,11 @@ description: measure distribution of failed govulncheck internal assumptions
 type: partition
 issue: https://go.dev/issue/67678
 program: golang.org/x/vuln/cmd/govulncheck
+---
+counter: gopls/gotoolchain:{auto,path,local,other}
+title: GOTOOLCHAIN types used with gopls
+description: measure the types of GOTOOLCHAIN values used with gopls
+type: partition
+issue: https://go.dev/issue/68771
+program: golang.org/x/tools/gopls
+version: v0.16.0
