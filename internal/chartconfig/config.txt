@@ -146,3 +146,11 @@ type: partition
 issue: https://go.dev/issue/68771
 program: golang.org/x/tools/gopls
 version: v0.16.0
+---
+counter: gopls/telemetryprompt/accepted
+title: Count of Telemetry Prompt Acceptances
+description: measure how often the gopls prompt to enable telemetry is accepted
+type: partition
+issue: https://go.dev/issue/68770
+program: golang.org/x/tools/gopls
+version: v0.16.0

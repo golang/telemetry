@@ -626,6 +626,10 @@
 				{
 					"Name": "gopls/gotoolchain:{auto,path,local,other}",
 					"Rate": 1
+				},
+				{
+					"Name": "gopls/telemetryprompt/accepted",
+					"Rate": 1
 				}
 			],
 			"Stacks": [
