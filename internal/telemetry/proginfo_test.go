@@ -50,9 +50,6 @@ func TestProgramInfo_ProgramVersion(t *testing.T) {
 			want:    "go1.23.0", // hard-coded below
 		},
 	}
-	type info struct {
-		GoVers, ProgPkgPath, Prog, ProgVer string
-	}
 	buildInfo, ok := debug.ReadBuildInfo()
 	if !ok {
 		t.Fatal("cannot use debug.ReadBuildInfo")
@@ -68,6 +65,50 @@ func TestProgramInfo_ProgramVersion(t *testing.T) {
 			_, _, got := telemetry.ProgramInfo(&in)
 			if got != tt.want {
 				t.Errorf("program version = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestProgramInfo_GoVersion(t *testing.T) {
+	tests := []struct {
+		goVersion  string
+		wantGoVers string
+	}{
+		{
+			"go1.23.0-bigcorp",
+			"devel",
+		},
+		{
+			"go1.23.0",
+			"go1.23.0",
+		},
+		{
+			"devel go1.24-0d6bb68f48 Thu Jul 25 23:27:41 2024 -0600",
+			"devel",
+		},
+		{
+			"go1.23rc2 X:aliastypeparams",
+			"devel",
+		},
+	}
+	buildInfo, ok := debug.ReadBuildInfo()
+	if !ok {
+		t.Fatal("cannot use debug.ReadBuildInfo")
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.goVersion, func(t *testing.T) {
+			in := *buildInfo
+			in.GoVersion = tt.goVersion
+			in.Path = "cmd/go"
+			in.Main.Version = tt.goVersion
+			gotGoVers, _, gotProgVers := telemetry.ProgramInfo((&in))
+			if gotGoVers != tt.wantGoVers {
+				t.Errorf("go version = %q, want %q", gotGoVers, tt.wantGoVers)
+			}
+			if gotProgVers != tt.wantGoVers {
+				t.Errorf("program version = %q, want %q", gotProgVers, tt.wantGoVers)
 			}
 		})
 	}
