@@ -105,6 +105,8 @@ func TestPaths(t *testing.T) {
 		fragments []string
 	}{
 		{"GET", "/", "", 200, []string{"Go Telemetry"}},
+		{"GET", "/privacy", "", 200, []string{"Privacy Policy"}},
+		{"GET", "/config", "", 200, []string{"Chart Config"}},
 		{
 			"POST",
 			"/upload/2023-01-01/123.json",

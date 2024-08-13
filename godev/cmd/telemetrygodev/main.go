@@ -12,7 +12,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"io"
 	"io/fs"
 	"log"
@@ -67,7 +66,7 @@ func newHandler(ctx context.Context, cfg *config.Config) http.Handler {
 	mux := http.NewServeMux()
 
 	render := func(w http.ResponseWriter, tmpl string, page any) error {
-		return content.Template(w, fsys, tmpl, chartFuncs(), page, http.StatusOK)
+		return content.Template(w, fsys, tmpl, page, http.StatusOK)
 	}
 
 	logger := slog.Default()
@@ -87,20 +86,6 @@ func newHandler(ctx context.Context, cfg *config.Config) http.Handler {
 		middleware.Recover(),
 	)
 	return mw(mux)
-}
-
-func chartFuncs() template.FuncMap {
-	return template.FuncMap{
-		"chartName": func(name string) string {
-			name, _, _ = strings.Cut(name, ":")
-			return name
-		},
-		"programName": func(name string) string {
-			name = strings.TrimPrefix(name, "golang.org/")
-			name = strings.TrimPrefix(name, "github.com/")
-			return name
-		},
-	}
 }
 
 // breadcrumb holds a breadcrumb nav element.
@@ -401,6 +386,6 @@ func handleConfig(fsys fs.FS, ucfg *tconfig.Config) content.HandlerFunc {
 			ChartConfig:  string(ccfg),
 			UploadConfig: string(cfgJSON),
 		}
-		return content.Template(w, fsys, "config.html", chartFuncs(), page, http.StatusOK)
+		return content.Template(w, fsys, "config.html", page, http.StatusOK)
 	}
 }
