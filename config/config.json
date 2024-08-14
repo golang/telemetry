@@ -338,7 +338,8 @@
 		"go1.22.5",
 		"go1.22.6",
 		"go1.23rc1",
-		"go1.23rc2"
+		"go1.23rc2",
+		"go1.23.0"
 	],
 	"SampleRate": 1,
 	"Programs": [
@@ -346,7 +347,8 @@
 			"Name": "cmd/compile",
 			"Versions": [
 				"go1.23rc1",
-				"go1.23rc2"
+				"go1.23rc2",
+				"go1.23.0"
 			],
 			"Counters": [
 				{
@@ -366,7 +368,8 @@
 			"Name": "cmd/go",
 			"Versions": [
 				"go1.23rc1",
-				"go1.23rc2"
+				"go1.23rc2",
+				"go1.23.0"
 			],
 			"Counters": [
 				{
