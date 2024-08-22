@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/telemetry/internal/configstore"
@@ -48,10 +49,7 @@ func Run(config RunConfig) error {
 // uploader encapsulates a single upload operation, carrying parameters and
 // shared state.
 type uploader struct {
-	// config is used to select counters to upload.
-	config        *telemetry.UploadConfig //
-	configVersion string                  // version of the config
-	dir           telemetry.Dir           // the telemetry dir to process
+	dir telemetry.Dir // the telemetry dir to process
 
 	uploadServerURL string
 	startTime       time.Time
@@ -60,6 +58,22 @@ type uploader struct {
 
 	logFile *os.File
 	logger  *log.Logger
+
+	// golang/go#68946: the telemetry upload configuration is lazily downloaded
+	// in order to avoid polluting the module cache with the telemetry config
+	// module when no such config is necessary.
+	//
+	// config, configVersion, and configErr store the result of
+	// [configstore.Download], guarded by configOnce. Access the downloaded
+	// result with [uploader.getUploadConfig].
+	//
+	// (as of writing, the config download need not be concurrency safe, but the
+	// use of a sync.Once simplifies control flow).
+	configEnv     []string
+	configOnce    sync.Once
+	config        *telemetry.UploadConfig
+	configVersion string
+	configErr     error
 }
 
 // newUploader creates a new uploader to use for running the upload for the
@@ -111,12 +125,6 @@ func newUploader(rcfg RunConfig) (*uploader, error) {
 	}
 	logger := log.New(logWriter, "", log.Ltime|log.Lmicroseconds|log.Lshortfile)
 
-	// Fetch the upload config, if it is not provided.
-	config, configVersion, err := configstore.Download("latest", rcfg.Env)
-	if err != nil {
-		return nil, err
-	}
-
 	// Set the start time, if it is not provided.
 	startTime := time.Now().UTC()
 	if !rcfg.StartTime.IsZero() {
@@ -124,8 +132,8 @@ func newUploader(rcfg RunConfig) (*uploader, error) {
 	}
 
 	return &uploader{
-		config:          config,
-		configVersion:   configVersion,
+		configEnv: rcfg.Env,
+
 		dir:             dir,
 		uploadServerURL: uploadURL,
 		startTime:       startTime,
@@ -133,6 +141,16 @@ func newUploader(rcfg RunConfig) (*uploader, error) {
 		logFile: logFile,
 		logger:  logger,
 	}, nil
+}
+
+// getUploadConfig returns the upload configuration and config version to use
+// for this upload pass. These values are evaluated lazily, calling
+// [configstore.Download] the first time getUploadConfig is called.
+func (u *uploader) getUploadConfig() (*telemetry.UploadConfig, string, error) {
+	u.configOnce.Do(func() {
+		u.config, u.configVersion, u.configErr = configstore.Download("latest", u.configEnv)
+	})
+	return u.config, u.configVersion, u.configErr
 }
 
 // Close cleans up any resources associated with the uploader.

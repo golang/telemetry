@@ -120,33 +120,19 @@ func (u *uploader) deleteFiles(files []string) {
 // returns the upload report file's path.
 // It may delete the count files once local and upload report
 // files are successfully created.
+//
+// TODO(rfindley): refactor this function to simplify control flow,
+// particularly the resolution of 'uploadOK', and to separate the intermingling
+// of local and upload reports. The latter can be produced as a post-processing
+// pass.
 func (u *uploader) createReport(start time.Time, expiryDate string, countFiles []string, lastWeek string) (string, error) {
-	uploadOK := true
-	mode, asof := u.dir.Mode()
-	if mode != "on" {
-		u.logger.Printf("No upload config or mode %q is not 'on'", mode)
-		uploadOK = false // no config, nothing to upload
-	}
-	if u.tooOld(expiryDate, u.startTime) {
-		u.logger.Printf("Expiry date %s is too old", expiryDate)
-		uploadOK = false
-	}
-	// If the mode is recorded with an asof date, don't upload if the report
-	// includes any data on or before the asof date.
-	if !asof.IsZero() && !asof.Before(start) {
-		u.logger.Printf("As-of date %s is not before start %s", asof, start)
-		uploadOK = false
-	}
 	// TODO(rfindley): check that all the x.Meta are consistent for GOOS, GOARCH, etc.
 	report := &telemetry.Report{
-		Config:   u.configVersion,
+		// Note: Config is unset for local reports, to avoid the config download if
+		// uploading is not enabled.
 		X:        computeRandom(), // json encodes all the bits
 		Week:     expiryDate,
 		LastWeek: lastWeek,
-	}
-	if report.X > u.config.SampleRate && u.config.SampleRate > 0 {
-		u.logger.Printf("X: %f > SampleRate:%f, not uploadable", report.X, u.config.SampleRate)
-		uploadOK = false
 	}
 	var succeeded bool
 	for _, f := range countFiles {
@@ -187,15 +173,39 @@ func (u *uploader) createReport(start time.Time, expiryDate string, countFiles [
 		return "", fmt.Errorf("failed to unmarshal local report for %s: %v", expiryDate, err)
 	}
 
+	// 2. Create the uploadable version, if applicable.
+	uploadOK := true
 	var uploadContents []byte
+	mode, asof := u.dir.Mode() // TODO(rfindley): read the mode once, at the start of the upload pass.
+	if mode != "on" {
+		u.logger.Printf("Mode %q is not 'on'", mode)
+		uploadOK = false
+	}
+	if u.tooOld(expiryDate, u.startTime) {
+		u.logger.Printf("Expiry date %s is too old for upload", expiryDate)
+		uploadOK = false
+	}
+	// If the mode is recorded with an asof date, don't upload if the report
+	// includes any data on or before the asof date.
+	if !asof.IsZero() && !asof.Before(start) {
+		u.logger.Printf("As-of date %s is not before start %s", asof, start)
+		uploadOK = false
+	}
 	if uploadOK {
-		// 2. create the uploadable version
-		cfg := config.NewConfig(u.config)
+		uploadConfig, configVersion, err := u.getUploadConfig()
+		if err != nil {
+			return "", fmt.Errorf("config download failed: %v", err)
+		}
+		if report.X > uploadConfig.SampleRate && uploadConfig.SampleRate > 0 {
+			u.logger.Printf("X: %f > SampleRate:%f, not uploadable", report.X, uploadConfig.SampleRate)
+			uploadOK = false
+		}
+		cfg := config.NewConfig(uploadConfig)
 		upload := &telemetry.Report{
 			Week:     report.Week,
 			LastWeek: report.LastWeek,
 			X:        report.X,
-			Config:   report.Config,
+			Config:   configVersion,
 		}
 		for _, p := range report.Programs {
 			// does the uploadConfig want this program?
@@ -251,6 +261,9 @@ func (u *uploader) createReport(start time.Time, expiryDate string, countFiles [
 	// write the uploadable file
 	var errUpload, errLocal error
 	if uploadOK {
+		// Note: moving this write to the 'uploadOK' block above would subtly
+		// change control flow in the presence of racing uploads, because of the
+		// stats above. (see TODO above regarding refactoring)
 		_, errUpload = exclusiveWrite(uploadFileName, uploadContents)
 	}
 	// write the local file
