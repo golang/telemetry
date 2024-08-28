@@ -16,9 +16,6 @@ import (
 
 // Config is a wrapper around telemetry.UploadConfig that provides some
 // convenience methods for checking the contents of a report.
-//
-// TODO(rfindley): remove the embedded UploadConfig and just call this
-// 'ConfigInfo'. There's no need for this to be a wrapper.
 type Config struct {
 	*telemetry.UploadConfig
 	program         map[string]bool
