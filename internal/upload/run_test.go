@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"golang.org/x/telemetry/counter"
+	"golang.org/x/telemetry/internal/configstore"
 	"golang.org/x/telemetry/internal/configtest"
 	"golang.org/x/telemetry/internal/regtest"
 	"golang.org/x/telemetry/internal/telemetry"
@@ -430,12 +431,13 @@ func TestRun_ModeHandling(t *testing.T) {
 	prog := regtest.NewIncProgram(t, "prog1", "counter")
 
 	tests := []struct {
-		mode        string
-		wantUploads int
+		mode                string
+		wantConfigDownloads int64
+		wantUploads         int
 	}{
-		{"off", 0},
-		{"local", 0},
-		{"on", 1}, // only the second week is uploadable
+		{"off", 0, 0},
+		{"local", 0, 0},
+		{"on", 1, 1}, // only the second week is uploadable
 	}
 	for _, test := range tests {
 		t.Run(test.mode, func(t *testing.T) {
@@ -459,8 +461,13 @@ func TestRun_ModeHandling(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			downloadsBefore := configstore.Downloads()
 			if err := upload.Run(cfg); err != nil {
 				t.Fatal(err)
+			}
+
+			if got := configstore.Downloads() - downloadsBefore; got != test.wantConfigDownloads {
+				t.Errorf("configstore.Download called: %v, want %v", got, test.wantConfigDownloads)
 			}
 
 			uploads := getUploads()
