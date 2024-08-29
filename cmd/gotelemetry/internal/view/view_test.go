@@ -100,7 +100,7 @@ func Test_summary(t *testing.T) {
 
 func Test_reportsDomain(t *testing.T) {
 	mustParseDate := func(date string) time.Time {
-		ts, err := time.Parse(time.DateOnly, date)
+		ts, err := time.Parse(telemetry.DateOnly, date)
 		if err != nil {
 			t.Fatalf("failed to parse date %q: %v", date, err)
 		}

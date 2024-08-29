@@ -437,7 +437,7 @@ func formatDateTime(date time.Time) string {
 // parseReportDate parses the date string in the format
 // used byt the telemetry report.
 func parseReportDate(s string) (time.Time, error) {
-	return time.Parse(time.DateOnly, s)
+	return time.Parse(telemetry.DateOnly, s)
 }
 
 // charts returns chartdata for a set of telemetry reports. It uses the config
@@ -580,7 +580,7 @@ func pending(files []*counterFile, cfg *config.Config) []*telemetryReport {
 			log.Printf("skipping malformed %v: unexpected TimeEnd value %q", f.ID, f.Meta["TimeEnd"])
 			continue
 		}
-		week := tb.Format(time.DateOnly)
+		week := tb.Format(telemetry.DateOnly)
 		if _, ok := reports[week]; !ok {
 			reports[week] = &telemetry.Report{Week: week}
 		}

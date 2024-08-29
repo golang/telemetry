@@ -75,7 +75,7 @@ func TestRotateCounters(t *testing.T) {
 	// move into the future and rotate the file, remapping it
 	now = now.Add(7 * 24 * time.Hour)
 	f.rotate()
-	if got, want := f.timeBegin.Format(time.DateOnly), now.Format(time.DateOnly); got != want {
+	if got, want := f.timeBegin.Format(telemetry.DateOnly), now.Format(telemetry.DateOnly); got != want {
 		t.Errorf("f.timeBegin = %q, want %q", got, want)
 	}
 
@@ -167,8 +167,8 @@ func TestRotate(t *testing.T) {
 			t.Fatalf("err=%v, len(fi) = %d, want 2", err, len(fi))
 		}
 		x := fi[0].Name()
-		y := x[len(x)-len(time.DateOnly)-len(".v1.count") : len(x)-len(".v1.count")]
-		us, err := time.ParseInLocation(time.DateOnly, y, time.UTC)
+		y := x[len(x)-len(telemetry.DateOnly)-len(".v1.count") : len(x)-len(".v1.count")]
+		us, err := time.ParseInLocation(telemetry.DateOnly, y, time.UTC)
 		if err != nil {
 			t.Fatal(err)
 		}

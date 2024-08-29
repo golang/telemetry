@@ -102,7 +102,7 @@ func handleCopy(cfg *config.Config, dest *storage.API) content.HandlerFunc {
 		g.SetLimit(concurrency)
 
 		for date := start; !date.After(end); date = date.AddDate(0, 0, 1) {
-			it := sourceBucket.Objects(ctx, date.Format(time.DateOnly))
+			it := sourceBucket.Objects(ctx, date.Format(telemetry.DateOnly))
 			for {
 				fileName, err := it.Next()
 				if errors.Is(err, storage.ErrObjectIteratorDone) {
@@ -138,13 +138,13 @@ func handleTasks(cfg *config.Config) content.HandlerFunc {
 
 		// Copy the past 20 days uploaded reports from prod to dev gcs bucket.
 		if cfg.Env != "prod" {
-			url := cfg.WorkerURL + "/copy/?start=" + now.AddDate(0, 0, -1*20).Format(time.DateOnly) + "&end=" + now.Format(time.DateOnly)
+			url := cfg.WorkerURL + "/copy/?start=" + now.AddDate(0, 0, -1*20).Format(telemetry.DateOnly) + "&end=" + now.Format(telemetry.DateOnly)
 			if _, err := createHTTPTask(cfg, url); err != nil {
 				return err
 			}
 		}
 		for i := 7; i > 0; i-- {
-			date := now.AddDate(0, 0, -1*i).Format(time.DateOnly)
+			date := now.AddDate(0, 0, -1*i).Format(telemetry.DateOnly)
 			url := cfg.WorkerURL + "/merge/?date=" + date
 			if _, err := createHTTPTask(cfg, url); err != nil {
 				return err
@@ -154,7 +154,7 @@ func handleTasks(cfg *config.Config) content.HandlerFunc {
 		// coded one day delay.
 		for i := 8; i > 1; i-- {
 			// Daily chart: generate chart using one day's data.
-			date := now.AddDate(0, 0, -1*i).Format(time.DateOnly)
+			date := now.AddDate(0, 0, -1*i).Format(telemetry.DateOnly)
 			url := cfg.WorkerURL + "/chart/?date=" + date
 			if _, err := createHTTPTask(cfg, url); err != nil {
 				return err
@@ -163,7 +163,7 @@ func handleTasks(cfg *config.Config) content.HandlerFunc {
 			// Weekly chart: generate chart using past 7 days' data.
 			end := now.AddDate(0, 0, -1*i)
 			start := end.AddDate(0, 0, -6)
-			url = cfg.WorkerURL + "/chart/?start=" + start.Format(time.DateOnly) + "&end=" + end.Format(time.DateOnly)
+			url = cfg.WorkerURL + "/chart/?start=" + start.Format(telemetry.DateOnly) + "&end=" + end.Format(telemetry.DateOnly)
 			if _, err := createHTTPTask(cfg, url); err != nil {
 				return err
 			}
@@ -213,7 +213,7 @@ func handleMerge(s *storage.API) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		date := r.URL.Query().Get("date")
-		if _, err := time.Parse(time.DateOnly, date); err != nil {
+		if _, err := time.Parse(telemetry.DateOnly, date); err != nil {
 			return content.Error(err, http.StatusBadRequest)
 		}
 		it := s.Upload.Objects(ctx, date)
@@ -259,10 +259,10 @@ func handleMerge(s *storage.API) content.HandlerFunc {
 
 func fileName(start, end time.Time) string {
 	if start.Equal(end) {
-		return end.Format(time.DateOnly) + ".json"
+		return end.Format(telemetry.DateOnly) + ".json"
 	}
 
-	return start.Format(time.DateOnly) + "_" + end.Format(time.DateOnly) + ".json"
+	return start.Format(telemetry.DateOnly) + "_" + end.Format(telemetry.DateOnly) + ".json"
 }
 
 // parseDateRange returns the start and end date from the given url.
@@ -271,7 +271,7 @@ func parseDateRange(url *url.URL) (start, end time.Time, _ error) {
 		if url.Query().Get("start") != "" || url.Query().Get("end") != "" {
 			return time.Time{}, time.Time{}, content.Error(fmt.Errorf("start or end key should be empty when date key is being used"), http.StatusBadRequest)
 		}
-		date, err := time.Parse(time.DateOnly, dateString)
+		date, err := time.Parse(telemetry.DateOnly, dateString)
 		if err != nil {
 			return time.Time{}, time.Time{}, content.Error(err, http.StatusBadRequest)
 		}
@@ -280,12 +280,12 @@ func parseDateRange(url *url.URL) (start, end time.Time, _ error) {
 
 	var err error
 	startString := url.Query().Get("start")
-	start, err = time.Parse(time.DateOnly, startString)
+	start, err = time.Parse(telemetry.DateOnly, startString)
 	if err != nil {
 		return time.Time{}, time.Time{}, content.Error(err, http.StatusBadRequest)
 	}
 	endString := url.Query().Get("end")
-	end, err = time.Parse(time.DateOnly, endString)
+	end, err = time.Parse(telemetry.DateOnly, endString)
 	if err != nil {
 		return time.Time{}, time.Time{}, content.Error(err, http.StatusBadRequest)
 	}
@@ -330,7 +330,7 @@ func handleChart(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
 		var reports []telemetry.Report
 		var xs []float64
 		for date := start; !date.After(end); date = date.AddDate(0, 0, 1) {
-			dailyReports, err := readMergedReports(ctx, date.Format(time.DateOnly)+".json", s)
+			dailyReports, err := readMergedReports(ctx, date.Format(telemetry.DateOnly)+".json", s)
 			if err != nil {
 				return err
 			}
@@ -341,7 +341,7 @@ func handleChart(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
 		}
 
 		data := nest(reports)
-		charts := charts(cfg, start.Format(time.DateOnly), end.Format(time.DateOnly), data, xs)
+		charts := charts(cfg, start.Format(telemetry.DateOnly), end.Format(telemetry.DateOnly), data, xs)
 
 		obj := fileName(start, end)
 		out, err := s.Chart.Object(obj).NewWriter(ctx)
@@ -357,7 +357,7 @@ func handleChart(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
 			return err
 		}
 
-		msg := fmt.Sprintf("processed %d reports from date %s to %s into %s", len(reports), start.Format(time.DateOnly), end.Format(time.DateOnly), s.Chart.URI()+"/"+obj)
+		msg := fmt.Sprintf("processed %d reports from date %s to %s into %s", len(reports), start.Format(telemetry.DateOnly), end.Format(telemetry.DateOnly), s.Chart.URI()+"/"+obj)
 		return content.Text(w, msg, http.StatusOK)
 	}
 }

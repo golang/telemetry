@@ -834,7 +834,7 @@ func TestParseDateRange(t *testing.T) {
 
 			if !tc.wantErr {
 				if !gotStart.Equal(tc.wantStart) || !gotEnd.Equal(tc.wantEnd) {
-					t.Errorf("parseDateRange(%s) = (%s, %s), want (%s, %s)", tc.url, gotStart.Format(time.DateOnly), gotEnd.Format(time.DateOnly), tc.wantStart.Format(time.DateOnly), tc.wantEnd.Format(time.DateOnly))
+					t.Errorf("parseDateRange(%s) = (%s, %s), want (%s, %s)", tc.url, gotStart.Format(telemetry.DateOnly), gotEnd.Format(telemetry.DateOnly), tc.wantStart.Format(telemetry.DateOnly), tc.wantEnd.Format(telemetry.DateOnly))
 				}
 			}
 		})
