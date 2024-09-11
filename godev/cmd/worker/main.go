@@ -421,14 +421,14 @@ func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chart
 
 // partition builds a chart for the program and the counter. It can return nil
 // if there is no data for the counter in dat.
-func (d data) partition(program, counterPrefix string, counters []string) *chart {
+func (d data) partition(program, counter string, counters []string) *chart {
+	prefix, _ := splitCounterName(counter)
 	count := &chart{
-		ID:   "charts:" + program + ":" + counterPrefix,
-		Name: counterPrefix,
+		ID:   "charts:" + program + ":" + prefix,
+		Name: prefix,
 		Type: "partition",
 	}
 	pk := programName(program)
-	prefix, _ := splitCounterName(counterPrefix)
 	gk := graphName(prefix)
 
 	var (
@@ -449,7 +449,7 @@ func (d data) partition(program, counterPrefix string, counters []string) *chart
 		seen := make(map[string]bool)
 		for _, b := range counters {
 			// TODO(hyangah): let caller normalize names in counters.
-			counter := normalizeCounterName(counterPrefix, b)
+			counter := normalizeCounterName(counter, b)
 			if seen[counter] {
 				continue
 			}

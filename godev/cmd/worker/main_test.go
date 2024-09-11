@@ -526,9 +526,10 @@ func TestCharts(t *testing.T) {
 				{
 					Name:     "example.com/mod/pkg",
 					Versions: []string{"v0.15.0"},
-					Counters: []telemetry.CounterConfig{{
-						Name: "count2",
-					}},
+					Counters: []telemetry.CounterConfig{
+						{Name: "count2"},
+						{Name: "flag:{a,b,c}"},
+					},
 				},
 			},
 		},
@@ -629,6 +630,16 @@ func TestCharts(t *testing.T) {
 							Key:   "go1.2",
 							Value: 2,
 						}},
+					},
+					{
+						ID:   "charts:example.com/mod/pkg:flag",
+						Name: "flag",
+						Type: "partition",
+						Data: []*datum{
+							{Week: "2999-01-01", Key: "a", Value: 2},
+							{Week: "2999-01-01", Key: "b", Value: 2},
+							{Week: "2999-01-01", Key: "c", Value: 1},
+						},
 					},
 				},
 			},
