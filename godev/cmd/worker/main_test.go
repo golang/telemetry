@@ -19,7 +19,7 @@ var exampleReports = []telemetry.Report{
 	{
 		Week:     "2999-01-01",
 		LastWeek: "2998-01-01",
-		X:        0.123456789,
+		X:        0.1,
 		Programs: []*telemetry.ProgramReport{
 			{
 				Program:   "cmd/go",
@@ -47,13 +47,27 @@ var exampleReports = []telemetry.Report{
 					"panic": 4,
 				},
 			},
+			{
+				Program:   "example.com/mod/pkg",
+				Version:   "v2.3.4-pre.1",
+				GoVersion: "go1.2.3",
+				GOOS:      "darwin",
+				GOARCH:    "arm64",
+				Counters: map[string]int64{
+					"flag:b": 3,
+				},
+				// TODO: add support for stacks
+				Stacks: map[string]int64{
+					"panic": 2,
+				},
+			},
 		},
 		Config: "v0.0.1",
 	},
 	{
 		Week:     "2999-01-01",
 		LastWeek: "2998-01-01",
-		X:        0.123456789,
+		X:        0.2,
 		Programs: []*telemetry.ProgramReport{
 			{
 				Program:   "example.com/mod/pkg",
@@ -74,7 +88,7 @@ var exampleReports = []telemetry.Report{
 			{
 				Program:   "example.com/mod/pkg",
 				Version:   "v2.3.4",
-				GoVersion: "go1.2.3",
+				GoVersion: "go1.19.0",
 				GOOS:      "darwin",
 				GOARCH:    "arm64",
 				Counters: map[string]int64{
@@ -93,7 +107,7 @@ var exampleReports = []telemetry.Report{
 	{
 		Week:     "2999-01-01",
 		LastWeek: "2998-01-01",
-		X:        0.987654321,
+		X:        0.3,
 		Programs: []*telemetry.ProgramReport{
 			{
 				Program:   "example.com/mod/pkg",
@@ -256,7 +270,7 @@ func TestPartition(t *testing.T) {
 					{
 						Week:  "2999-01-01",
 						Key:   "v2.3",
-						Value: 1,
+						Value: 2, // TODO(rfindley): why isn't this '2'? There are two reports in the data.
 					},
 				},
 			},
@@ -282,7 +296,7 @@ func TestPartition(t *testing.T) {
 					{
 						Week:  "2999-01-01",
 						Key:   "v2.3",
-						Value: 1,
+						Value: 2,
 					},
 				},
 			},
@@ -308,7 +322,7 @@ func TestPartition(t *testing.T) {
 					{
 						Week:  "2999-01-01",
 						Key:   "v2.3",
-						Value: 1,
+						Value: 2,
 					},
 				},
 			},
@@ -329,7 +343,7 @@ func TestPartition(t *testing.T) {
 					{
 						Week:  "2999-01-01",
 						Key:   "darwin",
-						Value: 1,
+						Value: 2,
 					},
 					{
 						Week:  "2999-01-01",
@@ -493,8 +507,9 @@ func TestPartition(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := tc.data.partition(tc.args.program, tc.args.name, tc.args.buckets); !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("partition() = %v, want %v", got, tc.want)
+			got := tc.data.partition(tc.args.program, tc.args.name, tc.args.buckets, nil)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("partition() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -506,7 +521,7 @@ func TestCharts(t *testing.T) {
 		UploadConfig: &telemetry.UploadConfig{
 			GOOS:       []string{"darwin"},
 			GOARCH:     []string{"amd64"},
-			GoVersion:  []string{"go1.2.3"},
+			GoVersion:  []string{"go1.2.3", "go1.19.0"},
 			SampleRate: 1,
 			Programs: []*telemetry.ProgramConfig{
 				{
@@ -524,8 +539,14 @@ func TestCharts(t *testing.T) {
 					}},
 				},
 				{
-					Name:     "example.com/mod/pkg",
-					Versions: []string{"v0.15.0"},
+					Name: "example.com/mod/pkg",
+					// Exercise semver sorting. Notably v1.2.3 has data but is not
+					// present.
+					//
+					// TODO(rfindley): in a follow-up CL, remove the MajMin collapsing of
+					// Versions. It's actually really interesting to see detailed version
+					// information.
+					Versions: []string{"v2.3.4", "v2.3.4-pre.1", "v0.15.0"},
 					Counters: []telemetry.CounterConfig{
 						{Name: "count2"},
 						{Name: "flag:{a,b,c}"},
@@ -545,41 +566,34 @@ func TestCharts(t *testing.T) {
 						ID:   "charts:cmd/go:GOOS",
 						Name: "GOOS",
 						Type: "partition",
-						Data: []*datum{{
-							Week:  "2999-01-01",
-							Key:   "darwin",
-							Value: 1,
-						}},
+						Data: []*datum{
+							{Week: "2999-01-01", Key: "darwin", Value: 1},
+						},
 					},
 					{
 						ID:   "charts:cmd/go:GOARCH",
 						Name: "GOARCH",
 						Type: "partition",
-						Data: []*datum{{
-							Week:  "2999-01-01",
-							Key:   "amd64",
-							Value: 0,
-						}},
+						Data: []*datum{
+							{Week: "2999-01-01", Key: "amd64", Value: 0},
+						},
 					},
 					{
 						ID:   "charts:cmd/go:GoVersion",
 						Name: "GoVersion",
 						Type: "partition",
-						Data: []*datum{{
-							Week:  "2999-01-01",
-							Key:   "go1.2",
-							Value: 1,
-						}},
+						Data: []*datum{
+							{Week: "2999-01-01", Key: "go1.2", Value: 1},
+							{Week: "2999-01-01", Key: "go1.19"},
+						},
 					},
 					{
 						ID:   "charts:cmd/go:main",
 						Name: "main",
 						Type: "partition",
-						Data: []*datum{{
-							Week:  "2999-01-01",
-							Key:   "main",
-							Value: 1,
-						}},
+						Data: []*datum{
+							{Week: "2999-01-01", Key: "main", Value: 1},
+						},
 					},
 				},
 			},
@@ -595,49 +609,43 @@ func TestCharts(t *testing.T) {
 						ID:   "charts:example.com/mod/pkg:Version",
 						Name: "Version",
 						Type: "partition",
-						Data: []*datum{{
-							Week:  "2999-01-01",
-							Key:   "v0.15",
-							Value: 0,
-						}},
+						Data: []*datum{
+							{Week: "2999-01-01", Key: "v0.15", Value: 0},
+							{Week: "2999-01-01", Key: "v2.3", Value: 2},
+						},
 					},
 					{
 						ID:   "charts:example.com/mod/pkg:GOOS",
 						Name: "GOOS",
 						Type: "partition",
-						Data: []*datum{{
-							Week:  "2999-01-01",
-							Key:   "darwin",
-							Value: 1,
-						}},
+						Data: []*datum{
+							{Week: "2999-01-01", Key: "darwin", Value: 2},
+						},
 					},
 					{
 						ID:   "charts:example.com/mod/pkg:GOARCH",
 						Name: "GOARCH",
 						Type: "partition",
-						Data: []*datum{{
-							Week:  "2999-01-01",
-							Key:   "amd64",
-							Value: 1,
-						}},
+						Data: []*datum{
+							{Week: "2999-01-01", Key: "amd64", Value: 1},
+						},
 					},
 					{
 						ID:   "charts:example.com/mod/pkg:GoVersion",
 						Name: "GoVersion",
 						Type: "partition",
-						Data: []*datum{{
-							Week:  "2999-01-01",
-							Key:   "go1.2",
-							Value: 2,
-						}},
+						Data: []*datum{
+							{Week: "2999-01-01", Key: "go1.2", Value: 3},
+							{Week: "2999-01-01", Key: "go1.19", Value: 1},
+						},
 					},
 					{
 						ID:   "charts:example.com/mod/pkg:flag",
 						Name: "flag",
 						Type: "partition",
 						Data: []*datum{
-							{Week: "2999-01-01", Key: "a", Value: 2},
-							{Week: "2999-01-01", Key: "b", Value: 2},
+							{Week: "2999-01-01", Key: "a", Value: 3},
+							{Week: "2999-01-01", Key: "b", Value: 3},
 							{Week: "2999-01-01", Key: "c", Value: 1},
 						},
 					},

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/version"
 	"io/fs"
 	"log"
 	"net/http"
@@ -399,16 +400,16 @@ func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chart
 		result.Programs = append(result.Programs, prog)
 		var charts []*chart
 		if !telemetry.IsToolchainProgram(p.Name) {
-			charts = append(charts, d.partition(p.Name, "Version", p.Versions))
+			charts = append(charts, d.partition(p.Name, "Version", p.Versions, compareSemver))
 		}
 		charts = append(charts,
-			d.partition(p.Name, "GOOS", cfg.GOOS),
-			d.partition(p.Name, "GOARCH", cfg.GOARCH),
-			d.partition(p.Name, "GoVersion", cfg.GoVersion))
+			d.partition(p.Name, "GOOS", cfg.GOOS, nil),
+			d.partition(p.Name, "GOARCH", cfg.GOARCH, nil),
+			d.partition(p.Name, "GoVersion", cfg.GoVersion, version.Compare))
 		for _, c := range p.Counters {
 			// TODO: add support for histogram counters by getting the counter type
 			// from the chart config.
-			charts = append(charts, d.partition(p.Name, c.Name, tconfig.Expand(c.Name)))
+			charts = append(charts, d.partition(p.Name, c.Name, tconfig.Expand(c.Name), nil))
 		}
 		for _, p := range charts {
 			if p != nil {
@@ -419,11 +420,36 @@ func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chart
 	return result
 }
 
+// compareSemver wraps semver.Compare, to differentiate equivalent semver
+// lexically, as we want all sorting to be stable.
+func compareSemver(x, y string) int {
+	c := semver.Compare(x, y)
+	if c != 0 {
+		return c
+	}
+	return compareLexically(x, y)
+}
+
+func compareLexically(x, y string) int {
+	switch {
+	case x < y:
+		return -1
+	case x == y:
+		return 0
+	default:
+		return 1
+	}
+}
+
 // partition builds a chart for the program and the counter. It can return nil
-// if there is no data for the counter in dat.
-func (d data) partition(program, counter string, counters []string) *chart {
+// if there is no data for the counter in d.
+//
+// if compareBuckets is provided, it is used to sort the buckets, where
+// compareBuckets returns -1, 0, or +1 if x < y, x == y, or x > y.
+// Otherwise, buckets are sorted lexically.
+func (d data) partition(program, counter string, counters []string, compareBuckets func(x, y string) int) *chart {
 	prefix, _ := splitCounterName(counter)
-	count := &chart{
+	chart := &chart{
 		ID:   "charts:" + program + ":" + prefix,
 		Name: prefix,
 		Type: "partition",
@@ -468,20 +494,23 @@ func (d data) partition(program, counter string, counters []string) *chart {
 	}
 
 	// datum.Week always points to the end date
-	for k, v := range counts {
+	for bucket, v := range counts {
 		d := &datum{
 			Week:  string(end),
-			Key:   k,
+			Key:   bucket,
 			Value: v,
 		}
-		count.Data = append(count.Data, d)
+		chart.Data = append(chart.Data, d)
+	}
+	if compareBuckets == nil {
+		compareBuckets = compareLexically
 	}
 	// Sort the data based on bucket name to ensure deterministic output.
-	sort.Slice(count.Data, func(i, j int) bool {
-		return count.Data[i].Key < count.Data[j].Key
+	sort.Slice(chart.Data, func(i, j int) bool {
+		return compareBuckets(chart.Data[i].Key, chart.Data[j].Key) < 0
 	})
 
-	return count
+	return chart
 }
 
 // weekName is the date of the report week in the format "YYYY-MM-DD".
