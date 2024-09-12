@@ -6,7 +6,6 @@ package main
 
 import (
 	"net/url"
-	"reflect"
 	"testing"
 	"time"
 
@@ -174,33 +173,21 @@ func TestNest(t *testing.T) {
 				weekName("2999-01-01"): {
 					programName("example.com/mod/pkg"): {
 						graphName("Version"): {
-							counterName("Version"): {
-								reportID(0.1234567890): 1,
-							},
 							counterName("Version:v1.2"): {
 								reportID(0.1234567890): 1,
 							},
 						},
 						graphName("GOOS"): {
-							counterName("GOOS"): {
-								reportID(0.1234567890): 1,
-							},
 							counterName("GOOS:darwin"): {
 								reportID(0.1234567890): 1,
 							},
 						},
 						graphName("GOARCH"): {
-							counterName("GOARCH"): {
-								reportID(0.1234567890): 1,
-							},
 							counterName("GOARCH:arm64"): {
 								reportID(0.1234567890): 1,
 							},
 						},
 						graphName("GoVersion"): {
-							counterName("GoVersion"): {
-								reportID(0.1234567890): 1,
-							},
 							counterName("GoVersion:go1.2"): {
 								reportID(0.1234567890): 1,
 							},
@@ -211,9 +198,6 @@ func TestNest(t *testing.T) {
 							},
 						},
 						graphName("flag"): {
-							counterName("flag"): {
-								reportID(0.1234567890): 5,
-							},
 							counterName("flag:a"): {
 								reportID(0.1234567890): 2,
 							},
@@ -229,8 +213,8 @@ func TestNest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := nest(tt.args.reports)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("nest() = %v, want %v", got, tt.want)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("nest() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -571,14 +555,6 @@ func TestCharts(t *testing.T) {
 						},
 					},
 					{
-						ID:   "charts:cmd/go:GOARCH",
-						Name: "GOARCH",
-						Type: "partition",
-						Data: []*datum{
-							{Week: "2999-01-01", Key: "amd64", Value: 0},
-						},
-					},
-					{
 						ID:   "charts:cmd/go:GoVersion",
 						Name: "GoVersion",
 						Type: "partition",
@@ -733,7 +709,6 @@ func TestWriteCount(t *testing.T) {
 			},
 			wants: []keyValue{
 				{"2987-07-01", "golang.org/x/tools/gopls", "Version", "Version:v0.15", 0.00009, 1},
-				{"2987-07-01", "golang.org/x/tools/gopls", "Version", "Version", 0.00009, 1},
 			},
 		},
 		{
@@ -746,28 +721,25 @@ func TestWriteCount(t *testing.T) {
 			},
 		},
 		{
-			name: "sum together when calling multiple times",
+			name: "overwrite values when calling multiple times",
 			inputs: []keyValue{
 				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 1},
 				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 2},
 				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 3},
 			},
 			wants: []keyValue{
-				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:windows", 0.86018, 6},
-				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS", 0.86018, 6},
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:windows", 0.86018, 3},
 			},
 		},
 		{
-			name: "sum together when the prefix is the same",
+			name: "multiple counters",
 			inputs: []keyValue{
-				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 1},
 				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 2},
 				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "linux", 0.86018, 4},
 			},
 			wants: []keyValue{
-				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:windows", 0.86018, 3},
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:windows", 0.86018, 2},
 				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:linux", 0.86018, 4},
-				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS", 0.86018, 7},
 			},
 		},
 	}
@@ -780,7 +752,7 @@ func TestWriteCount(t *testing.T) {
 			}
 
 			for _, want := range tc.wants {
-				got, _ := d.readCount(want.week, want.program, want.prefix, want.counter, want.x)
+				got := d[weekName(want.week)][programName(want.program)][graphName(want.prefix)][counterName(want.counter)][reportID(want.x)]
 				if want.value != got {
 					t.Errorf("d[%q][%q][%q][%q][%v] = %v, want %v", want.week, want.program, want.prefix, want.counter, want.x, got, want.value)
 				}

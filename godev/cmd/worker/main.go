@@ -459,16 +459,12 @@ func (d data) partition(program, counter string, counters []string, compareBucke
 
 	var (
 		counts = make(map[string]float64) // bucket name -> total count
+		empty  = true                     // keep track of empty reports, so they can be skipped
 		end    weekName                   // latest week observed
 	)
 	for wk := range d {
 		if wk >= end {
 			end = wk
-		}
-		// TODO: when should this be number of reports?
-		// total := len(xs)
-		if total := len(d[wk][pk][gk][counterName(gk)]); total == 0 {
-			continue
 		}
 		// We group versions into major minor buckets, we must skip
 		// major minor versions we've already added to the dataset.
@@ -486,10 +482,13 @@ func (d data) partition(program, counter string, counters []string, compareBucke
 			_, bucket := splitCounterName(counter)
 
 			counts[bucket] += float64(n)
+			if n > 0 {
+				empty = false
+			}
 		}
 	}
 
-	if len(counts) == 0 {
+	if empty {
 		return nil
 	}
 
@@ -564,28 +563,6 @@ func nest(reports []telemetry.Report) data {
 	return result
 }
 
-// readCount reads the count value based on the input keys.
-// Return error if any key does not exist.
-func (d data) readCount(week, program, prefix, counter string, x float64) (int64, error) {
-	wk := weekName(week)
-	if _, ok := d[wk]; !ok {
-		return -1, fmt.Errorf("missing weekKey %q", week)
-	}
-	pk := programName(program)
-	if _, ok := d[wk][pk]; !ok {
-		return -1, fmt.Errorf("missing programKey %q", program)
-	}
-	gk := graphName(prefix)
-	if _, ok := d[wk][pk][gk]; !ok {
-		return -1, fmt.Errorf("missing graphKey key %q", prefix)
-	}
-	ck := counterName(counter)
-	if _, ok := d[wk][pk][gk][ck]; !ok {
-		return -1, fmt.Errorf("missing counterKey %v", counter)
-	}
-	return d[wk][pk][gk][ck][reportID(x)], nil
-}
-
 // writeCount writes the counter values to the result. When a report contains
 // multiple program reports for the same program, the value of the counters
 // in that report are summed together.
@@ -614,25 +591,11 @@ func (d data) writeCount(week, program, prefix, counter string, x float64, value
 	// x is a random number sent with each upload report.
 	// Since there is no identifier for the uploader, we use x as the uploader ID
 	// to approximate the number of unique uploader.
+	//
+	// Multiple uploads with the same x will overwrite each other, so we set the
+	// value, rather than add it to the existing value.
 	id := reportID(x)
-	d[wk][pk][gk][ck][id] += value
-	// TODO: each uploader should send the report only once.
-	// Shouldn't we overwrite, instead of summing?
-
-	// If the counter is an instance of a bucket counter or histogram counter
-	// record the value with a special counter (prefix). For example, if
-	// there are gopls/client:vscode-go, gopls/vlient:vim-go, ...,
-	// we compute the total number of gopls/client:* by summing up all values
-	// with a special counter name "gopls/client".
-	// TODO(hyangah): why do we want to compute the fraction, instead of showing
-	// the absolute number of reports?
-	if prefix != counter {
-		ck = counterName(prefix)
-		if _, ok := d[wk][pk][gk][ck]; !ok {
-			d[wk][pk][gk][ck] = make(map[reportID]int64)
-		}
-		d[wk][pk][gk][ck][id] += value
-	}
+	d[wk][pk][gk][ck][id] = value
 }
 
 // normalizeCounterName normalizes the counter name.
