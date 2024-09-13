@@ -235,11 +235,11 @@ func TestPartition(t *testing.T) {
 		buckets []bucketName
 	}
 	tests := []struct {
-		name      string
-		data      data
-		args      args
-		normalize func(bucketName) bucketName
-		want      *chart
+		name string
+		data data
+		args args
+		opts partitionOptions
+		want *chart
 	}{
 		{
 			name: "major.minor.patch version counter",
@@ -247,9 +247,29 @@ func TestPartition(t *testing.T) {
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "Version",
-				buckets: []bucketName{"v1.2.3", "v2.3.4"},
+				buckets: []bucketName{"v1.2.3", "v2.3.4", "v4.5.6"},
 			},
-			normalize: normalVersion,
+			opts: partitionOptions{normalizeBucket: normalVersion},
+			want: &chart{
+				ID:   "charts:example.com/mod/pkg:Version",
+				Name: "Version",
+				Type: "partition",
+				Data: []*datum{
+					{Week: "2999-01-01", Key: "v1.2", Value: 2},
+					{Week: "2999-01-01", Key: "v2.3", Value: 2},
+					{Week: "2999-01-01", Key: "v4.5", Value: 0},
+				},
+			},
+		},
+		{
+			name: "all nonempty versions",
+			data: exampleData,
+			args: args{
+				program: "example.com/mod/pkg",
+				name:    "Version",
+				buckets: []bucketName{"v1.2.3", "v2.3.4", "v4.5.6"},
+			},
+			opts: partitionOptions{ignoreEmptyBuckets: true},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
 				Name: "Version",
@@ -257,12 +277,12 @@ func TestPartition(t *testing.T) {
 				Data: []*datum{
 					{
 						Week:  "2999-01-01",
-						Key:   "v1.2",
+						Key:   "v1.2.3",
 						Value: 2,
 					},
 					{
 						Week:  "2999-01-01",
-						Key:   "v2.3",
+						Key:   "v2.3.4",
 						Value: 2,
 					},
 				},
@@ -276,7 +296,7 @@ func TestPartition(t *testing.T) {
 				name:    "Version",
 				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
-			normalize: normalVersion,
+			opts: partitionOptions{normalizeBucket: normalVersion},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
 				Name: "Version",
@@ -303,7 +323,7 @@ func TestPartition(t *testing.T) {
 				name:    "Version",
 				buckets: []bucketName{"v1.2.3", "v2.3.4", "v1.2.3"},
 			},
-			normalize: normalVersion,
+			opts: partitionOptions{normalizeBucket: normalVersion},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
 				Name: "Version",
@@ -356,7 +376,7 @@ func TestPartition(t *testing.T) {
 				name:    "GoVersion",
 				buckets: []bucketName{"go1.2.3", "go2.3.4"},
 			},
-			normalize: normalGoVersion,
+			opts: partitionOptions{normalizeBucket: normalGoVersion},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:GoVersion",
 				Name: "GoVersion",
@@ -397,7 +417,7 @@ func TestPartition(t *testing.T) {
 				name:    "Version",
 				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
-			normalize: normalVersion,
+			opts: partitionOptions{normalizeBucket: normalVersion},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
 				Name: "Version",
@@ -517,13 +537,13 @@ func TestPartition(t *testing.T) {
 				name:    "Version",
 				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
-			normalize: normalVersion,
-			want:      nil,
+			opts: partitionOptions{normalizeBucket: normalVersion},
+			want: nil,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.data.partition(tc.args.program, tc.args.name, tc.args.buckets, tc.normalize, nil)
+			got := tc.data.partition(tc.args.program, tc.args.name, tc.args.buckets, tc.opts)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("partition() mismatch (-want +got):\n%s", diff)
 			}
@@ -592,7 +612,6 @@ func TestCharts(t *testing.T) {
 						Type: "partition",
 						Data: []*datum{
 							{Week: "2999-01-01", Key: "go1.2", Value: 1},
-							{Week: "2999-01-01", Key: "go1.19"},
 						},
 					},
 					{
@@ -618,8 +637,8 @@ func TestCharts(t *testing.T) {
 						Name: "Version",
 						Type: "partition",
 						Data: []*datum{
-							{Week: "2999-01-01", Key: "v0.15", Value: 0},
-							{Week: "2999-01-01", Key: "v2.3", Value: 2},
+							{Week: "2999-01-01", Key: "v2.3.4-pre.1", Value: 1},
+							{Week: "2999-01-01", Key: "v2.3.4", Value: 2},
 						},
 					},
 					{

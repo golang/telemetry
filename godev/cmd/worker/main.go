@@ -401,21 +401,23 @@ func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chart
 		var charts []*chart
 		program := programName(p.Name)
 		if !telemetry.IsToolchainProgram(p.Name) {
-			charts = append(charts, d.partition(program, "Version", toSliceOf[bucketName](p.Versions), func(b bucketName) bucketName {
-				if b == "devel" {
-					return b
-				}
-				// map v1.2.3 -> v1.2
-				return bucketName(semver.MajorMinor(string(b)))
-			}, compareSemver))
+			charts = append(charts, d.partition(program, versionCounter, toSliceOf[bucketName](p.Versions), partitionOptions{
+				ignoreEmptyBuckets: true,
+				// Don't normalize buckets: we want to see counts for all versions.
+				compareBuckets: compareSemver,
+			}))
 		}
 		charts = append(charts,
-			d.partition(program, "GOOS", toSliceOf[bucketName](cfg.GOOS), nil, nil),
-			d.partition(program, "GOARCH", toSliceOf[bucketName](cfg.GOARCH), nil, nil),
-			d.partition(program, "GoVersion", toSliceOf[bucketName](cfg.GoVersion), func(b bucketName) bucketName {
-				// map go1.2.3 -> go1.2
-				return bucketName(goMajorMinor(string(b)))
-			}, version.Compare))
+			d.partition(program, goosCounter, toSliceOf[bucketName](cfg.GOOS), partitionOptions{}),
+			d.partition(program, goarchCounter, toSliceOf[bucketName](cfg.GOARCH), partitionOptions{}),
+			d.partition(program, goversionCounter, toSliceOf[bucketName](cfg.GoVersion), partitionOptions{
+				ignoreEmptyBuckets: true,
+				normalizeBucket: func(b bucketName) bucketName {
+					// map go1.2.3 -> go1.2
+					return bucketName(goMajorMinor(string(b)))
+				},
+				compareBuckets: version.Compare,
+			}))
 		for _, c := range p.Counters {
 			// TODO: add support for histogram counters by getting the counter type
 			// from the chart config.
@@ -425,7 +427,7 @@ func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chart
 				_, bucket := splitCounterName(counter)
 				buckets = append(buckets, bucket)
 			}
-			charts = append(charts, d.partition(program, chart, buckets, nil, nil))
+			charts = append(charts, d.partition(program, chart, buckets, partitionOptions{}))
 		}
 		for _, p := range charts {
 			if p != nil {
@@ -466,16 +468,24 @@ func compareLexically(x, y string) int {
 	}
 }
 
+// partitionOptions controls the behavior of partition charts
+type partitionOptions struct {
+	// If ignoreEmptyBuckets is set, don't include data points with 0 count.
+	ignoreEmptyBuckets bool
+
+	// If normalizeBuckets is provided, it is used to map bucket names to new
+	// values. Buckets that map to the same value will be merged.
+	normalizeBucket func(bucketName) bucketName // if set, used to
+
+	// If compareBuckets is provided, it is used to sort the buckets, where
+	// compareBuckets returns -1, 0, or +1 if x < y, x == y, or x > y.
+	// Otherwise, buckets are sorted lexically.
+	compareBuckets func(x, y string) int
+}
+
 // partition builds a chart for the program and the counter. It can return nil
 // if there is no data for the counter in d.
-//
-// If normalizeBuckets is provided, it is used to map bucket names to new
-// values. Buckets that map to the same value will be merged.
-//
-// If compareBuckets is provided, it is used to sort the buckets, where
-// compareBuckets returns -1, 0, or +1 if x < y, x == y, or x > y.
-// Otherwise, buckets are sorted lexically.
-func (d data) partition(program programName, chartName graphName, buckets []bucketName, normalizeBucket func(bucketName) bucketName, compareBuckets func(x, y string) int) *chart {
+func (d data) partition(program programName, chartName graphName, buckets []bucketName, opts partitionOptions) *chart {
 	chart := &chart{
 		ID:   fmt.Sprintf("charts:%s:%s", program, chartName),
 		Name: string(chartName),
@@ -501,8 +511,8 @@ func (d data) partition(program programName, chartName graphName, buckets []buck
 			}
 			seen[bucket] = true
 			key := bucket
-			if normalizeBucket != nil {
-				key = normalizeBucket(bucket)
+			if opts.normalizeBucket != nil {
+				key = opts.normalizeBucket(bucket)
 			}
 			if _, ok := merged[key]; !ok {
 				merged[key] = make(map[reportID]struct{})
@@ -520,15 +530,18 @@ func (d data) partition(program programName, chartName graphName, buckets []buck
 
 	// datum.Week always points to the end date
 	for bucket, v := range merged {
-		d := &datum{
-			Week:  string(end),
-			Key:   string(bucket),
-			Value: float64(len(v)),
+		if len(v) > 0 || !opts.ignoreEmptyBuckets {
+			d := &datum{
+				Week:  string(end),
+				Key:   string(bucket),
+				Value: float64(len(v)),
+			}
+			chart.Data = append(chart.Data, d)
 		}
-		chart.Data = append(chart.Data, d)
 	}
-	if compareBuckets == nil {
-		compareBuckets = compareLexically
+	compareBuckets := compareLexically
+	if opts.compareBuckets != nil {
+		compareBuckets = opts.compareBuckets
 	}
 	// Sort the data based on bucket name to ensure deterministic output.
 	sort.Slice(chart.Data, func(i, j int) bool {
