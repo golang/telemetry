@@ -125,12 +125,21 @@ func TestRun_Basic(t *testing.T) {
 		t.Fatalf("got %d uploaded programs, want 1", len(got.Programs))
 	}
 	gotProgram := got.Programs[0]
+	wantProgram := "upload.test"
+	wantVersion := ""
+	if testenv.Go1Point() >= 24 {
+		// Starting with Go 1.24, debug.ReadBuildInfo reports actual package paths
+		// for test binaries, thanks to the fixes for #33976.
+		wantProgram = "golang.org/x/telemetry/internal/upload.test"
+		wantVersion = "devel"
+	}
+
 	want := telemetry.Report{
 		Week: got.Week, // volatile
 		X:    got.X,    // volatile
 		Programs: []*telemetry.ProgramReport{{
-			Program:   "upload.test",
-			Version:   "",
+			Program:   wantProgram,
+			Version:   wantVersion,
 			GoVersion: gotProgram.GoVersion, // easiest to read this from the report
 			GOOS:      runtime.GOOS,
 			GOARCH:    runtime.GOARCH,
