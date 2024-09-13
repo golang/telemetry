@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/mod/semver"
 	"golang.org/x/telemetry/internal/config"
 	"golang.org/x/telemetry/internal/telemetry"
 )
@@ -221,6 +222,12 @@ func TestGroup(t *testing.T) {
 }
 
 func TestPartition(t *testing.T) {
+	normalVersion := func(b bucketName) bucketName {
+		return bucketName(semver.MajorMinor(string(b)))
+	}
+	normalGoVersion := func(b bucketName) bucketName {
+		return bucketName(goMajorMinor(string(b)))
+	}
 	exampleData := group(exampleReports)
 	type args struct {
 		program programName
@@ -228,10 +235,11 @@ func TestPartition(t *testing.T) {
 		buckets []bucketName
 	}
 	tests := []struct {
-		name string
-		data data
-		args args
-		want *chart
+		name      string
+		data      data
+		args      args
+		normalize func(bucketName) bucketName
+		want      *chart
 	}{
 		{
 			name: "major.minor.patch version counter",
@@ -241,6 +249,7 @@ func TestPartition(t *testing.T) {
 				name:    "Version",
 				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
+			normalize: normalVersion,
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
 				Name: "Version",
@@ -254,7 +263,7 @@ func TestPartition(t *testing.T) {
 					{
 						Week:  "2999-01-01",
 						Key:   "v2.3",
-						Value: 2, // TODO(rfindley): why isn't this '2'? There are two reports in the data.
+						Value: 2,
 					},
 				},
 			},
@@ -267,6 +276,7 @@ func TestPartition(t *testing.T) {
 				name:    "Version",
 				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
+			normalize: normalVersion,
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
 				Name: "Version",
@@ -293,6 +303,7 @@ func TestPartition(t *testing.T) {
 				name:    "Version",
 				buckets: []bucketName{"v1.2.3", "v2.3.4", "v1.2.3"},
 			},
+			normalize: normalVersion,
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
 				Name: "Version",
@@ -338,6 +349,33 @@ func TestPartition(t *testing.T) {
 			},
 		},
 		{
+			name: "GoVersion counter",
+			data: exampleData,
+			args: args{
+				program: "example.com/mod/pkg",
+				name:    "GoVersion",
+				buckets: []bucketName{"go1.2.3", "go2.3.4"},
+			},
+			normalize: normalGoVersion,
+			want: &chart{
+				ID:   "charts:example.com/mod/pkg:GoVersion",
+				Name: "GoVersion",
+				Type: "partition",
+				Data: []*datum{
+					{
+						Week:  "2999-01-01",
+						Key:   "go1.2",
+						Value: 3,
+					},
+					{
+						Week:  "2999-01-01",
+						Key:   "go2.3",
+						Value: 0,
+					},
+				},
+			},
+		},
+		{
 			name: "three days, multiple versions",
 			data: data{
 				"2999-01-01": {"example.com/mod/pkg": {"Version": {
@@ -359,6 +397,7 @@ func TestPartition(t *testing.T) {
 				name:    "Version",
 				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
+			normalize: normalVersion,
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
 				Name: "Version",
@@ -478,12 +517,13 @@ func TestPartition(t *testing.T) {
 				name:    "Version",
 				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
-			want: nil,
+			normalize: normalVersion,
+			want:      nil,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.data.partition(tc.args.program, tc.args.name, tc.args.buckets, nil)
+			got := tc.data.partition(tc.args.program, tc.args.name, tc.args.buckets, tc.normalize, nil)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("partition() mismatch (-want +got):\n%s", diff)
 			}
@@ -625,61 +665,6 @@ func TestCharts(t *testing.T) {
 	got := charts(cfg, "2999-01-01", "2999-01-01", exampleData, []float64{0.12345})
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("charts = %+v\n, (-want +got): %v", got, diff)
-	}
-}
-
-func TestNormalizeCounterName(t *testing.T) {
-	testcases := []struct {
-		name   string
-		chart  graphName
-		bucket bucketName
-		want   bucketName
-	}{
-		{
-			name:   "strip patch version for Version",
-			chart:  "Version",
-			bucket: "v0.15.3",
-			want:   "v0.15",
-		},
-		{
-			name:   "strip patch go version for Version",
-			chart:  "Version",
-			bucket: "go1.12.3",
-			want:   "go1.12",
-		},
-		{
-			name:   "concatenate devel for Version",
-			chart:  "Version",
-			bucket: "devel",
-			want:   "devel",
-		},
-		{
-			name:   "concatenate for GOOS",
-			chart:  "GOOS",
-			bucket: "darwin",
-			want:   "darwin",
-		},
-		{
-			name:   "concatenate for GOARCH",
-			chart:  "GOARCH",
-			bucket: "amd64",
-			want:   "amd64",
-		},
-		{
-			name:   "strip patch version for GoVersion",
-			chart:  "GoVersion",
-			bucket: "go1.12.3",
-			want:   "go1.12",
-		},
-	}
-
-	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := normalizeCounterName(tc.chart, tc.bucket)
-			if tc.want != got {
-				t.Errorf("normalizeCounterName(%q, %q) = %q, want %q", tc.chart, tc.bucket, got, tc.want)
-			}
-		})
 	}
 }
 

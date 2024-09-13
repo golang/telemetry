@@ -401,12 +401,21 @@ func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chart
 		var charts []*chart
 		program := programName(p.Name)
 		if !telemetry.IsToolchainProgram(p.Name) {
-			charts = append(charts, d.partition(program, "Version", toSliceOf[bucketName](p.Versions), compareSemver))
+			charts = append(charts, d.partition(program, "Version", toSliceOf[bucketName](p.Versions), func(b bucketName) bucketName {
+				if b == "devel" {
+					return b
+				}
+				// map v1.2.3 -> v1.2
+				return bucketName(semver.MajorMinor(string(b)))
+			}, compareSemver))
 		}
 		charts = append(charts,
-			d.partition(program, "GOOS", toSliceOf[bucketName](cfg.GOOS), nil),
-			d.partition(program, "GOARCH", toSliceOf[bucketName](cfg.GOARCH), nil),
-			d.partition(program, "GoVersion", toSliceOf[bucketName](cfg.GoVersion), version.Compare))
+			d.partition(program, "GOOS", toSliceOf[bucketName](cfg.GOOS), nil, nil),
+			d.partition(program, "GOARCH", toSliceOf[bucketName](cfg.GOARCH), nil, nil),
+			d.partition(program, "GoVersion", toSliceOf[bucketName](cfg.GoVersion), func(b bucketName) bucketName {
+				// map go1.2.3 -> go1.2
+				return bucketName(goMajorMinor(string(b)))
+			}, version.Compare))
 		for _, c := range p.Counters {
 			// TODO: add support for histogram counters by getting the counter type
 			// from the chart config.
@@ -416,7 +425,7 @@ func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chart
 				_, bucket := splitCounterName(counter)
 				buckets = append(buckets, bucket)
 			}
-			charts = append(charts, d.partition(program, chart, buckets, nil))
+			charts = append(charts, d.partition(program, chart, buckets, nil, nil))
 		}
 		for _, p := range charts {
 			if p != nil {
@@ -460,10 +469,13 @@ func compareLexically(x, y string) int {
 // partition builds a chart for the program and the counter. It can return nil
 // if there is no data for the counter in d.
 //
-// if compareBuckets is provided, it is used to sort the buckets, where
+// If normalizeBuckets is provided, it is used to map bucket names to new
+// values. Buckets that map to the same value will be merged.
+//
+// If compareBuckets is provided, it is used to sort the buckets, where
 // compareBuckets returns -1, 0, or +1 if x < y, x == y, or x > y.
 // Otherwise, buckets are sorted lexically.
-func (d data) partition(program programName, chartName graphName, buckets []bucketName, compareBuckets func(x, y string) int) *chart {
+func (d data) partition(program programName, chartName graphName, buckets []bucketName, normalizeBucket func(bucketName) bucketName, compareBuckets func(x, y string) int) *chart {
 	chart := &chart{
 		ID:   fmt.Sprintf("charts:%s:%s", program, chartName),
 		Name: string(chartName),
@@ -488,14 +500,16 @@ func (d data) partition(program programName, chartName graphName, buckets []buck
 				continue
 			}
 			seen[bucket] = true
-			// TODO(hyangah): let caller normalize names in counters.
-			normal := normalizeCounterName(chartName, bucket)
-			if _, ok := merged[normal]; !ok {
-				merged[normal] = make(map[reportID]struct{})
+			key := bucket
+			if normalizeBucket != nil {
+				key = normalizeBucket(bucket)
+			}
+			if _, ok := merged[key]; !ok {
+				merged[key] = make(map[reportID]struct{})
 			}
 			for id := range d[wk][pk][chartName][bucket] {
 				empty = false
-				merged[normal][id] = struct{}{}
+				merged[key][id] = struct{}{}
 			}
 		}
 	}
@@ -609,30 +623,6 @@ func (d data) writeCount(week weekName, program programName, chart graphName, bu
 		d[week][program][chart][bucket] = make(map[reportID]int64)
 	}
 	d[week][program][chart][bucket][id] = value
-}
-
-// normalizeCounterName normalizes the counter name.
-// More specifically, program version, goos, goarch, and goVersion
-// are not a real counter, but information from the metadata in the report.
-// This function constructs pseudo counter names to handle them
-// like other normal counters in aggregation and chart drawing.
-// To limit the cardinality of version and goVersion, this function
-// uses only major and minor version numbers in the pseudo-counter names.
-// If the counter is a normal counter name, it is returned as is.
-func normalizeCounterName(chart graphName, bucket bucketName) bucketName {
-	switch chart {
-	case versionCounter:
-		if bucket == "devel" {
-			return bucket
-		}
-		if strings.HasPrefix(string(bucket), "go") {
-			return bucketName(goMajorMinor(string(bucket)))
-		}
-		return bucketName(semver.MajorMinor(string(bucket)))
-	case goversionCounter:
-		return bucketName(goMajorMinor(string(bucket)))
-	}
-	return bucket
 }
 
 // splitCounterName gets splits the prefix and bucket splitCounterName of a counter name
