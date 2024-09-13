@@ -341,7 +341,7 @@ func handleChart(cfg *tconfig.Config, s *storage.API) content.HandlerFunc {
 			}
 		}
 
-		data := nest(reports)
+		data := group(reports)
 		charts := charts(cfg, start.Format(telemetry.DateOnly), end.Format(telemetry.DateOnly), data, xs)
 
 		obj := fileName(start, end)
@@ -399,17 +399,24 @@ func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chart
 		prog := &program{ID: "charts:" + p.Name, Name: p.Name}
 		result.Programs = append(result.Programs, prog)
 		var charts []*chart
+		program := programName(p.Name)
 		if !telemetry.IsToolchainProgram(p.Name) {
-			charts = append(charts, d.partition(p.Name, "Version", p.Versions, compareSemver))
+			charts = append(charts, d.partition(program, "Version", toSliceOf[bucketName](p.Versions), compareSemver))
 		}
 		charts = append(charts,
-			d.partition(p.Name, "GOOS", cfg.GOOS, nil),
-			d.partition(p.Name, "GOARCH", cfg.GOARCH, nil),
-			d.partition(p.Name, "GoVersion", cfg.GoVersion, version.Compare))
+			d.partition(program, "GOOS", toSliceOf[bucketName](cfg.GOOS), nil),
+			d.partition(program, "GOARCH", toSliceOf[bucketName](cfg.GOARCH), nil),
+			d.partition(program, "GoVersion", toSliceOf[bucketName](cfg.GoVersion), version.Compare))
 		for _, c := range p.Counters {
 			// TODO: add support for histogram counters by getting the counter type
 			// from the chart config.
-			charts = append(charts, d.partition(p.Name, c.Name, tconfig.Expand(c.Name), nil))
+			chart, _ := splitCounterName(c.Name)
+			var buckets []bucketName
+			for _, counter := range tconfig.Expand(c.Name) {
+				_, bucket := splitCounterName(counter)
+				buckets = append(buckets, bucket)
+			}
+			charts = append(charts, d.partition(program, chart, buckets, nil))
 		}
 		for _, p := range charts {
 			if p != nil {
@@ -418,6 +425,15 @@ func charts(cfg *tconfig.Config, start, end string, d data, xs []float64) *chart
 		}
 	}
 	return result
+}
+
+// toSliceOf converts a slice of once string type to another.
+func toSliceOf[To, From ~string](s []From) []To {
+	var s2 []To
+	for _, v := range s {
+		s2 = append(s2, To(v))
+	}
+	return s2
 }
 
 // compareSemver wraps semver.Compare, to differentiate equivalent semver
@@ -447,20 +463,18 @@ func compareLexically(x, y string) int {
 // if compareBuckets is provided, it is used to sort the buckets, where
 // compareBuckets returns -1, 0, or +1 if x < y, x == y, or x > y.
 // Otherwise, buckets are sorted lexically.
-func (d data) partition(program, counter string, counters []string, compareBuckets func(x, y string) int) *chart {
-	prefix, _ := splitCounterName(counter)
+func (d data) partition(program programName, chartName graphName, buckets []bucketName, compareBuckets func(x, y string) int) *chart {
 	chart := &chart{
-		ID:   "charts:" + program + ":" + prefix,
-		Name: prefix,
+		ID:   fmt.Sprintf("charts:%s:%s", program, chartName),
+		Name: string(chartName),
 		Type: "partition",
 	}
 	pk := programName(program)
-	gk := graphName(prefix)
 
 	var (
-		counts = make(map[string]float64) // bucket name -> total count
-		empty  = true                     // keep track of empty reports, so they can be skipped
-		end    weekName                   // latest week observed
+		merged = make(map[bucketName]map[reportID]struct{}) // normalized bucket name -> merged report IDs
+		empty  = true                                       // keep track of empty reports, so they can be skipped
+		end    weekName                                     // latest week observed
 	)
 	for wk := range d {
 		if wk >= end {
@@ -468,22 +482,20 @@ func (d data) partition(program, counter string, counters []string, compareBucke
 		}
 		// We group versions into major minor buckets, we must skip
 		// major minor versions we've already added to the dataset.
-		seen := make(map[string]bool)
-		for _, b := range counters {
-			// TODO(hyangah): let caller normalize names in counters.
-			counter := normalizeCounterName(counter, b)
-			if seen[counter] {
+		seen := make(map[bucketName]bool)
+		for _, bucket := range buckets {
+			if seen[bucket] {
 				continue
 			}
-			seen[counter] = true
-			ck := counterName(counter)
-			// number of reports where count prefix:bucket > 0
-			n := len(d[wk][pk][gk][ck])
-			_, bucket := splitCounterName(counter)
-
-			counts[bucket] += float64(n)
-			if n > 0 {
+			seen[bucket] = true
+			// TODO(hyangah): let caller normalize names in counters.
+			normal := normalizeCounterName(chartName, bucket)
+			if _, ok := merged[normal]; !ok {
+				merged[normal] = make(map[reportID]struct{})
+			}
+			for id := range d[wk][pk][chartName][bucket] {
 				empty = false
+				merged[normal][id] = struct{}{}
 			}
 		}
 	}
@@ -493,11 +505,11 @@ func (d data) partition(program, counter string, counters []string, compareBucke
 	}
 
 	// datum.Week always points to the end date
-	for bucket, v := range counts {
+	for bucket, v := range merged {
 		d := &datum{
 			Week:  string(end),
-			Key:   bucket,
-			Value: v,
+			Key:   string(bucket),
+			Value: float64(len(v)),
 		}
 		chart.Data = append(chart.Data, d)
 	}
@@ -522,10 +534,15 @@ type programName string
 
 // graphName is the graph name.
 // A graph plots distribution or timeseries of related counters.
+//
+// TODO(rfindley): rename to chartName.
 type graphName string
 
-// counterName is the counter name.
+// counterName is the counter name. counterName is graphName:bucketName.
 type counterName string
+
+// bucketName is the bucket name.
+type bucketName string
 
 // reportID is the upload report ID.
 // The current implementation uses telemetry.Report.X,
@@ -533,7 +550,7 @@ type counterName string
 // See x/telemetry/internal/upload.(*uploader).createReport.
 type reportID float64
 
-type data map[weekName]map[programName]map[graphName]map[counterName]map[reportID]int64
+type data map[weekName]map[programName]map[graphName]map[bucketName]map[reportID]int64
 
 // Names of special counters.
 // Unlike other counters, these are constructed from the metadata in the report.
@@ -544,19 +561,31 @@ const (
 	goversionCounter = "GoVersion"
 )
 
-// nest groups the report data by week, program, prefix, counter, and x value
+// group groups the report data by week, program, prefix, counter, and x value
 // summing together counter values for each program report in a report.
-func nest(reports []telemetry.Report) data {
+func group(reports []telemetry.Report) data {
 	result := make(data)
 	for _, r := range reports {
+		var (
+			week = weekName(r.Week)
+			// x is a random number sent with each upload report.
+			// Since there is no identifier for the uploader, we use x as the uploader ID
+			// to approximate the number of unique uploader.
+			//
+			// Multiple uploads with the same x will overwrite each other, so we set the
+			// value, rather than add it to the existing value.
+			id = reportID(r.X)
+		)
 		for _, p := range r.Programs {
-			result.writeCount(r.Week, p.Program, versionCounter, p.Version, r.X, 1)
-			result.writeCount(r.Week, p.Program, goosCounter, p.GOOS, r.X, 1)
-			result.writeCount(r.Week, p.Program, goarchCounter, p.GOARCH, r.X, 1)
-			result.writeCount(r.Week, p.Program, goversionCounter, p.GoVersion, r.X, 1)
+			program := programName(p.Program)
+
+			result.writeCount(week, program, versionCounter, bucketName(p.Version), id, 1)
+			result.writeCount(week, program, goosCounter, bucketName(p.GOOS), id, 1)
+			result.writeCount(week, program, goarchCounter, bucketName(p.GOARCH), id, 1)
+			result.writeCount(week, program, goversionCounter, bucketName(p.GoVersion), id, 1)
 			for c, value := range p.Counters {
-				prefix, _ := splitCounterName(c)
-				result.writeCount(r.Week, p.Program, prefix, c, r.X, value)
+				chart, bucket := splitCounterName(c)
+				result.writeCount(week, program, chart, bucket, id, value)
 			}
 		}
 	}
@@ -566,36 +595,20 @@ func nest(reports []telemetry.Report) data {
 // writeCount writes the counter values to the result. When a report contains
 // multiple program reports for the same program, the value of the counters
 // in that report are summed together.
-func (d data) writeCount(week, program, prefix, counter string, x float64, value int64) {
-	wk := weekName(week)
-	if _, ok := d[wk]; !ok {
-		d[wk] = make(map[programName]map[graphName]map[counterName]map[reportID]int64)
+func (d data) writeCount(week weekName, program programName, chart graphName, bucket bucketName, id reportID, value int64) {
+	if _, ok := d[week]; !ok {
+		d[week] = make(map[programName]map[graphName]map[bucketName]map[reportID]int64)
 	}
-	pk := programName(program)
-	if _, ok := d[wk][pk]; !ok {
-		d[wk][pk] = make(map[graphName]map[counterName]map[reportID]int64)
+	if _, ok := d[week][program]; !ok {
+		d[week][program] = make(map[graphName]map[bucketName]map[reportID]int64)
 	}
-	// We want to group and plot bucket/histogram counters with the same prefix.
-	// Use the prefix as the graph name.
-	gk := graphName(prefix)
-	if _, ok := d[wk][pk][gk]; !ok {
-		d[wk][pk][gk] = make(map[counterName]map[reportID]int64)
+	if _, ok := d[week][program][chart]; !ok {
+		d[week][program][chart] = make(map[bucketName]map[reportID]int64)
 	}
-	// TODO(hyangah): let caller pass the normalized counter name.
-	counter = normalizeCounterName(prefix, counter)
-	ck := counterName(counter)
-	if _, ok := d[wk][pk][gk][ck]; !ok {
-		d[wk][pk][gk][ck] = make(map[reportID]int64)
+	if _, ok := d[week][program][chart][bucket]; !ok {
+		d[week][program][chart][bucket] = make(map[reportID]int64)
 	}
-
-	// x is a random number sent with each upload report.
-	// Since there is no identifier for the uploader, we use x as the uploader ID
-	// to approximate the number of unique uploader.
-	//
-	// Multiple uploads with the same x will overwrite each other, so we set the
-	// value, rather than add it to the existing value.
-	id := reportID(x)
-	d[wk][pk][gk][ck][id] = value
+	d[week][program][chart][bucket][id] = value
 }
 
 // normalizeCounterName normalizes the counter name.
@@ -606,35 +619,31 @@ func (d data) writeCount(week, program, prefix, counter string, x float64, value
 // To limit the cardinality of version and goVersion, this function
 // uses only major and minor version numbers in the pseudo-counter names.
 // If the counter is a normal counter name, it is returned as is.
-func normalizeCounterName(prefix, counter string) string {
-	switch prefix {
+func normalizeCounterName(chart graphName, bucket bucketName) bucketName {
+	switch chart {
 	case versionCounter:
-		if counter == "devel" {
-			return prefix + ":" + counter
+		if bucket == "devel" {
+			return bucket
 		}
-		if strings.HasPrefix(counter, "go") {
-			return prefix + ":" + goMajorMinor(counter)
+		if strings.HasPrefix(string(bucket), "go") {
+			return bucketName(goMajorMinor(string(bucket)))
 		}
-		return prefix + ":" + semver.MajorMinor(counter)
-	case goosCounter:
-		return prefix + ":" + counter
-	case goarchCounter:
-		return prefix + ":" + counter
+		return bucketName(semver.MajorMinor(string(bucket)))
 	case goversionCounter:
-		return prefix + ":" + goMajorMinor(counter)
+		return bucketName(goMajorMinor(string(bucket)))
 	}
-	return counter
+	return bucket
 }
 
 // splitCounterName gets splits the prefix and bucket splitCounterName of a counter name
 // or a bucket name. For an input with no bucket part prefix and bucket
 // are the same.
-func splitCounterName(name string) (prefix, bucket string) {
+func splitCounterName(name string) (graphName, bucketName) {
 	prefix, bucket, found := strings.Cut(name, ":")
 	if !found {
 		bucket = prefix
 	}
-	return prefix, bucket
+	return graphName(prefix), bucketName(bucket)
 }
 
 // goMajorMinor gets the go<Maj>,<Min> version for a given go version.

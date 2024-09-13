@@ -130,7 +130,7 @@ var exampleReports = []telemetry.Report{
 	},
 }
 
-func TestNest(t *testing.T) {
+func TestGroup(t *testing.T) {
 	type args struct {
 		reports []telemetry.Report
 	}
@@ -173,35 +173,35 @@ func TestNest(t *testing.T) {
 				weekName("2999-01-01"): {
 					programName("example.com/mod/pkg"): {
 						graphName("Version"): {
-							counterName("Version:v1.2"): {
+							bucketName("v1.2.3"): {
 								reportID(0.1234567890): 1,
 							},
 						},
 						graphName("GOOS"): {
-							counterName("GOOS:darwin"): {
+							bucketName("darwin"): {
 								reportID(0.1234567890): 1,
 							},
 						},
 						graphName("GOARCH"): {
-							counterName("GOARCH:arm64"): {
+							bucketName("arm64"): {
 								reportID(0.1234567890): 1,
 							},
 						},
 						graphName("GoVersion"): {
-							counterName("GoVersion:go1.2"): {
+							bucketName("go1.2.3"): {
 								reportID(0.1234567890): 1,
 							},
 						},
 						graphName("main"): {
-							counterName("main"): {
+							bucketName("main"): {
 								reportID(0.1234567890): 1,
 							},
 						},
 						graphName("flag"): {
-							counterName("flag:a"): {
+							bucketName("a"): {
 								reportID(0.1234567890): 2,
 							},
-							counterName("flag:b"): {
+							bucketName("b"): {
 								reportID(0.1234567890): 3,
 							},
 						},
@@ -212,7 +212,7 @@ func TestNest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := nest(tt.args.reports)
+			got := group(tt.args.reports)
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("nest() mismatch (-want +got):\n%s", diff)
 			}
@@ -221,11 +221,11 @@ func TestNest(t *testing.T) {
 }
 
 func TestPartition(t *testing.T) {
-	exampleData := nest(exampleReports)
+	exampleData := group(exampleReports)
 	type args struct {
-		program string
-		name    string
-		buckets []string
+		program programName
+		name    graphName
+		buckets []bucketName
 	}
 	tests := []struct {
 		name string
@@ -239,7 +239,7 @@ func TestPartition(t *testing.T) {
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "Version",
-				buckets: []string{"v1.2.3", "v2.3.4"},
+				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
@@ -265,7 +265,7 @@ func TestPartition(t *testing.T) {
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "Version",
-				buckets: []string{"v1.2", "v2.3"},
+				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
@@ -291,7 +291,7 @@ func TestPartition(t *testing.T) {
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "Version",
-				buckets: []string{"v1.2.3", "v2.3.4", "v1.2.3"},
+				buckets: []bucketName{"v1.2.3", "v2.3.4", "v1.2.3"},
 			},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
@@ -317,7 +317,7 @@ func TestPartition(t *testing.T) {
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "GOOS",
-				buckets: []string{"darwin", "linux"},
+				buckets: []bucketName{"darwin", "linux"},
 			},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:GOOS",
@@ -341,26 +341,23 @@ func TestPartition(t *testing.T) {
 			name: "three days, multiple versions",
 			data: data{
 				"2999-01-01": {"example.com/mod/pkg": {"Version": {
-					"Version":      {0.1: 5},
-					"Version:v1.2": {0.1: 2},
-					"Version:v2.3": {0.1: 3},
+					"v1.2.3": {0.1: 2},
+					"v2.3.4": {0.1: 3},
 				},
 				}},
 				"2999-01-04": {"example.com/mod/pkg": {"Version": {
-					"Version":      {0.3: 2, 0.4: 5},
-					"Version:v1.2": {0.3: 2},
-					"Version:v2.3": {0.4: 5},
+					"v1.2.3": {0.3: 2},
+					"v2.3.4": {0.4: 5},
 				},
 				}},
 				"2999-01-05": {"example.com/mod/pkg": {"Version": {
-					"Version":      {0.5: 6},
-					"Version:v2.3": {0.5: 6},
+					"v2.3.4": {0.5: 6},
 				}}},
 			},
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "Version",
-				buckets: []string{"v1.2.3", "v2.3.4"},
+				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:Version",
@@ -384,27 +381,24 @@ func TestPartition(t *testing.T) {
 			name: "three days, multiple GOOS",
 			data: data{
 				"2999-01-01": {"example.com/mod/pkg": {"GOOS": {
-					"GOOS":        {0.1: 4, 0.2: 4, 0.3: 2},
-					"GOOS:darwin": {0.1: 2, 0.2: 2, 0.3: 2},
-					"GOOS:linux":  {0.1: 2, 0.2: 2},
+					"darwin": {0.1: 2, 0.2: 2, 0.3: 2},
+					"linux":  {0.1: 2, 0.2: 2},
 				},
 				}},
 				"2999-01-02": {"example.com/mod/pkg": {"GOOS": {
-					"GOOS":        {0.4: 2, 0.5: 2, 0.6: 5},
-					"GOOS:darwin": {0.4: 2, 0.5: 2},
-					"GOOS:linux":  {0.6: 5},
+					"darwin": {0.4: 2, 0.5: 2},
+					"linux":  {0.6: 5},
 				},
 				}},
 				"2999-01-03": {"example.com/mod/pkg": {"GOOS": {
-					"GOOS":        {0.6: 3},
-					"GOOS:darwin": {0.6: 3},
+					"darwin": {0.6: 3},
 				},
 				}},
 			},
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "GOOS",
-				buckets: []string{"darwin", "linux"},
+				buckets: []bucketName{"darwin", "linux"},
 			},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:GOOS",
@@ -428,21 +422,19 @@ func TestPartition(t *testing.T) {
 			name: "two days data, missing GOOS in first day",
 			data: data{
 				"2999-01-01": {"example.com/mod/pkg": {"Version": {
-					"Version":      {0.1: 2},
-					"Version:v1.2": {0.1: 2},
+					"v1.2": {0.1: 2},
 				},
 				}},
 				"2999-01-02": {"example.com/mod/pkg": {"GOOS": {
-					"GOOS":        {0.3: 4},
-					"GOOS:darwin": {0.3: 2},
-					"GOOS:linux":  {0.3: 2},
+					"darwin": {0.3: 2},
+					"linux":  {0.3: 2},
 				},
 				}},
 			},
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "GOOS",
-				buckets: []string{"darwin", "linux"},
+				buckets: []bucketName{"darwin", "linux"},
 			},
 			want: &chart{
 				ID:   "charts:example.com/mod/pkg:GOOS",
@@ -484,7 +476,7 @@ func TestPartition(t *testing.T) {
 			args: args{
 				program: "example.com/mod/pkg",
 				name:    "Version",
-				buckets: []string{"v1.2.3", "v2.3.4"},
+				buckets: []bucketName{"v1.2.3", "v2.3.4"},
 			},
 			want: nil,
 		},
@@ -500,7 +492,7 @@ func TestPartition(t *testing.T) {
 }
 
 func TestCharts(t *testing.T) {
-	exampleData := nest(exampleReports)
+	exampleData := group(exampleReports)
 	cfg := &config.Config{
 		UploadConfig: &telemetry.UploadConfig{
 			GOOS:       []string{"darwin"},
@@ -638,54 +630,54 @@ func TestCharts(t *testing.T) {
 
 func TestNormalizeCounterName(t *testing.T) {
 	testcases := []struct {
-		name    string
-		prefix  string
-		counter string
-		want    string
+		name   string
+		chart  graphName
+		bucket bucketName
+		want   bucketName
 	}{
 		{
-			name:    "strip patch version for Version",
-			prefix:  "Version",
-			counter: "v0.15.3",
-			want:    "Version:v0.15",
+			name:   "strip patch version for Version",
+			chart:  "Version",
+			bucket: "v0.15.3",
+			want:   "v0.15",
 		},
 		{
-			name:    "strip patch go version for Version",
-			prefix:  "Version",
-			counter: "go1.12.3",
-			want:    "Version:go1.12",
+			name:   "strip patch go version for Version",
+			chart:  "Version",
+			bucket: "go1.12.3",
+			want:   "go1.12",
 		},
 		{
-			name:    "concatenate devel for Version",
-			prefix:  "Version",
-			counter: "devel",
-			want:    "Version:devel",
+			name:   "concatenate devel for Version",
+			chart:  "Version",
+			bucket: "devel",
+			want:   "devel",
 		},
 		{
-			name:    "concatenate for GOOS",
-			prefix:  "GOOS",
-			counter: "darwin",
-			want:    "GOOS:darwin",
+			name:   "concatenate for GOOS",
+			chart:  "GOOS",
+			bucket: "darwin",
+			want:   "darwin",
 		},
 		{
-			name:    "concatenate for GOARCH",
-			prefix:  "GOARCH",
-			counter: "amd64",
-			want:    "GOARCH:amd64",
+			name:   "concatenate for GOARCH",
+			chart:  "GOARCH",
+			bucket: "amd64",
+			want:   "amd64",
 		},
 		{
-			name:    "strip patch version for GoVersion",
-			prefix:  "GoVersion",
-			counter: "go1.12.3",
-			want:    "GoVersion:go1.12",
+			name:   "strip patch version for GoVersion",
+			chart:  "GoVersion",
+			bucket: "go1.12.3",
+			want:   "go1.12",
 		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := normalizeCounterName(tc.prefix, tc.counter)
+			got := normalizeCounterName(tc.chart, tc.bucket)
 			if tc.want != got {
-				t.Errorf("normalizeCounterName(%q, %q) = %q, want %q", tc.prefix, tc.counter, got, tc.want)
+				t.Errorf("normalizeCounterName(%q, %q) = %q, want %q", tc.chart, tc.bucket, got, tc.want)
 			}
 		})
 	}
@@ -693,22 +685,25 @@ func TestNormalizeCounterName(t *testing.T) {
 
 func TestWriteCount(t *testing.T) {
 	type keyValue struct {
-		week, program, prefix, counter string
-		x                              float64
-		value                          int64
+		week    weekName
+		program programName
+		chart   graphName
+		bucket  bucketName
+		x       reportID
+		value   int64
 	}
 	testcases := []struct {
 		name   string
 		inputs []keyValue
-		wants  []keyValue
+		want   []keyValue
 	}{
 		{
 			name: "program version counter should have value",
 			inputs: []keyValue{
 				{"2987-07-01", "golang.org/x/tools/gopls", "Version", "v0.15.3", 0.00009, 1},
 			},
-			wants: []keyValue{
-				{"2987-07-01", "golang.org/x/tools/gopls", "Version", "Version:v0.15", 0.00009, 1},
+			want: []keyValue{
+				{"2987-07-01", "golang.org/x/tools/gopls", "Version", "v0.15.3", 0.00009, 1},
 			},
 		},
 		{
@@ -716,7 +711,7 @@ func TestWriteCount(t *testing.T) {
 			inputs: []keyValue{
 				{"2987-06-30", "cmd/go", "go/invocations", "go/invocations", 0.86995, 84},
 			},
-			wants: []keyValue{
+			want: []keyValue{
 				{"2987-06-30", "cmd/go", "go/invocations", "go/invocations", 0.86995, 84},
 			},
 		},
@@ -727,8 +722,8 @@ func TestWriteCount(t *testing.T) {
 				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 2},
 				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 3},
 			},
-			wants: []keyValue{
-				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:windows", 0.86018, 3},
+			want: []keyValue{
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 3},
 			},
 		},
 		{
@@ -737,9 +732,9 @@ func TestWriteCount(t *testing.T) {
 				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 2},
 				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "linux", 0.86018, 4},
 			},
-			wants: []keyValue{
-				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:windows", 0.86018, 2},
-				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "GOOS:linux", 0.86018, 4},
+			want: []keyValue{
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "windows", 0.86018, 2},
+				{"2987-06-30", "golang.org/x/tools/gopls", "GOOS", "linux", 0.86018, 4},
 			},
 		},
 	}
@@ -748,13 +743,13 @@ func TestWriteCount(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			d := make(data)
 			for _, input := range tc.inputs {
-				d.writeCount(input.week, input.program, input.prefix, input.counter, input.x, input.value)
+				d.writeCount(input.week, input.program, input.chart, input.bucket, input.x, input.value)
 			}
 
-			for _, want := range tc.wants {
-				got := d[weekName(want.week)][programName(want.program)][graphName(want.prefix)][counterName(want.counter)][reportID(want.x)]
+			for _, want := range tc.want {
+				got := d[want.week][want.program][want.chart][want.bucket][want.x]
 				if want.value != got {
-					t.Errorf("d[%q][%q][%q][%q][%v] = %v, want %v", want.week, want.program, want.prefix, want.counter, want.x, got, want.value)
+					t.Errorf("d[%q][%q][%q][%q][%v] = %v, want %v", want.week, want.program, want.chart, want.bucket, want.x, got, want.value)
 				}
 			}
 		})
