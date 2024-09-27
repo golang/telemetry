@@ -86,6 +86,8 @@ func TestPaths(t *testing.T) {
 		ctx := context.Background()
 		cfg := config.NewConfig()
 		cfg.LocalStorage = t.TempDir()
+		cfg.ProjectID = "" // defensive: don't use a real project ID for tests.
+
 		// NewConfig assumes that the command is run from the repo root, but tests
 		// run from their test directory. We should fix this, but for now just
 		// fix up the config path.

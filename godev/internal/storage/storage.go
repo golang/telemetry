@@ -169,6 +169,10 @@ func NewFSObject(b *FSBucket, name string) ObjectHandle {
 	return &FSObject{filename}
 }
 
+func (o *FSObject) Filename() string {
+	return o.filename
+}
+
 func (o *FSObject) NewReader(ctx context.Context) (io.ReadCloser, error) {
 	r, err := os.Open(o.filename)
 	if errors.Is(err, os.ErrNotExist) {

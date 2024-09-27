@@ -37,8 +37,9 @@ dev environment with data.
 Similar to the /chart endpoint, /copy also supports the following query
 parameters:
 
-- `/?date=<YYYY-MM-DD>``: Copies reports for a specific date.
-- `/?start=<YYYY-MM-DD>&end=<YYYY-MM-DD>``: Copies reports within a specified date range.
+- `/copy/?date=<YYYY-MM-DD>`: Copies reports for a specific date.
+- `/copy/?start=<YYYY-MM-DD>&end=<YYYY-MM-DD>`: Copies reports within a
+  specified date range.
 
 ### `/queue-tasks`
 
@@ -51,17 +52,56 @@ triggers the following actions:
 
 ## Local Development
 
-For local development, simply build and run. It serves on localhost:8082.
+The preferred method of local develoment is to simply build and run the worker
+binary. Use PORT= to customize the default hosting port.
 
     go run ./godev/cmd/worker
 
-By default, the server will use the filesystem for storage object I/O. Use the
--gcs flag to use the Cloud Storage API.
+By default, the server will use the filesystem for storage object I/O (see
+[`GO_TELEMETRY_LOCAL_STORAGE`](#environment-variables)). Unless you have also
+uploaded reports through a local instance of the telemetry frontend, this local
+storage will be empty. To copy uploads from GCS to the local environment, run:
+
+    go run ./godev/devtools/cmd/copyuploads -v
+
+Note that this command requires read permission to our GCS buckets.
+
+So, this is a complete end-to-end test of the merge endpoint:
+
+1. First, copy data with:
+
+   ```
+   go run ./godev/devtools/cmd/copyuploads -v
+   ```
+
+2. Then, run the worker:
+
+   ```
+   go run ./godev/cmd/worker
+   ```
+
+3. Finally, in a separate terminal, trigger the merge operation:
+
+   ```
+   curl http://localhost:8082/merge/?date=2024-09-26
+   ```
+
+After doing this, you should see the resulting merged reports in the
+`./localstorage/local-telemetry-merged` directory.
+
+Note: the `/queue-tasks/` endpoint does not currently work locally: by default
+it tries to enqueue tasks in the associated GCP project, which will fail unless
+you have escalated permissions on GCP.
+
+### Local development using GCS
+
+Alternatively, you can use the -gcs flag to use the Cloud Storage API:
 
     go run ./godev/cmd/worker --gcs
 
-Optionally, use the localstorage devtool the emulate the GCS server on your
-machine.
+However, the above command requires write permissions to our public GCS buckets,
+which one should in general not request. Instead, use the localstorage devtool
+the emulate the GCS server on your machine.
 
     ./godev/devtools/localstorage.sh
     STORAGE_EMULATOR_HOST=localhost:8081 go run ./godev/cmd/worker --gcs

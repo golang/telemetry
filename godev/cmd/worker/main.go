@@ -133,6 +133,8 @@ func handleCopy(cfg *config.Config, dest *storage.API) content.HandlerFunc {
 // - Weekly chart: encompasses 7 days of data, concluding on the specified date.
 // TODO(golang/go#62575): adjust the date range to align with report
 // upload cutoff.
+//
+// TODO(rfindley): use a local task queue when not run with -gcs.
 func handleTasks(cfg *config.Config) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		now := time.Now().UTC()
