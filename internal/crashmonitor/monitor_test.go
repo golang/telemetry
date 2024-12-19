@@ -89,7 +89,13 @@ func TestViaStderr(t *testing.T) {
 		"runtime.goexit:--"
 
 	if !crashmonitor.Supported() { // !go1.23
-		// Before go1.23, the traceback excluded PCs for inlined frames.
+		// Traceback excludes PCs for inlined frames. Before go1.23
+		// (https://go.dev/cl/571798 specifically), passing the set of
+		// PCs in the traceback to runtime.CallersFrames, would report
+		// only the innermost inlined frame and none of the inline
+		// "callers".
+		//
+		// Thus, here we must drop the caller of the inlined frame.
 		want = strings.ReplaceAll(want, "golang.org/x/telemetry/internal/crashmonitor_test.child:+2\n", "")
 	}
 
