@@ -154,3 +154,11 @@ type: partition
 issue: https://go.dev/issue/68770
 program: golang.org/x/tools/gopls
 version: v0.16.0
+---
+counter: go/platform/host/darwin/major-version:{20,21,22,23,24,25,26,27,28}
+title: Darwin OS Version (subtract 9 for macOS version)
+description: count of invocations with each major Darwin OS version
+type: partition
+issue: https://go.dev/issue/71159
+program: cmd/go
+version: go1.23rc1
