@@ -342,6 +342,7 @@
 		"go1.22.9",
 		"go1.22.10",
 		"go1.22.11",
+		"go1.22.12",
 		"go1.23rc1",
 		"go1.23rc2",
 		"go1.23.0",
@@ -350,6 +351,7 @@
 		"go1.23.3",
 		"go1.23.4",
 		"go1.23.5",
+		"go1.23.6",
 		"go1.24rc1",
 		"go1.24rc2"
 	],
@@ -366,6 +368,7 @@
 				"go1.23.3",
 				"go1.23.4",
 				"go1.23.5",
+				"go1.23.6",
 				"go1.24rc1",
 				"go1.24rc2"
 			],
@@ -394,6 +397,7 @@
 				"go1.23.3",
 				"go1.23.4",
 				"go1.23.5",
+				"go1.23.6",
 				"go1.24rc1",
 				"go1.24rc2"
 			],
@@ -408,6 +412,10 @@
 				},
 				{
 					"Name": "go/build/flag/buildmode:{archive,c-archive,c-shared,default,exe,pie,shared,plugin}",
+					"Rate": 1
+				},
+				{
+					"Name": "go/platform/host/darwin/major-version:{20,21,22,23,24,25,26,27,28}",
 					"Rate": 1
 				}
 			]
