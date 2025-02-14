@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build go1.23
-// +build go1.23
 
 package crashmonitor
 

@@ -1,6 +1,6 @@
 module golang.org/x/telemetry
 
-go 1.22.0
+go 1.23.0
 
 require golang.org/x/mod v0.23.0
 
