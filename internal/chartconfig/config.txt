@@ -184,3 +184,21 @@ issue: https://go.dev/issue/73036
 program: github.com/golang/vscode-go/vscgo
 module: github.com/golang/vscode-go
 version: v0.47.0
+---
+counter: crash/crash
+title: Unexpected Delve crashes
+description: stacks of goroutines running when Delve crashes
+type: stack
+issue: https://go.dev/issue/72129
+program: github.com/go-delve/delve/cmd/dlv
+depth: 16
+version: v1.24.2
+---
+counter: delve/bug
+title: Delve Internal Errors
+description: counts stacks for internal debugger errors
+type: stack
+issue: https://go.dev/issue/72129
+program: github.com/go-delve/delve/cmd/dlv
+depth: 16
+version: v1.24.2
