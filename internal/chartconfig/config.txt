@@ -8,6 +8,7 @@ type: partition
 issue: https://go.dev/issue/61038
 issue: https://go.dev/issue/62214 # add vscode-insiders
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 version: v0.13.0 # temporarily back-version to demonstrate config generation.
 ---
 title: Go versions in use for gopls views
@@ -16,6 +17,7 @@ description: measure go version usage distribution.
 type: partition
 issue: https://go.dev/issue/62248
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 version: v0.13.0
 ---
 title: Number of bug report calls
@@ -24,6 +26,7 @@ description: count the bugs reported through gopls/internal/bug APIs.
 type: stack
 issue: https://go.dev/issue/62249
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 depth: 16
 version: v0.13.0
 ---
@@ -33,6 +36,7 @@ description: stacks of goroutines running when the Go program crashed
 type: stack
 issue: https://go.dev/issue/65696
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 depth: 16
 version: v0.15.0
 ---
@@ -42,6 +46,7 @@ description: count of runtime crash messages that failed to parse
 type: partition
 issue: https://go.dev/issue/65696
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 version: v0.15.0
 ---
 counter: crash/no-running-goroutine
@@ -50,6 +55,7 @@ description: count of runtime crash messages that don't have a running goroutine
 type: partition
 issue: https://go.dev/issue/65696
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 version: v0.15.0
 ---
 counter: go/invocations
@@ -110,6 +116,7 @@ description: measure govulncheck scan level distribution
 type: partition
 issue: https://go.dev/issue/67678
 program: golang.org/x/vuln/cmd/govulncheck
+module: golang.org/x/vuln
 ---
 counter: govulncheck/mode:{source,binary,extract,query,convert}
 title: Scan Mode Distribution
@@ -117,6 +124,7 @@ description: measure govulncheck scan mode distribution
 type: partition
 issue: https://go.dev/issue/67678
 program: golang.org/x/vuln/cmd/govulncheck
+module: golang.org/x/vuln
 ---
 counter: govulncheck/format:{text,json,sarif,openvex}
 title: Output Format Distribution
@@ -124,6 +132,7 @@ description: measure govulncheck output format distribution
 type: partition
 issue: https://go.dev/issue/67678
 program: golang.org/x/vuln/cmd/govulncheck
+module: golang.org/x/vuln
 ---
 counter: govulncheck/show:{none,traces,color,verbose,version}
 title: Show Options Distribution
@@ -131,6 +140,7 @@ description: measure govulncheck show flag distribution
 type: partition
 issue: https://go.dev/issue/67678
 program: golang.org/x/vuln/cmd/govulncheck
+module: golang.org/x/vuln
 ---
 counter: govulncheck/assumptions:{multi-patterns,no-binary-platform,no-relative-path,no-go-root,local-replace,unknown-pkg-mod-path}
 title: Code Invariants Distribution
@@ -138,6 +148,7 @@ description: measure distribution of failed govulncheck internal assumptions
 type: partition
 issue: https://go.dev/issue/67678
 program: golang.org/x/vuln/cmd/govulncheck
+module: golang.org/x/vuln
 ---
 counter: gopls/gotoolchain:{auto,path,local,other}
 title: GOTOOLCHAIN types used with gopls
@@ -145,6 +156,7 @@ description: measure the types of GOTOOLCHAIN values used with gopls
 type: partition
 issue: https://go.dev/issue/68771
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 version: v0.16.0
 ---
 counter: gopls/telemetryprompt/accepted
@@ -153,6 +165,7 @@ description: measure how often the gopls prompt to enable telemetry is accepted
 type: partition
 issue: https://go.dev/issue/68770
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 version: v0.16.0
 ---
 counter: go/platform/host/darwin/major-version:{20,21,22,23,24,25,26,27,28}
@@ -162,3 +175,12 @@ type: partition
 issue: https://go.dev/issue/71159
 program: cmd/go
 version: go1.23rc1
+---
+counter: vscode-go/tool/usage:{gotests,gomodifytags,goplay}
+title: Tools used by vscode-go
+description: measure the tool usage triggered by vscode-go
+type: partition
+issue: https://go.dev/issue/73036
+program: github.com/golang/vscode-go/vscgo
+module: github.com/golang/vscode-go
+version: v0.47.0

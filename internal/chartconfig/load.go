@@ -177,6 +177,7 @@ var fieldParsers = map[string]fieldParser{
 	"issue":       parseSlice(parseString),
 	"type":        parseString,
 	"program":     parseString,
+	"module":      parseString,
 	"counter":     parseString,
 	"depth":       parseInt,
 	"error":       parseFloat,

@@ -31,13 +31,14 @@ description: measure editor distribution for gopls users.
 type: partition
 issue: https://go.dev/issue/61038
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 version: v0.14.0
 `
 	gcfgs, err := chartconfig.Parse([]byte(raw))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := generate(gcfgs, padding{2, 1, 1, 2, 2})
+	got, err := generate(gcfgs, map[string]padding{"golang.org/x/tools/gopls": {2, 1, 1, 2, 2}})
 	if err != nil {
 		t.Fatal(err)
 	}

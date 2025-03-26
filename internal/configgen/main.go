@@ -39,18 +39,39 @@ var (
 	SamplingRate = 1.0
 )
 
-func main() {
-	flag.Parse()
+// minimumPaddings maps from program name to padding used to determine whether
+// an update of config.json is neccessary.
+// The purpose of these paddings is to pad enough versions to do two patches
+// releases tomorrow.
+var minimumPaddings map[string]padding = map[string]padding{
+	"golang.org/x/tools/gopls": {
+		releases: 2,
+		maj:      1,
+		majmin:   1, // we're not ever going to do more than one major/minor release in a day
+		patch:    2,
+		pre:      2, // in a single day, we wouldn't prep more than two prereleases per version
+	},
+	"github.com/golang/vscode-go/vscgo": {
+		releases: 2,
+		maj:      1,
+		majmin:   1,
+		patch:    2,
+		pre:      0,
+	},
+	"golang.org/x/vuln/cmd/govulncheck": {
+		releases: 2,
+		maj:      1,
+		majmin:   2,
+		patch:    0,
+		pre:      0,
+	},
+}
 
-	gcfgs, err := chartconfig.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+// regularPaddings maps from program name to padding used to reserve enough
+// versions for a quarter.
+var regularPaddings map[string]padding = map[string]padding{
 	// The padding heuristics below are based on the example of gopls.
-	//
-	// The goal is to pad enough versions for a quarter.
-	uCfg, err := generate(gcfgs, padding{
+	"golang.org/x/tools/gopls": {
 		// 6 releases into the future translates to approximately three months for gopls.
 		releases: 6,
 		// We may release gopls 1.0, but won't release 2.0 in a three month timespan!
@@ -62,7 +83,34 @@ func main() {
 		patch: 6,
 		// Gopls has never had more than 4 prereleases.
 		pre: 4,
-	})
+	},
+	"github.com/golang/vscode-go/vscgo": {
+		// 8 releases into the future including 4 in the same major version,
+		// 4 in the next major version.
+		releases: 8,
+		maj:      1,
+		majmin:   4,
+		patch:    5,
+		pre:      0,
+	},
+	"golang.org/x/vuln/cmd/govulncheck": {
+		releases: 4,
+		maj:      1,
+		majmin:   1,
+		patch:    4,
+		pre:      0,
+	},
+}
+
+func main() {
+	flag.Parse()
+
+	gcfgs, err := chartconfig.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	uCfg, err := generate(gcfgs, regularPaddings)
 
 	if err != nil {
 		log.Fatal(err)
@@ -87,14 +135,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// Guarantee that we have enough padding to do two patches releases tomorrow.
-		minCfg, err := generate(gcfgs, padding{
-			releases: 2,
-			maj:      1,
-			majmin:   1, // we're not ever going to do more than one major/minor release in a day
-			patch:    2,
-			pre:      2, // in a single day, we wouldn't prep more than two prereleases per version
-		})
+		minCfg, err := generate(gcfgs, minimumPaddings)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -141,7 +182,7 @@ func readConfig(file string) (*telemetry.UploadConfig, error) {
 
 // generate computes the upload config from chart configs and module
 // information, returning the resulting formatted JSON.
-func generate(gcfgs []chartconfig.ChartConfig, padding padding) (*telemetry.UploadConfig, error) {
+func generate(gcfgs []chartconfig.ChartConfig, paddings map[string]padding) (*telemetry.UploadConfig, error) {
 	ucfg := &telemetry.UploadConfig{
 		GOOS:   goos(),
 		GOARCH: goarch(),
@@ -164,6 +205,7 @@ func generate(gcfgs []chartconfig.ChartConfig, padding padding) (*telemetry.Uplo
 
 	var (
 		programs    = make(map[string]*telemetry.ProgramConfig) // package path -> config
+		modules     = make(map[string]string)                   // package path -> module path
 		minVersions = make(map[string]string)                   // package path -> min version required, or "" for all
 	)
 	for _, gcfg := range gcfgs {
@@ -172,6 +214,7 @@ func generate(gcfgs []chartconfig.ChartConfig, padding padding) (*telemetry.Uplo
 			pcfg = &telemetry.ProgramConfig{
 				Name: gcfg.Program,
 			}
+			modules[gcfg.Program] = gcfg.Module
 			programs[gcfg.Program] = pcfg
 			minVersions[gcfg.Program] = gcfg.Version
 		}
@@ -214,7 +257,7 @@ func generate(gcfgs []chartconfig.ChartConfig, padding padding) (*telemetry.Uplo
 				}
 			}
 		} else {
-			versions, err := listProxyVersions(p.Name)
+			versions, err := listProxyVersions(modules[p.Name])
 			if err != nil {
 				return nil, fmt.Errorf("listing versions for %q: %v", p.Name, err)
 			}
@@ -229,7 +272,11 @@ func generate(gcfgs []chartconfig.ChartConfig, padding padding) (*telemetry.Uplo
 					i++
 				}
 			}
-			p.Versions = padVersions(versions[:i], prereleasesForProgram(p.Name), padding)
+			// Look up paddings based on program name.
+			if _, ok := paddings[p.Name]; !ok {
+				return nil, fmt.Errorf("padding not defined for program %q", p.Name)
+			}
+			p.Versions = padVersions(versions[:i], prereleasesForProgram(p.Name), paddings[p.Name])
 		}
 		ucfg.Programs = append(ucfg.Programs, p)
 	}

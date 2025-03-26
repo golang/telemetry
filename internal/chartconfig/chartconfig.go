@@ -37,6 +37,7 @@
 //     Multiple issues may be provided by including additional 'issue:' lines.
 //   - type: the chart type. Currently only partition and stack are supported.
 //   - program: the package path of the program for which this chart applies.
+//   - module: the module path of the program for version lookup.
 //   - version: (optional) the first program version for which this chart
 //     applies. Must be a valid semver value. If not provided, the chart
 //     applies to all versions.
@@ -90,6 +91,7 @@
 //	type: partition
 //	issue: https://go.dev/issue/12345
 //	program: golang.org/x/tools/gopls
+//	module: golang.org/x/tools/gopls
 //	version: v1.0.0
 //
 //	---
@@ -102,6 +104,7 @@
 //	issue: https://go.dev/23456 # increase stack depth
 //	type: stack
 //	program: golang.org/x/tools/gopls
+//	module: golang.org/x/tools/gopls
 //	depth: 10
 //
 // [config.txt]: https://go.googlesource.com/telemetry/+/refs/heads/master/internal/chartconfig/config.txt
@@ -118,6 +121,7 @@ type ChartConfig struct {
 	Issue       []string
 	Type        string
 	Program     string
+	Module      string
 	Counter     string
 	Depth       int
 	Error       float64 // TODO(rfindley) is Error still useful?
