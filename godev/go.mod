@@ -10,7 +10,7 @@ require (
 	github.com/yuin/goldmark v1.5.4
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	golang.org/x/mod v0.24.0
-	golang.org/x/sync v0.12.0
+	golang.org/x/sync v0.13.0
 	golang.org/x/telemetry v0.0.0-00010101000000-000000000000
 	google.golang.org/api v0.149.0
 )
@@ -45,7 +45,7 @@ require (
 
 require (
 	github.com/yuin/goldmark-meta v1.1.0
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
 )
 
 replace golang.org/x/telemetry => ./..
