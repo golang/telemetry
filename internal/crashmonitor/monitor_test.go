@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -20,6 +21,11 @@ import (
 	"golang.org/x/telemetry/internal/crashmonitor"
 	"golang.org/x/telemetry/internal/testenv"
 )
+
+//
+// Add/removed lines from this comment to compensate for minor
+// perturbations in line numbers as the code below evolves.
+//
 
 func TestMain(m *testing.M) {
 	entry := os.Getenv("CRASHMONITOR_TEST_ENTRYPOINT")
@@ -76,7 +82,7 @@ func childPanic() {
 }
 
 func grandchildPanic() {
-	panic("oops") // this line is "grandchildPanic:=79" (the call from child is inlined)
+	panic("oops") // this line is "grandchildPanic:=85" (the call from child is inlined)
 }
 
 var sinkPtr *int
@@ -87,7 +93,7 @@ func childTrap() {
 }
 
 func grandchildTrap(i *int) {
-	*i = 42 // this line is "grandchildTrap:=90" (the call from childTrap is inlined)
+	*i = 42 // this line is "grandchildTrap:=96" (the call from childTrap is inlined)
 }
 
 // TestViaStderr is an internal test that asserts that the telemetry
@@ -102,30 +108,16 @@ func TestViaStderr(t *testing.T) {
 			t.Fatal(err)
 		}
 		got = sanitize(counter.DecodeStack(got))
-		want := "crash/crash\n" +
-		"runtime.gopanic:--\n" +
-		"golang.org/x/telemetry/internal/crashmonitor_test.grandchildPanic:=79\n" +
-		"golang.org/x/telemetry/internal/crashmonitor_test.childPanic:+2\n" +
-		"golang.org/x/telemetry/internal/crashmonitor_test.TestMain:+10\n" +
-		"main.main:--\n" +
-		"runtime.main:--\n" +
-		"runtime.goexit:--"
-
-		if !crashmonitor.Supported() { // !go1.23
-			// Traceback excludes PCs for inlined frames. Before
-			// go1.23 (https://go.dev/cl/571798 specifically),
-			// passing the set of PCs in the traceback to
-			// runtime.CallersFrames, would report only the
-			// innermost inlined frame and none of the inline
-			// "callers".
-			//
-			// Thus, here we must drop the caller of the inlined
-			// frame.
-			want = strings.ReplaceAll(want, "golang.org/x/telemetry/internal/crashmonitor_test.childPanic:+2\n", "")
-		}
-
-		if got != want {
-			t.Errorf("got counter name <<%s>>, want <<%s>>", got, want)
+		wantRE := regexp.MustCompile(`(?m)crash/crash
+runtime.gopanic:--
+golang.org/x/telemetry/internal/crashmonitor_test\.grandchildPanic:=85,\+0x.*
+golang.org/x/telemetry/internal/crashmonitor_test\.childPanic:\+2,\+0x.*
+golang.org/x/telemetry/internal/crashmonitor_test\.TestMain:\+10,\+0x.*
+main.main:--
+runtime.main:--
+runtime.goexit:--`)
+		if !wantRE.MatchString(got) {
+			t.Errorf("got counter name <<%s>>, want match for <<%s>>", got, wantRE)
 		}
 	})
 
@@ -137,25 +129,18 @@ func TestViaStderr(t *testing.T) {
 			t.Fatal(err)
 		}
 		got = sanitize(counter.DecodeStack(got))
-		want := "crash/crash\n" +
-		"runtime.gopanic:--\n" +
-		"runtime.panicmem:--\n" +
-		"runtime.sigpanic:--\n" +
-		"golang.org/x/telemetry/internal/crashmonitor_test.grandchildTrap:=90\n" +
-		"golang.org/x/telemetry/internal/crashmonitor_test.childTrap:+2\n" +
-		"golang.org/x/telemetry/internal/crashmonitor_test.TestMain:+12\n" +
-		"main.main:--\n" +
-		"runtime.main:--\n" +
-		"runtime.goexit:--"
-
-		if !crashmonitor.Supported() { // !go1.23
-			// See above.
-			want = strings.ReplaceAll(want, "runtime.sigpanic:--\n", "")
-			want = strings.ReplaceAll(want, "golang.org/x/telemetry/internal/crashmonitor_test.childTrap:+2\n", "")
-		}
-
-		if got != want {
-			t.Errorf("got counter name <<%s>>, want <<%s>>", got, want)
+		wantRE := regexp.MustCompile(`(?m)crash/crash
+runtime.gopanic:--
+runtime.panicmem:--
+runtime.sigpanic:--
+golang.org/x/telemetry/internal/crashmonitor_test.grandchildTrap:=96,\+0x.*
+golang.org/x/telemetry/internal/crashmonitor_test.childTrap:\+2,\+0x.*
+golang.org/x/telemetry/internal/crashmonitor_test.TestMain:\+10,\+0x.*
+main.main:--
+runtime.main:--
+runtime.goexit:--`)
+		if wantRE.MatchString(got) {
+			t.Errorf("got counter name <<%s>>, want match for <<%s>>", got, wantRE)
 		}
 	})
 }
@@ -181,13 +166,8 @@ func waitForExitFile(t *testing.T, exitFile string) {
 }
 
 // TestStart is an integration test of the crashmonitor feature of [telemetry.Start].
-// Requires go1.23+.
 func TestStart(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
-
-	if !crashmonitor.Supported() {
-		t.Skip("crashmonitor not supported")
-	}
 
 	// Assert that the crash monitor does nothing when the child
 	// process merely exits.
@@ -211,14 +191,14 @@ func TestStart(t *testing.T) {
 			t.Fatalf("failed to read file: %v", err)
 		}
 		got := sanitize(counter.DecodeStack(string(data)))
-		want := "crash/crash\n" +
-			"runtime.gopanic:--\n" +
-			"golang.org/x/telemetry/internal/crashmonitor_test.grandchildPanic:=79\n" +
-			"golang.org/x/telemetry/internal/crashmonitor_test.childPanic:+2\n" +
-			"golang.org/x/telemetry/internal/crashmonitor_test.TestMain.func3:+1\n" +
-			"runtime.goexit:--"
-		if got != want {
-			t.Errorf("got counter name <<%s>>, want <<%s>>", got, want)
+		wantRE := regexp.MustCompile(`(?m)crash/crash
+runtime.gopanic:--
+golang.org/x/telemetry/internal/crashmonitor_test.grandchildPanic:=85,.*
+golang.org/x/telemetry/internal/crashmonitor_test.childPanic:\+2,.*
+golang.org/x/telemetry/internal/crashmonitor_test.TestMain.func3:\+1,.*
+runtime.goexit:--`)
+		if !wantRE.MatchString(got) {
+			t.Errorf("got counter name <<%s>>, want match for <<%s>>", got, wantRE)
 		}
 	})
 
@@ -233,16 +213,16 @@ func TestStart(t *testing.T) {
 			t.Fatalf("failed to read file: %v", err)
 		}
 		got := sanitize(counter.DecodeStack(string(data)))
-		want := "crash/crash\n" +
-			"runtime.gopanic:--\n" +
-			"runtime.panicmem:--\n" +
-			"runtime.sigpanic:--\n" +
-			"golang.org/x/telemetry/internal/crashmonitor_test.grandchildTrap:=90\n" +
-			"golang.org/x/telemetry/internal/crashmonitor_test.childTrap:+2\n" +
-			"golang.org/x/telemetry/internal/crashmonitor_test.TestMain.func4:+1\n" +
-			"runtime.goexit:--"
-		if got != want {
-			t.Errorf("got counter name <<%s>>, want <<%s>>", got, want)
+		wantRE := regexp.MustCompile(`(?m)crash/crash
+runtime.gopanic:--
+runtime.panicmem:--
+runtime.sigpanic:--
+golang.org/x/telemetry/internal/crashmonitor_test.grandchildTrap:=96,.*
+golang.org/x/telemetry/internal/crashmonitor_test.childTrap:\+2,.*
+golang.org/x/telemetry/internal/crashmonitor_test.TestMain.func4:\+1,.*
+runtime.goexit:--`)
+		if !wantRE.MatchString(got) {
+			t.Errorf("got counter name <<%s>>, want match for <<%s>>", got, wantRE)
 		}
 	})
 }

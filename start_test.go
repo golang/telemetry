@@ -21,7 +21,6 @@ import (
 	"golang.org/x/telemetry/counter/countertest"
 	"golang.org/x/telemetry/internal/configtest"
 	ic "golang.org/x/telemetry/internal/counter"
-	"golang.org/x/telemetry/internal/crashmonitor"
 	"golang.org/x/telemetry/internal/regtest"
 	it "golang.org/x/telemetry/internal/telemetry"
 	"golang.org/x/telemetry/internal/testenv"
@@ -134,10 +133,6 @@ func execProg(t *testing.T, telemetryDir, prog string, asof time.Time, expectFai
 func TestStart(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	testenv.MustHaveExec(t)
-
-	if !crashmonitor.Supported() {
-		t.Skip("crashmonitor not supported")
-	}
 
 	// This test sets up a telemetry environment, and then runs a test program
 	// that increments a counter, and uploads via telemetry.Start.
