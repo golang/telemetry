@@ -84,6 +84,10 @@ func TestProgramInfo_GoVersion(t *testing.T) {
 			"go1.23.0",
 		},
 		{
+			"go1.25-devel_9ce47e66e8 Wed Mar 26 03:48:50 2025 -0700",
+			"devel",
+		},
+		{
 			"devel go1.24-0d6bb68f48 Thu Jul 25 23:27:41 2024 -0600",
 			"devel",
 		},
