@@ -43,7 +43,7 @@ var (
 // an update of config.json is neccessary.
 // The purpose of these paddings is to pad enough versions to do two patches
 // releases tomorrow.
-var minimumPaddings map[string]padding = map[string]padding{
+var minimumPaddings = map[string]padding{
 	"golang.org/x/tools/gopls": {
 		releases: 2,
 		maj:      1,
@@ -65,11 +65,18 @@ var minimumPaddings map[string]padding = map[string]padding{
 		patch:    0,
 		pre:      0,
 	},
+	"github.com/go-delve/delve/cmd/dlv": {
+		releases: 1,
+		maj:      0,
+		majmin:   1,
+		patch:    1,
+		pre:      0,
+	},
 }
 
 // regularPaddings maps from program name to padding used to reserve enough
 // versions for a quarter.
-var regularPaddings map[string]padding = map[string]padding{
+var regularPaddings = map[string]padding{
 	// The padding heuristics below are based on the example of gopls.
 	"golang.org/x/tools/gopls": {
 		// 6 releases into the future translates to approximately three months for gopls.
@@ -100,6 +107,13 @@ var regularPaddings map[string]padding = map[string]padding{
 		patch:    4,
 		pre:      0,
 	},
+	"github.com/go-delve/delve/cmd/dlv": {
+		releases: 2,
+		maj:      0,
+		majmin:   1,
+		patch:    2,
+		pre:      0,
+	},
 }
 
 func main() {
@@ -111,10 +125,10 @@ func main() {
 	}
 
 	uCfg, err := generate(gcfgs, regularPaddings)
-
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	cfgJSON, err := json.MarshalIndent(uCfg, "", "\t")
 	if err != nil {
 		log.Fatal(err)

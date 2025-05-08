@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"go/version"
+	"strings"
 
 	"golang.org/x/mod/semver"
 	"golang.org/x/telemetry/internal/chartconfig"
@@ -31,6 +32,11 @@ func ValidateChartConfig(cfg chartconfig.ChartConfig) error {
 	}
 	if cfg.Program == "" {
 		reportf("program must be set")
+	}
+	if !telemetry.IsToolchainProgram(cfg.Program) && cfg.Module == "" {
+		reportf("module must be set")
+	} else if !strings.HasPrefix(cfg.Program, cfg.Module) {
+		reportf("module must be a prefix of program: %q doesn't have prefix %q", cfg.Program, cfg.Module)
 	}
 	if cfg.Counter == "" {
 		reportf("counter must be set")

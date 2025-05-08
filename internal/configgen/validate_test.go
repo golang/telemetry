@@ -17,12 +17,38 @@ func TestLoadedChartsAreValid(t *testing.T) {
 	// Test that we can actually load the chart config.
 	charts, err := chartconfig.Load()
 	if err != nil {
-		t.Errorf("Load() failed: %v", err)
+		t.Fatal("chartconfig.Load() failed:", err)
 	}
 	for i, chart := range charts {
 		if err := ValidateChartConfig(chart); err != nil {
 			t.Errorf("Chart %d is invalid: %v", i, err)
 		}
+	}
+
+	if t.Failed() {
+		// Skip the the rest of the test, it's redundant if
+		// the chartconfig value isn't valid.
+		return
+	}
+
+	// Test that all paddings are complete for the purposes
+	// of being able to generate from the chartconfig value.
+	for _, tc := range [...]struct {
+		name     string
+		paddings map[string]padding
+	}{
+		{"regularPaddings", regularPaddings},
+		{"minimumPaddings", minimumPaddings},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if testing.Short() {
+				t.Skip("not running test that uses internet in short mode")
+			}
+			_, err := generate(charts, tc.paddings)
+			if err != nil {
+				t.Errorf("generate(charts, %s): %v", tc.name, err)
+			}
+		})
 	}
 }
 
@@ -34,6 +60,7 @@ counter: gopls/editor:{emacs,vim,vscode,other}
 type: partition
 issue: https://go.dev/issue/12345
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 `
 	records, err := chartconfig.Parse([]byte(input))
 	if err != nil {
