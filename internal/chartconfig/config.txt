@@ -191,6 +191,7 @@ description: stacks of goroutines running when Delve crashes
 type: stack
 issue: https://go.dev/issue/72129
 program: github.com/go-delve/delve/cmd/dlv
+module: github.com/go-delve/delve
 depth: 16
 version: v1.24.2
 ---
@@ -200,5 +201,6 @@ description: counts stacks for internal debugger errors
 type: stack
 issue: https://go.dev/issue/72129
 program: github.com/go-delve/delve/cmd/dlv
+module: github.com/go-delve/delve
 depth: 16
 version: v1.24.2
