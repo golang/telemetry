@@ -445,6 +445,28 @@
 			]
 		},
 		{
+			"Name": "github.com/go-delve/delve/cmd/dlv",
+			"Versions": [
+				"v1.24.2",
+				"v1.24.3",
+				"v1.24.4",
+				"v1.25.0",
+				"v1.25.1"
+			],
+			"Stacks": [
+				{
+					"Name": "crash/crash",
+					"Rate": 1,
+					"Depth": 16
+				},
+				{
+					"Name": "delve/bug",
+					"Rate": 1,
+					"Depth": 16
+				}
+			]
+		},
+		{
 			"Name": "github.com/golang/vscode-go/vscgo",
 			"Versions": [
 				"v0.47.0",
