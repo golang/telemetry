@@ -4,8 +4,6 @@
 
 //go:generate go run . -w
 
-//go:build go1.22
-
 // Package configgen generates the upload config file stored in the config.json
 // file of golang.org/x/telemetry/config based on the chartconfig stored in
 // config.txt.
