@@ -77,7 +77,8 @@ func newHandler(ctx context.Context, cfg *config.Config) http.Handler {
 	// TODO(rfindley): restrict this routing to POST
 	mux.Handle("/upload/", handleUpload(ucfg, buckets.Upload))
 	mux.Handle("/charts/", handleCharts(render, buckets.Chart))
-	mux.Handle("/data/", handleData(render, buckets.Merge))
+	mux.Handle("GET /data/", handleDataList(render, buckets.Merge))
+	mux.Handle("GET /data/{date}", handleData(buckets.Merge))
 
 	mw := middleware.Chain(
 		middleware.Log(logger),
@@ -234,19 +235,17 @@ func handleChart(ctx context.Context, w http.ResponseWriter, date string, render
 }
 
 type dataPage struct {
-	BucketURL string
-	Dates     []string
+	Dates []string
 }
 
 func (dataPage) Breadcrumbs() []breadcrumb {
 	return []breadcrumb{{Link: "/", Label: "Go Telemetry"}, {Label: "Data"}}
 }
 
-func handleData(render renderer, mergeBucket storage.BucketHandle) content.HandlerFunc {
+func handleDataList(render renderer, mergeBucket storage.BucketHandle) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		it := mergeBucket.Objects(r.Context(), "")
 		var page dataPage
-		page.BucketURL = mergeBucket.URI()
 		for {
 			obj, err := it.Next()
 			if errors.Is(err, storage.ErrObjectIteratorDone) {
@@ -261,6 +260,36 @@ func handleData(render renderer, mergeBucket storage.BucketHandle) content.Handl
 			page.Dates = append(page.Dates, date)
 		}
 		return render(w, "data.html", page)
+	}
+}
+
+func handleData(mergeBucket storage.BucketHandle) content.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		date := r.PathValue("date")
+		if _, err := time.Parse(telemetry.DateOnly, date); err != nil {
+			return content.Error(fmt.Errorf("invalid YYYY-MM-DD date: %q", date), http.StatusBadRequest)
+		}
+		reader, err := mergeBucket.Object(date + ".json").NewReader(r.Context())
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			return content.Error(fmt.Errorf("date %q not found", date), http.StatusNotFound)
+		}
+		if err != nil {
+			return err
+		}
+		defer reader.Close()
+		data, err := io.ReadAll(reader)
+		if err != nil {
+			return err
+		}
+		// Despite the merged report having a .json extension, it's not actually
+		// valid JSON (it's newline-delimited JSON objects). Therefore, it
+		// doesn't actually work well with content aware viewers if we give it
+		// the application/json content type. Furthermore, when this data was
+		// previously served directly out of GCS, it had the text/plain content
+		// type.
+		w.Header().Set("Content-Type", "text/plain")
+		_, err = w.Write(data)
+		return err
 	}
 }
 
