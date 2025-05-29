@@ -70,14 +70,14 @@ func newHandler(ctx context.Context, cfg *config.Config) http.Handler {
 	}
 
 	logger := slog.Default()
-	// TODO(rfindley): use Go 1.22 routing once 1.23 is released and we can bump
-	// the go directive to 1.22.
-	mux.Handle("/", handleRoot(render, fsys, buckets.Chart, logger))
-	mux.Handle("/config", handleConfig(fsys, ucfg))
-	// TODO(rfindley): restrict this routing to POST
-	mux.Handle("/upload/", handleUpload(ucfg, buckets.Upload))
-	mux.Handle("/charts/", handleCharts(render, buckets.Chart))
-	mux.Handle("GET /data/", handleDataList(render, buckets.Merge))
+	mux.Handle("GET /", handleRoot(render, fsys, buckets.Chart, logger))
+	mux.Handle("GET /config", handleConfig(fsys, ucfg))
+	// TODO(rfindley): why do we upload to a dated endpoint, when the handler
+	// doesn't read the path variables?
+	mux.Handle("POST /upload/", handleUpload(ucfg, buckets.Upload))
+	mux.Handle("GET /charts/{$}", handleChartList(render, buckets.Chart))
+	mux.Handle("GET /charts/{date}", handleChart(render, buckets.Chart))
+	mux.Handle("GET /data/{$}", handleDataList(render, buckets.Merge))
 	mux.Handle("GET /data/{date}", handleData(buckets.Merge))
 
 	mw := middleware.Chain(
@@ -180,13 +180,9 @@ func (chartsPage) Breadcrumbs() []breadcrumb {
 	return []breadcrumb{{Link: "/", Label: "Go Telemetry"}, {Label: "Charts"}}
 }
 
-func handleCharts(render renderer, chartBucket storage.BucketHandle) content.HandlerFunc {
+func handleChartList(render renderer, chartBucket storage.BucketHandle) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		ctx := r.Context()
-		if p := strings.TrimPrefix(r.URL.Path, "/charts/"); p != "" {
-			return handleChart(ctx, w, p, render, chartBucket)
-		}
-		it := chartBucket.Objects(ctx, "")
+		it := chartBucket.Objects(r.Context(), "")
 		var page chartsPage
 		for {
 			obj, err := it.Next()
@@ -219,19 +215,21 @@ func (p chartPage) Breadcrumbs() []breadcrumb {
 	}
 }
 
-func handleChart(ctx context.Context, w http.ResponseWriter, date string, render renderer, chartBucket storage.BucketHandle) error {
-	// TODO(rfindley): refactor to return a content.HandlerFunc once we can use Go 1.22 routing.
-	page := chartPage{Date: date}
-	var err error
-	objName := date + ".json"
-	page.ChartTitle = chartTitle(objName)
-	page.Charts, err = loadCharts(ctx, objName, chartBucket)
-	if errors.Is(err, storage.ErrObjectNotExist) {
-		return content.Status(w, http.StatusNotFound)
-	} else if err != nil {
-		return err
+func handleChart(render renderer, chartBucket storage.BucketHandle) content.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		date := r.PathValue("date") // may be a range -- 2025-05-20_2025-05-27
+		page := chartPage{Date: date}
+		var err error
+		objName := date + ".json"
+		page.ChartTitle = chartTitle(objName)
+		page.Charts, err = loadCharts(r.Context(), objName, chartBucket)
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			return content.Status(w, http.StatusNotFound)
+		} else if err != nil {
+			return err
+		}
+		return render(w, "charts.html", page)
 	}
-	return render(w, "charts.html", page)
 }
 
 type dataPage struct {
@@ -271,9 +269,8 @@ func handleData(mergeBucket storage.BucketHandle) content.HandlerFunc {
 		}
 		reader, err := mergeBucket.Object(date + ".json").NewReader(r.Context())
 		if errors.Is(err, storage.ErrObjectNotExist) {
-			return content.Error(fmt.Errorf("date %q not found", date), http.StatusNotFound)
-		}
-		if err != nil {
+			return content.Error(fmt.Errorf("data for %q not found", date), http.StatusNotFound)
+		} else if err != nil {
 			return err
 		}
 		defer reader.Close()
@@ -283,7 +280,7 @@ func handleData(mergeBucket storage.BucketHandle) content.HandlerFunc {
 		}
 		// Despite the merged report having a .json extension, it's not actually
 		// valid JSON (it's newline-delimited JSON objects). Therefore, it
-		// doesn't actually work well with content aware viewers if we give it
+		// doesn't actually work well with content-aware viewers if we give it
 		// the application/json content type. Furthermore, when this data was
 		// previously served directly out of GCS, it had the text/plain content
 		// type.
@@ -312,31 +309,28 @@ func loadCharts(ctx context.Context, chartObj string, bucket storage.BucketHandl
 
 func handleUpload(ucfg *tconfig.Config, uploadBucket storage.BucketHandle) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		if r.Method == "POST" {
-			ctx := r.Context()
-			var report telemetry.Report
-			if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
-				return content.Error(fmt.Errorf("invalid JSON payload: %v", err), http.StatusBadRequest)
-			}
-			if err := validate(&report, ucfg); err != nil {
-				return content.Error(fmt.Errorf("invalid report: %v", err), http.StatusBadRequest)
-			}
-			// TODO: capture metrics for collisions.
-			name := fmt.Sprintf("%s/%g.json", report.Week, report.X)
-			f, err := uploadBucket.Object(name).NewWriter(ctx)
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-			if err := json.NewEncoder(f).Encode(report); err != nil {
-				return err
-			}
-			if err := f.Close(); err != nil {
-				return err
-			}
-			return content.Status(w, http.StatusOK)
+		ctx := r.Context()
+		var report telemetry.Report
+		if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
+			return content.Error(fmt.Errorf("invalid JSON payload: %v", err), http.StatusBadRequest)
 		}
-		return content.Status(w, http.StatusMethodNotAllowed)
+		if err := validate(&report, ucfg); err != nil {
+			return content.Error(fmt.Errorf("invalid report: %v", err), http.StatusBadRequest)
+		}
+		// TODO: capture metrics for collisions.
+		name := fmt.Sprintf("%s/%g.json", report.Week, report.X)
+		f, err := uploadBucket.Object(name).NewWriter(ctx)
+		if err != nil {
+			return err
+		}
+		if err := json.NewEncoder(f).Encode(report); err != nil {
+			_ = f.Close()
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		return content.Status(w, http.StatusOK)
 	}
 }
 
