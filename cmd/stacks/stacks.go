@@ -849,7 +849,7 @@ func writeStackComment(body *bytes.Buffer, stack, id string, jsonURL string, cou
 
 // frameURL returns the CodeSearch URL for the stack frame, if known.
 func frameURL(pclntab map[string]FileLine, info Info, frame string) string {
-	// e.g. "golang.org/x/tools/gopls/foo.(*Type).Method.inlined.func3:+5"
+	// e.g. "golang.org/x/tools/gopls/foo.(*Type).Method.inlined.func3:+5,+0x123",
 	symbol, offset, ok := strings.Cut(frame, ":")
 	if !ok {
 		// Not a symbol (perhaps stack counter title: "gopls/bug"?)
@@ -877,6 +877,14 @@ func frameURL(pclntab map[string]FileLine, info Info, frame string) string {
 		// Fix gopls/v0.14.2 legacy syntax ":%d" -> ":+%d".
 		offset = "+" + offset
 	}
+
+	// CL 664175 (Apr 2025) changed the format
+	// to include relative PCs ("+%d,+0x%x") too.
+	// We can discard the PC part here.
+	if before, _, ok := strings.Cut(offset, ",+"); ok {
+		offset = before
+	}
+
 	offsetNum, err := strconv.Atoi(offset[1:])
 	if err != nil {
 		log.Fatalf("invalid line offset: %s", frame)
@@ -903,10 +911,11 @@ func frameURL(pclntab map[string]FileLine, info Info, frame string) string {
 
 	// x/tools repo (tools or gopls module)?
 	if rest, ok := strings.CutPrefix(fileline.file, "golang.org/x/tools"); ok {
-		if rest[0] == '/' {
+		switch rest[0] {
+		case '/':
 			// "golang.org/x/tools/gopls" -> "gopls"
 			rest = rest[1:]
-		} else if rest[0] == '@' {
+		case '@':
 			// "golang.org/x/tools@version/dir/file.go" -> "dir/file.go"
 			rest = rest[strings.Index(rest, "/")+1:]
 		}
