@@ -856,6 +856,7 @@ func frameURL(pclntab map[string]FileLine, info Info, frame string) string {
 		return ""
 	}
 
+again:
 	fileline, ok := pclntab[symbol]
 	if !ok {
 		// objdump reports ELF symbol names, which in
@@ -866,7 +867,29 @@ func frameURL(pclntab map[string]FileLine, info Info, frame string) string {
 		// So this should not be a hard error.
 		if symbol != "runtime.goexit" {
 			log.Printf("no pclntab info for symbol: %s", symbol)
+
+			// This can also happen for inlined symbols, e.g.
+			//  golang.org/x/tools/gopls/foo.(*bar).wiz.func1.1
+			// Such symbol names, chosen by cmd/compile/internal/ir.closureName,
+			// appear in the pclntab and thus the backtrace,
+			// but not in the ELF symbol table, and thus not
+			// in the output of "go tool objdump".
+			//
+			// Many such symbols are formed by appending a gensym
+			// counter ".%d" to a real symbol. If the line offset
+			// is absolute (e.g. "foo.func1.1:=123"), then we only
+			// need the filename, which is the same as that of the
+			// enclosing function ("foo.func1").
+			// So try stripping off the suffix in that case.
+			if before, after, ok := cutLast(symbol, "."); ok && strings.Contains(offset, "=") {
+				if _, err := strconv.Atoi(after); err == nil { // have "fn.%d"
+					symbol = before
+					log.Printf("trying without numeric suffix: %s", symbol)
+					goto again
+				}
+			}
 		}
+
 		return ""
 	}
 
