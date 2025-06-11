@@ -1177,7 +1177,7 @@ func readPCLineTable(info Info, stacksDir string) (map[string]FileLine, error) {
 	// When building a main repo tool, no need to clone or change
 	// directories. GOTOOLCHAIN is sufficient to fetch and build the
 	// appropriate version.
-	var buildDir string
+	var buildDir string // cwd for "go build", and output directory for exe
 	switch info.Program {
 	case "golang.org/x/tools/gopls":
 		// Fetch the source for the tools repo,
@@ -1202,13 +1202,17 @@ func readPCLineTable(info Info, stacksDir string) (map[string]FileLine, error) {
 
 		// gopls is in its own module, we must build from there.
 		buildDir = filepath.Join(revDir, "gopls")
+
 	case "cmd/compile":
 		// Nothing to do, GOTOOLCHAIN is sufficient.
 
-		// Switch build directories so if we happen to be in Go module
-		// directory its go.mod doesn't restrict the toolchain versions
-		// we're allowed to use.
-		buildDir = "/"
+		// Set output directory (and avoid any dependence on
+		// the current directory, which may be a Go module
+		// directory containing a go.mod.)
+		//
+		// The exe name is unambiguous so we don't need to use a subdir.
+		buildDir = stacksDir
+
 	case "github.com/go-delve/delve/cmd/dlv":
 		revDir := filepath.Join(stacksDir, "delve@"+info.ProgramVersion)
 		if !fileExists(filepath.Join(revDir, "go.mod")) {
@@ -1220,19 +1224,25 @@ func readPCLineTable(info Info, stacksDir string) (map[string]FileLine, error) {
 			}
 		}
 		buildDir = revDir
+
 	default:
 		return nil, fmt.Errorf("don't know how to build unknown program %s", info.Program)
 	}
 
-	// No slashes in file name.
-	escapedProg := strings.Replace(info.Program, "/", "_", -1)
+	if !strings.HasPrefix(buildDir, stacksDir) {
+		log.Fatalf("buildDir %q is not within stack temp dir %q", buildDir, stacksDir)
+	}
 
 	// Build the executable with the correct GOTOOLCHAIN, GOOS, GOARCH.
+	// (The buildDir implies the ProgramVersion, if relevant.)
 	// Use -trimpath for normalized file names.
 	// (Skip if it's already built.)
-	exe := fmt.Sprintf("exe-%s-%s.%s-%s", escapedProg, info.GoVersion, info.GOOS, info.GOARCH)
-	exe = filepath.Join(stacksDir, exe)
-
+	exe := filepath.Join(buildDir,
+		fmt.Sprintf("exe-%s-%s.%s-%s",
+			strings.ReplaceAll(info.Program, "/", "_"),
+			info.GoVersion,
+			info.GOOS,
+			info.GOARCH))
 	if !fileExists(exe) {
 		log.Printf("building %s@%s with %s for %s/%s",
 			info.Program, info.ProgramVersion, info.GoVersion, info.GOOS, info.GOARCH)
