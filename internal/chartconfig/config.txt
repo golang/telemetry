@@ -231,3 +231,39 @@ issue: https://github.com/golang/go/issues/74628
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.20.0
+---
+counter: gopls/changesig
+title: Use of Change Signature
+description: counts uses of change signature
+type: stack
+issue: https://github.com/golang/go/issues/74102
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.18.0
+---
+counter: gopls/rename
+title: Use of Rename
+description: counts uses of rename
+type: stack
+issue: https://github.com/golang/go/issues/74102
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.18.0
+---
+counter: gopls/inline:{call,variable}
+title: Use of Inline
+description: counts uses of inline
+type: partition
+issue: https://github.com/golang/go/issues/74102
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.18.0
+---
+counter: gopls/extract:{func,method,variable,variable-all}
+title: Use of Extract
+description: counts uses of extract
+type: partition
+issue: https://github.com/golang/go/issues/74102
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.18.0
