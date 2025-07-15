@@ -222,3 +222,12 @@ issue: https://github.com/golang/go/issues/74341
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.20.0
+---
+counter: gopls/structtags:{add,remove}
+title: Struct Tags Refactoring
+description: use of add and remove struct tags refactoring codeaction
+type: stack
+issue: https://github.com/golang/go/issues/74628
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.20.0
