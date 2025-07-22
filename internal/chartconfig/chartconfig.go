@@ -80,6 +80,11 @@
 //   - A 'stack' chart is not a real chart. It just means that we want to
 //     collect the given stack counter or group of stack counters.
 //
+// # Version
+//
+// The minimum version for each module path is selected and applied across
+// all counters with the same module path.
+//
 // # Example
 //
 // Here is a fully worked example, including both partition and stack records:

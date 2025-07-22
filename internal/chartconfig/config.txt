@@ -205,25 +205,16 @@ module: github.com/go-delve/delve
 depth: 16
 version: v1.24.2
 ---
-counter: gopls/mcp-headless:stdio
-title: Headless MCP Server (StdIO)
-description: counts initializations of Go MCP server in headless mode running on stdio
+counter: gopls/mcp-headless:{stdio,sse}
+title: Headless MCP Server
+description: counts initializations of Go MCP server in headless mode running on stdio or sse
 type: stack
 issue: https://github.com/golang/go/issues/74341
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.20.0
 ---
-counter: gopls/mcp-headless:sse
-title: Headless MCP Server (SSE)
-description: counts initializations of Go MCP server in headless mode running on sse with http
-type: stack
-issue: https://github.com/golang/go/issues/74341
-program: golang.org/x/tools/gopls
-module: golang.org/x/tools/gopls
-version: v0.20.0
----
-counter: gopls/mcp-headless:stdio
+counter: gopls/mcp
 title: Attached MCP Server
 description: counts initializations of Go MCP server in attached mode
 type: stack
