@@ -267,3 +267,23 @@ issue: https://github.com/golang/go/issues/74102
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.18.0
+---
+counter: vscode-go/command/trigger:{
+    gotests-command_palette,
+    gotests-context_menu,
+    gomodifytags-command_palette,
+    gomodifytags-context_menu,
+    gopls.add_test-command_palette,
+    gopls.add_test-context_menu,
+    gopls.add_test-code_action,
+    gopls.modify_tags-command_palette,
+    gopls.modify_tags-context_menu,
+    gopls.modify_tags-code_action
+}
+title: vscode-go command trigger source
+description: measure the command trigger in vscode-go
+type: partition
+issue: https://go.dev/issue/74869
+program: github.com/golang/vscode-go/vscgo
+module: github.com/golang/vscode-go
+version: v0.49.1
