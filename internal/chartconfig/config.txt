@@ -2,11 +2,12 @@
 # For the chart config file format, see chartconfig.go.
 
 title: Editor Distribution
-counter: gopls/client:{vscode,vscodium,vscode-insiders,code-server,eglot,govim,neovim,coc.nvim,sublimetext,other}
+counter: gopls/client:{vscode,vscodium,vscode-insiders,code-server,eglot,govim,neovim,coc.nvim,sublimetext,windsurf,cursor,other}
 description: measure editor distribution for gopls users.
 type: partition
 issue: https://go.dev/issue/61038
 issue: https://go.dev/issue/62214 # add vscode-insiders
+issue: https://go.dev/issue/74874 # add windsurf and cursor
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.13.0 # temporarily back-version to demonstrate config generation.
