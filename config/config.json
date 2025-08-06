@@ -838,6 +838,26 @@
 				{
 					"Name": "gopls/mcp",
 					"Rate": 1
+				},
+				{
+					"Name": "gopls/structtags:{add,remove}",
+					"Rate": 1
+				},
+				{
+					"Name": "gopls/changesig",
+					"Rate": 1
+				},
+				{
+					"Name": "gopls/rename",
+					"Rate": 1
+				},
+				{
+					"Name": "gopls/inline:{call,variable}",
+					"Rate": 1
+				},
+				{
+					"Name": "gopls/extract:{func,method,variable,variable-all}",
+					"Rate": 1
 				}
 			],
 			"Stacks": [
