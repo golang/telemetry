@@ -565,6 +565,10 @@
 				{
 					"Name": "vscode-go/tool/usage:{gotests,gomodifytags,goplay}",
 					"Rate": 1
+				},
+				{
+					"Name": "vscode-go/command/trigger:{gotests-command_palette,gotests-context_menu,gomodifytags-command_palette,gomodifytags-context_menu,gopls.add_test-command_palette,gopls.add_test-context_menu,gopls.add_test-code_action,gopls.modify_tags-command_palette,gopls.modify_tags-context_menu,gopls.modify_tags-code_action}",
+					"Rate": 1
 				}
 			]
 		},
@@ -820,7 +824,7 @@
 			],
 			"Counters": [
 				{
-					"Name": "gopls/client:{vscode,vscodium,vscode-insiders,code-server,eglot,govim,neovim,coc.nvim,sublimetext,other}",
+					"Name": "gopls/client:{vscode,vscodium,vscode-insiders,code-server,eglot,govim,neovim,coc.nvim,sublimetext,windsurf,cursor,other}",
 					"Rate": 1
 				},
 				{
