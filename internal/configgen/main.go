@@ -70,6 +70,13 @@ var minimumPaddings = map[string]padding{
 		patch:    1,
 		pre:      0,
 	},
+	"golang.org/x/tools/cmd/goimports": {
+		releases: 2,
+		maj:      0,
+		majmin:   1,
+		patch:    2,
+		pre:      0,
+	},
 }
 
 // regularPaddings maps from program name to padding used to reserve enough
@@ -111,6 +118,14 @@ var regularPaddings = map[string]padding{
 		majmin:   1,
 		patch:    2,
 		pre:      0,
+	},
+	"golang.org/x/tools/cmd/goimports": {
+		// same as gopls
+		releases: 6,
+		maj:      1,
+		majmin:   6,
+		patch:    3,
+		pre:      4,
 	},
 }
 
@@ -455,10 +470,18 @@ var versionsForTesting map[string][]string
 // any escaping of upper-cased letters, as is required by the proxy prototol
 // (https://go.dev/ref/mod#goproxy-protocol).
 func listProxyVersions(modulePath string) ([]string, error) {
+	// Avoid problematic interactions with the local workspace by running in a
+	// temp directory.
+	listDir, err := os.MkdirTemp("", "")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(listDir)
 	if vers, ok := versionsForTesting[modulePath]; ok {
 		return vers, nil
 	}
 	cmd := exec.Command("go", "list", "-m", "--versions", modulePath)
+	cmd.Dir = listDir
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
