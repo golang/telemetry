@@ -288,3 +288,21 @@ issue: https://go.dev/issue/74869
 program: github.com/golang/vscode-go/vscgo
 module: github.com/golang/vscode-go
 version: v0.49.1
+---
+counter: gopls/setting/codelens/vulncheck:{true,false}
+title: Vulncheck Codelens Usage
+description: counts vulncheck codelens settings
+type: partition
+issue: https://github.com/golang/go/issues/75546
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.21.0
+---
+counter: gopls/setting/codelenses/vulncheck:{true,false}
+title: Vulncheck Codelenses Usage
+description: counts vulncheck codelens settings
+type: partition
+issue: https://github.com/golang/go/issues/75546
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.21.0
