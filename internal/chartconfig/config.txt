@@ -324,3 +324,13 @@ issue: https://github.com/golang/go/issues/75657
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.21.0
+
+---
+counter: gopls/renamekind:package
+title: Use of Rename Package
+description: counts uses of rename on a package declaration
+type: stack
+issue: https://github.com/golang/go/issues/75612
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.20.0
