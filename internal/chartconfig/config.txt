@@ -315,3 +315,12 @@ issue: https://github.com/golang/go/issues/75450
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.21.0
+---
+counter: gopls/setting/vulncheck:{Off,Imports}
+title: VulncheckMode Option Usage
+description: counts VulncheckMode option settings
+type: partition
+issue: https://github.com/golang/go/issues/75657
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.21.0
