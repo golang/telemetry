@@ -320,7 +320,7 @@ func (info Info) String() string {
 		info.Program, info.ProgramVersion,
 		info.GoVersion, info.GOOS, info.GOARCH)
 	if info.GoplsClient != "" {
-		s += " " + info.GoplsClient
+		s += " gopls.client=" + info.GoplsClient
 	}
 	return s
 }
@@ -830,7 +830,7 @@ func writeStackComment(body *bytes.Buffer, stack, id string, jsonURL string, cou
 	}
 
 	// Parse the stack and get the symbol names out.
-	for _, frame := range strings.Split(stack, "\n") {
+	for frame := range strings.SplitSeq(stack, "\n") {
 		if url := frameURL(pclntab, info, frame); url != "" {
 			fmt.Fprintf(body, "- [`%s`](%s)\n", frame, url)
 		} else {
@@ -845,6 +845,19 @@ func writeStackComment(body *bytes.Buffer, stack, id string, jsonURL string, cou
 		fmt.Fprintf(body, "%s (%d)\n", info, count)
 	}
 	fmt.Fprintf(body, "```\n\n")
+
+	// Give hints for disassembling the right executable.
+	// Beware that go install behaves differently for cross-compiles;
+	// the command below was chosen to work for simple and cross builds.
+	// TODO(adonovan): simplify when go.dev/issue/44469 is resolved.
+	fmt.Fprintf(body, "Use this command to reproduce the executable:\n")
+	fmt.Fprintf(body, "`(HOME=$(mktemp -d); GOOS=%s GOARCH=%s GOTOOLCHAIN=%s go install %s@%s && find $HOME/go/bin -type f)`\n",
+		info.GOOS,
+		info.GOARCH,
+		info.GoVersion,
+		info.Program, info.ProgramVersion)
+
+	fmt.Fprintf(body, "To disassemble: `go tool objdump exe | less`\n\n")
 }
 
 // frameURL returns the CodeSearch URL for the stack frame, if known.
