@@ -885,6 +885,18 @@
 				{
 					"Name": "gopls/extract:{func,method,variable,variable-all}",
 					"Rate": 1
+				},
+				{
+					"Name": "gopls/setting/codelens/vulncheck:{true,false}",
+					"Rate": 1
+				},
+				{
+					"Name": "gopls/setting/codelenses/vulncheck:{true,false}",
+					"Rate": 1
+				},
+				{
+					"Name": "gopls/mcp-tool:{go_context,go_diagnostics,go_file_context,go_file_diagnostics,go_file_metadata,go_package_api,go_references,go_search,go_symbol_references,go_workspace,go_vulncheck}",
+					"Rate": 1
 				}
 			],
 			"Stacks": [
