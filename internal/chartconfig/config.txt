@@ -290,7 +290,7 @@ module: github.com/golang/vscode-go
 version: v0.49.1
 ---
 counter: gopls/setting/codelens/vulncheck:{true,false}
-title: Vulncheck Codelens Usage
+title: Vulncheck Codelens Settings Usage
 description: counts vulncheck codelens settings
 type: partition
 issue: https://github.com/golang/go/issues/75546
@@ -299,7 +299,7 @@ module: golang.org/x/tools/gopls
 version: v0.21.0
 ---
 counter: gopls/setting/codelenses/vulncheck:{true,false}
-title: Vulncheck Codelenses Usage
+title: Vulncheck Codelenses Settings Usage
 description: counts vulncheck codelens settings
 type: partition
 issue: https://github.com/golang/go/issues/75546
@@ -324,7 +324,6 @@ issue: https://github.com/golang/go/issues/75657
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.21.0
-
 ---
 counter: gopls/renamekind:package
 title: Use of Rename Package
@@ -334,3 +333,12 @@ issue: https://github.com/golang/go/issues/75612
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.20.0
+---
+counter: gopls/cmd/source:{vulncheck-codelens,run_govulncheck-codelens}
+title: Command Usage
+description: counts command usage
+type: partition
+issue: https://github.com/golang/go/issues/75794
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.21.0
