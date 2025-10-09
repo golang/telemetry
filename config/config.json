@@ -903,6 +903,14 @@
 				{
 					"Name": "gopls/mcp-tool:{go_context,go_diagnostics,go_file_context,go_file_diagnostics,go_file_metadata,go_package_api,go_references,go_search,go_symbol_references,go_workspace,go_vulncheck}",
 					"Rate": 1
+				},
+				{
+					"Name": "gopls/setting/vulncheck:{Off,Imports}",
+					"Rate": 1
+				},
+				{
+					"Name": "gopls/renamekind:package",
+					"Rate": 1
 				}
 			],
 			"Stacks": [
