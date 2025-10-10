@@ -342,3 +342,12 @@ issue: https://github.com/golang/go/issues/75794
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.21.0
+---
+counter: gopls/setting/staticcheck:{true,false}
+title: staticcheck Option Usage
+description: counts staticcheck option settings
+type: partition
+issue: https://github.com/golang/go/issues/75850
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.21.0
