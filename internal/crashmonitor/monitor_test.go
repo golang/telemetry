@@ -135,11 +135,11 @@ runtime.panicmem:--
 runtime.sigpanic:--
 golang.org/x/telemetry/internal/crashmonitor_test.grandchildTrap:=96,\+0x.*
 golang.org/x/telemetry/internal/crashmonitor_test.childTrap:\+2,\+0x.*
-golang.org/x/telemetry/internal/crashmonitor_test.TestMain:\+10,\+0x.*
+golang.org/x/telemetry/internal/crashmonitor_test.TestMain:\+12,\+0x.*
 main.main:--
 runtime.main:--
 runtime.goexit:--`)
-		if wantRE.MatchString(got) {
+		if !wantRE.MatchString(got) {
 			t.Errorf("got counter name <<%s>>, want match for <<%s>>", got, wantRE)
 		}
 	})
