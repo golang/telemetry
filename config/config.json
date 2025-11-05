@@ -918,6 +918,10 @@
 				{
 					"Name": "gopls/renamekind:package",
 					"Rate": 1
+				},
+				{
+					"Name": "gopls/cmd/source:{vulncheck-codelens,run_govulncheck-codelens}",
+					"Rate": 1
 				}
 			],
 			"Stacks": [
