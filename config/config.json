@@ -928,6 +928,10 @@
 				{
 					"Name": "gopls/cmd/source:{vulncheck-codelens,run_govulncheck-codelens}",
 					"Rate": 1
+				},
+				{
+					"Name": "gopls/setting/staticcheck:{true,false}",
+					"Rate": 1
 				}
 			],
 			"Stacks": [
