@@ -307,7 +307,7 @@ program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.21.0
 ---
-counter: gopls/mcp-tool:{go_context,go_diagnostics,go_file_context,go_file_diagnostics,go_file_metadata,go_package_api,go_references,go_search,go_symbol_references,go_workspace,go_vulncheck}
+counter: gopls/mcp-tool:{go_context,go_diagnostics,go_file_context,go_file_diagnostics,go_file_metadata,go_package_api,go_references,go_rename_symbol,go_search,go_symbol_references,go_workspace,go_vulncheck}
 title: MCP Server Tool Usage
 description: measure the tool usage triggered by the MCP server
 type: partition
