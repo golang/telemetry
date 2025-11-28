@@ -47,7 +47,7 @@ func TestReadStackCounter(t *testing.T) {
 	c := counter.NewStack("foobar", 8)
 
 	if got, err := ReadStackCounter(c); err != nil || len(got) != 0 {
-		t.Errorf("ReadStackCounter = (%q, %v), want (%v, nil)", got, err, 0)
+		t.Errorf("ReadStackCounter = (%#v, %v), want (map with zero elements, nil)", got, err)
 	}
 
 	var wg sync.WaitGroup
