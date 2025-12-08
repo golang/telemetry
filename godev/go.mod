@@ -8,10 +8,10 @@ require (
 	github.com/evanw/esbuild v0.17.19
 	github.com/google/go-cmp v0.6.0
 	github.com/yuin/goldmark v1.5.4
-	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546
-	golang.org/x/mod v0.30.0
-	golang.org/x/sync v0.18.0
-	golang.org/x/telemetry v0.0.0-20251106204201-5cc343d36a5d
+	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39
+	golang.org/x/mod v0.31.0
+	golang.org/x/sync v0.19.0
+	golang.org/x/telemetry v0.0.0-20251203150158-8fff8a5912fc
 	google.golang.org/api v0.149.0
 )
 
@@ -27,10 +27,10 @@ require (
 	github.com/googleapis/gax-go/v2 v2.12.0 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/net v0.46.0 // indirect
-	golang.org/x/oauth2 v0.33.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231016165738-49dd2c1f3d0b // indirect
@@ -43,7 +43,7 @@ require (
 
 require (
 	github.com/yuin/goldmark-meta v1.1.0
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
 )
 
 replace golang.org/x/telemetry => ./..
