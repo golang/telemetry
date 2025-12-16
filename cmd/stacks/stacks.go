@@ -435,7 +435,8 @@ func readIssues(cli *githubClient, pcfg ProgramConfig) ([]*Issue, error) {
 					issue.Number, err, block)
 				continue
 			}
-			issue.predicate = pred
+			issue.predicate = block
+			issue.matches = pred
 		}
 	}
 
@@ -569,7 +570,7 @@ func claimStacks(issues []*Issue, stacks map[string]map[Info]int64) map[string]*
 			byPredicate := false
 			if strings.Contains(issue.Body, id) {
 				// nop
-			} else if issue.predicate != nil && issue.predicate(stack) {
+			} else if issue.matches != nil && issue.matches(stack) {
 				byPredicate = true
 			} else {
 				continue
@@ -605,7 +606,16 @@ func updateIssues(cli *githubClient, repo string, issues []*Issue, stacks map[st
 
 		// Add a comment to the existing issue listing all its new stacks.
 		// (Save the ID of each stack for the second step.)
+		//
+		// We record the predicate expression at the time of
+		// the match, as the predicate in the issue body will
+		// evolve as users edit it, so we need to leave a
+		// record of its history.
 		comment := new(bytes.Buffer)
+		if issue.predicate != "" {
+			fmt.Fprintf(comment, "\n\nFound new stacks for predicate:\n")
+			fmt.Fprintf(comment, "```\n#!stacks\n%s\n```\n\n", strings.TrimSpace(issue.predicate))
+		}
 		var newStackIDs []string
 		for _, stack := range issue.newStacks {
 			id := stackID(stack)
@@ -638,7 +648,7 @@ func updateIssues(cli *githubClient, repo string, issues []*Issue, stacks map[st
 			continue
 		}
 
-		log.Printf("added stacks %s to issue #%d", newStackIDs, issue.Number)
+		log.Printf("added stacks %s to issue #%d (%s)", newStackIDs, issue.Number, issue.Title)
 	}
 }
 
@@ -1156,7 +1166,8 @@ type Issue struct {
 	Milestone   *Milestone
 
 	// Set by readIssues.
-	predicate func(string) bool // matching predicate over stack text
+	predicate string            // predicate source expression
+	matches   func(string) bool // reports whether predicate matches stack text
 
 	// Set by claimIssues.
 	newStacks []string // new stacks to add to existing issue (comments and IDs)
