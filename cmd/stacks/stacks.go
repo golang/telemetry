@@ -97,6 +97,8 @@ var (
 	daysFlag = flag.Int("days", 7, "number of previous days of telemetry data to read")
 
 	dryRun = flag.Bool("n", false, "dry run, avoid updating issues")
+
+	verbose = flag.Bool("v", false, "verbose")
 )
 
 // ProgramConfig is the configuration for processing reports for a specific
@@ -658,14 +660,20 @@ func shouldReopen(issue *Issue, stacks map[string]map[Info]int64) bool {
 	if !issue.isFixed() {
 		return false
 	}
+	if *verbose {
+		log.Printf("shouldReopen %q", issue.Title)
+	}
 	issueProgram, issueVersion, ok := parseMilestone(issue.Milestone)
 	if !ok {
+		if *verbose {
+			log.Printf("unparsable milestone %#v", issue.Milestone)
+		}
 		return false
 	}
 
 	matchProgram := func(infoProg string) bool {
 		switch issueProgram {
-		case "gopls":
+		case "gopls", "dlv":
 			return path.Base(infoProg) == issueProgram
 		case "go":
 			// At present, we only care about compiler stacks.
@@ -678,6 +686,9 @@ func shouldReopen(issue *Issue, stacks map[string]map[Info]int64) bool {
 
 	for _, stack := range issue.newStacks {
 		for info := range stacks[stack] {
+			if *verbose {
+				log.Printf("\tmatchProgram %v (%q %q) semver.Compare %v", matchProgram(info.Program), issueProgram, info.Program, semver.Compare(semVer(info.ProgramVersion), issueVersion))
+			}
 			if matchProgram(info.Program) && semver.Compare(semVer(info.ProgramVersion), issueVersion) >= 0 {
 				log.Printf("reopening issue #%d: purportedly fixed in %s@%s, but found a new stack from version %s",
 					issue.Number, issueProgram, issueVersion, info.ProgramVersion)
