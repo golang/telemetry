@@ -531,6 +531,10 @@
 				{
 					"Name": "go/platform/host/darwin/major-version:{20,21,22,23,24,25,26,27,28}",
 					"Rate": 1
+				},
+				{
+					"Name": "go/vcs:{git,hg,svn,bzr,fossil}",
+					"Rate": 1
 				}
 			]
 		},
