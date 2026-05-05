@@ -353,7 +353,7 @@ module: golang.org/x/tools/gopls
 version: v0.21.0
 ---
 title: Toolchain VCS Usage
-counter: go/vcs:{git,hg,svn,bzr,fossil}
+counter: go/vcs:{mod,git,hg,svn,fossil}
 description: measure vcs usage distribution.
 type: partition
 issue: https://go.dev/issue/76801
