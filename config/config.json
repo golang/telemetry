@@ -539,7 +539,7 @@
 					"Rate": 1
 				},
 				{
-					"Name": "go/vcs:{git,hg,svn,bzr,fossil}",
+					"Name": "go/vcs:{mod,git,hg,svn,fossil}",
 					"Rate": 1
 				}
 			]
