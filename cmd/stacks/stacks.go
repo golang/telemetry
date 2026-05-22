@@ -78,6 +78,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -253,14 +254,18 @@ func main() {
 		// Both vars map the summary line to the stack count.
 		existingIssues = make(map[string]int64)
 		newIssues      = make(map[string]int64)
+
+		allStacks, corruptStacks int64 // count of all stacks, and those labeled "memory-corruption"
+		corruptCauses            int64 // same, but counts issues not stacks
 	)
 	for stack, counts := range stacks {
 		id := stackID(stack)
 
-		var total int64
+		var total int64 // counts of this stack
 		for _, count := range counts {
 			total += count
 		}
+		allStacks += total
 
 		if issue, ok := claimedBy[id]; ok {
 			// existing issue, already updated above, just store
@@ -275,6 +280,14 @@ func main() {
 				summary += " milestone " + strings.TrimPrefix(issue.Milestone.Title, "gopls/")
 			}
 			existingIssues[summary] += total
+
+			if slices.ContainsFunc(issue.Labels, func(label Label) bool {
+				return strings.HasSuffix(label.Name, "/memory-corruption") // e.g. gopls/memory-corruption
+			}) {
+				corruptStacks += total
+				corruptCauses++
+			}
+
 		} else {
 			// new issue, need to create GitHub issue and store
 			// summary.
@@ -284,7 +297,7 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Found %d distinct stacks in last %v days:\n", distinctStacks, *daysFlag)
+	fmt.Printf("\nFound %d distinct stacks in last %v days:\n", distinctStacks, *daysFlag)
 	print := func(caption string, issues map[string]int64) {
 		// Print items in descending frequency.
 		keys := keySlice(issues)
@@ -302,9 +315,16 @@ func main() {
 			}
 			fmt.Printf("%s (n=%d)\n", summary, count)
 		}
+		if len(keys) == 0 {
+			fmt.Println(" (none)")
+		}
 	}
-	print("Existing", existingIssues)
-	print("New", newIssues)
+	print("\nExisting", existingIssues)
+	print("\nNew", newIssues)
+
+	fmt.Printf("\nMemory corruption: %d/%d (%.2g%%) of reports, %d/%d (%.2g%%) of causes\n",
+		corruptStacks, allStacks, float64(corruptStacks)*100/float64(allStacks),
+		corruptCauses, len(stacks), float64(corruptCauses)*100/float64(len(stacks)))
 }
 
 // Info is used as a key for de-duping and aggregating.
@@ -336,6 +356,8 @@ func (info Info) String() string {
 // stackToURL maps the stack text to the oldest telemetry JSON report it was
 // included in.
 func readReports(pcfg ProgramConfig, days int) (stacks map[string]map[Info]int64, distinctStacks int, stackToURL map[string]string, err error) {
+	log.Println("Reading reports...")
+
 	stacks = make(map[string]map[Info]int64)
 	stackToURL = make(map[string]string)
 
@@ -419,6 +441,8 @@ func readReports(pcfg ProgramConfig, days int) (stacks map[string]map[Info]int64
 // readIssues returns all existing issues for the given program and parses any
 // predicates.
 func readIssues(cli *githubClient, pcfg ProgramConfig) ([]*Issue, error) {
+	log.Println("Reading issues...")
+
 	// Query GitHub for all existing GitHub issues with the report label.
 	issues, err := cli.searchIssues(pcfg.Repository, pcfg.SearchLabel)
 	if err != nil {
@@ -564,8 +588,11 @@ func parsePredicate(s string) (func(string) bool, error) {
 // We log an error if two different issues attempt to claim
 // the same stack.
 func claimStacks(issues []*Issue, stacks map[string]map[Info]int64) map[string]*Issue {
+	log.Println("Processing claims...")
+
 	// This is O(new stacks x existing issues).
 	claimedBy := make(map[string]*Issue)
+	claimType := make(map[string]bool) // records whether claim was due to predicate (true) or ID (false) in issue body
 	for stack := range stacks {
 		id := stackID(stack)
 		for _, issue := range issues {
@@ -574,13 +601,20 @@ func claimStacks(issues []*Issue, stacks map[string]map[Info]int64) map[string]*
 				// nop
 			} else if issue.matches != nil && issue.matches(stack) {
 				byPredicate = true
+				if false {
+					log.Printf("predicate %s matches stack %s", issue.predicate, id)
+				}
 			} else {
 				continue
 			}
 
 			if prev := claimedBy[id]; prev != nil && prev != issue {
-				log.Printf("stack %s is claimed by issues #%d and #%d:%s",
-					id, prev.Number, issue.Number, strings.ReplaceAll("\n"+stack, "\n", "\n- "))
+				fmt.Printf("stack %s is claimed by issues #%d (%s) and #%d (%s):%s\n\n",
+					id,
+					// Indicate how each claim was made.
+					prev.Number, cond(claimType[id], "predicate", "hash"),
+					issue.Number, cond(byPredicate, "predicate", "hash"),
+					strings.ReplaceAll("\n"+stack, "\n", "\n- "))
 				continue
 			}
 			if false {
@@ -588,6 +622,7 @@ func claimStacks(issues []*Issue, stacks map[string]map[Info]int64) map[string]*
 					id, issue.Number)
 			}
 			claimedBy[id] = issue
+			claimType[id] = byPredicate
 			if byPredicate {
 				// The stack ID matched the predicate but was not
 				// found in the issue body, so this is a new stack.
@@ -601,6 +636,8 @@ func claimStacks(issues []*Issue, stacks map[string]map[Info]int64) map[string]*
 
 // updateIssues updates existing issues that claimed new stacks by predicate.
 func updateIssues(cli *githubClient, repo string, issues []*Issue, stacks map[string]map[Info]int64, stackToURL map[string]string) {
+	log.Println("Updating issues...")
+
 	for _, issue := range issues {
 		if len(issue.newStacks) == 0 {
 			continue
@@ -1174,6 +1211,7 @@ type Issue struct {
 	User        *User
 	CreatedAt   time.Time `json:"created_at"`
 	Body        string    // in Markdown format
+	Labels      []Label   `json:"labels"`
 	Milestone   *Milestone
 
 	// Set by readIssues.
@@ -1182,6 +1220,10 @@ type Issue struct {
 
 	// Set by claimIssues.
 	newStacks []string // new stacks to add to existing issue (comments and IDs)
+}
+
+type Label struct {
+	Name string
 }
 
 func (issue *Issue) String() string { return fmt.Sprintf("#%d", issue.Number) }
@@ -1476,4 +1518,12 @@ func cutLast(s, sep string) (before, after string, ok bool) {
 		return s[:i], s[i+len(sep):], true
 	}
 	return s, "", false
+}
+
+func cond[T any](cond bool, t, f T) T {
+	if cond {
+		return t
+	} else {
+		return f
+	}
 }
