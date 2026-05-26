@@ -417,3 +417,56 @@ type: partition
 issue: https://go.dev/issue/79214
 program: cmd/go
 version: go1.27
+---
+counter: go/goexperiment:{
+  fieldtrack,
+  nofieldtrack,
+  preemptibleloops,
+  nopreemptibleloops,
+  staticlockranking,
+  nostaticlockranking,
+  boringcrypto,
+  noboringcrypto,
+  regabiwrappers,
+  noregabiwrappers,
+  regabiargs,
+  noregabiargs,
+  heapminimum512kib,
+  noheapminimum512kib,
+  arenas,
+  noarenas,
+  cgocheck2,
+  nocgocheck2,
+  loopvar,
+  noloopvar,
+  newinliner,
+  nonewinliner,
+  dwarf5,
+  nodwarf5,
+  jsonv2,
+  nojsonv2,
+  jsonformat,
+  nojsonformat,
+  greenteagc,
+  nogreenteagc,
+  randomizedheapbase64,
+  norandomizedheapbase64,
+  runtimefreegc,
+  noruntimefreegc,
+  sizespecializedmalloc,
+  nosizespecializedmalloc,
+  simd,
+  nosimd,
+  runtimesecret,
+  noruntimesecret,
+  mapsplitgroup,
+  nomapsplitgroup,
+  genericmethods,
+  nogenericmethods
+}
+title: cmd/go GOEXPERIMENT values
+description: Explicitly set experimental features or opt-outs that differ from the baseline, passed to the go command via the GOEXPERIMENT environment variable.
+type: partition
+issue: https://go.dev/issue/79212
+program: cmd/go
+version: go1.25
