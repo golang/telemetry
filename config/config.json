@@ -547,6 +547,14 @@
 				{
 					"Name": "go/vcs:{mod,git,hg,svn,fossil}",
 					"Rate": 1
+				},
+				{
+					"Name": "go/platform/target/port:{aix-ppc64,android-386,android-amd64,android-arm,android-arm64,darwin-amd64,darwin-arm64,dragonfly-amd64,freebsd-386,freebsd-amd64,freebsd-arm,freebsd-arm64,freebsd-riscv64,illumos-amd64,ios-amd64,ios-arm64,js-wasm,linux-386,linux-amd64,linux-arm,linux-arm64,linux-loong64,linux-mips,linux-mips64,linux-mips64le,linux-mipsle,linux-ppc64,linux-ppc64le,linux-riscv64,linux-s390x,linux-sparc64,netbsd-386,netbsd-amd64,netbsd-arm,netbsd-arm64,openbsd-386,openbsd-amd64,openbsd-arm,openbsd-arm64,openbsd-ppc64,openbsd-riscv64,plan9-386,plan9-amd64,plan9-arm,solaris-amd64,wasip1-wasm,windows-386,windows-amd64,windows-arm64}",
+					"Rate": 1
+				},
+				{
+					"Name": "go/goexperiment:{fieldtrack,nofieldtrack,preemptibleloops,nopreemptibleloops,staticlockranking,nostaticlockranking,boringcrypto,noboringcrypto,regabiwrappers,noregabiwrappers,regabiargs,noregabiargs,heapminimum512kib,noheapminimum512kib,arenas,noarenas,cgocheck2,nocgocheck2,loopvar,noloopvar,newinliner,nonewinliner,dwarf5,nodwarf5,jsonv2,nojsonv2,jsonformat,nojsonformat,greenteagc,nogreenteagc,randomizedheapbase64,norandomizedheapbase64,runtimefreegc,noruntimefreegc,sizespecializedmalloc,nosizespecializedmalloc,simd,nosimd,runtimesecret,noruntimesecret,mapsplitgroup,nomapsplitgroup,genericmethods,nogenericmethods}",
+					"Rate": 1
 				}
 			]
 		},
