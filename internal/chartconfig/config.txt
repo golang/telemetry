@@ -471,3 +471,12 @@ type: partition
 issue: https://go.dev/issue/79212
 program: cmd/go
 version: go1.25
+---
+counter: gopls/interactive/command:{modify_tags,implement_interface}
+title: Interactive Command Execution
+description: use of interactive refactoring at command level
+type: partition
+issue: https://go.dev/issue/79837
+program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
+version: v0.22.1
