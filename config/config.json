@@ -945,7 +945,7 @@
 			],
 			"Counters": [
 				{
-					"Name": "gopls/client:{vscode,vscodium,vscode-insiders,code-server,eglot,govim,neovim,coc.nvim,sublimetext,windsurf,cursor,helix,zed,other}",
+					"Name": "gopls/client:{vscode,vscodium,vscode-insiders,code-server,eglot,govim,neovim,coc.nvim,sublimetext,windsurf,cursor,helix,zed,claude,antigravity,other}",
 					"Rate": 1
 				},
 				{
