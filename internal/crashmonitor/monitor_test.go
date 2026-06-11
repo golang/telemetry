@@ -30,7 +30,7 @@ import (
 func TestMain(m *testing.M) {
 	entry := os.Getenv("CRASHMONITOR_TEST_ENTRYPOINT")
 	switch entry {
-	case "via-stderr.panic", "via-stderr.trap":
+	case "via-stderr.panic", "via-stderr.trap", "via-stderr.systemstack":
 		// This mode bypasses Start and debug.SetCrashOutput;
 		// the crash is printed to stderr.
 		debug.SetTraceback("system")
@@ -38,12 +38,14 @@ func TestMain(m *testing.M) {
 
 		if entry == "via-stderr.panic" {
 			childPanic() // this line is "TestMain:+10"
-		} else {
+		} else if entry == "via-stderr.trap" {
 			childTrap() // this line is "TestMain:+12"
+		} else {
+			childSystemstackCrash()
 		}
 		panic("unreachable")
 
-	case "start.panic", "start.trap", "start.exit":
+	case "start.panic", "start.trap", "start.exit", "start.systemstack":
 		// These modes uses Start and debug.SetCrashOutput.
 		// We stub the actual telemetry by instead writing to a file.
 		crashmonitor.SetIncrementCounter(func(name string) {
@@ -65,6 +67,11 @@ func TestMain(m *testing.M) {
 		case "start.trap":
 			go func() {
 				childTrap() // this line is "TestMain.func4:+1"
+			}()
+			select {} // deadlocks when reached
+		case "start.systemstack":
+			go func() {
+				childSystemstackCrash()
 			}()
 			select {} // deadlocks when reached
 		case "start.exit":
@@ -110,7 +117,7 @@ func TestViaStderr(t *testing.T) {
 		got = sanitize(counter.DecodeStack(got))
 		wantRE := regexp.MustCompile(`(?m)crash/crash
 runtime.gopanic:--
-golang.org/x/telemetry/internal/crashmonitor_test\.grandchildPanic:=85,\+0x.*
+golang.org/x/telemetry/internal/crashmonitor_test\.grandchildPanic:=92,\+0x.*
 golang.org/x/telemetry/internal/crashmonitor_test\.childPanic:\+2,\+0x.*
 golang.org/x/telemetry/internal/crashmonitor_test\.TestMain:\+10,\+0x.*
 main.main:--
@@ -133,7 +140,7 @@ runtime.goexit:--`)
 runtime.gopanic:--
 runtime.panicmem:--
 runtime.sigpanic:--
-golang.org/x/telemetry/internal/crashmonitor_test.grandchildTrap:=96,\+0x.*
+golang.org/x/telemetry/internal/crashmonitor_test.grandchildTrap:=103,\+0x.*
 golang.org/x/telemetry/internal/crashmonitor_test.childTrap:\+2,\+0x.*
 golang.org/x/telemetry/internal/crashmonitor_test.TestMain:\+12,\+0x.*
 main.main:--
@@ -193,7 +200,7 @@ func TestStart(t *testing.T) {
 		got := sanitize(counter.DecodeStack(string(data)))
 		wantRE := regexp.MustCompile(`(?m)crash/crash
 runtime.gopanic:--
-golang.org/x/telemetry/internal/crashmonitor_test.grandchildPanic:=85,.*
+golang.org/x/telemetry/internal/crashmonitor_test.grandchildPanic:=92,.*
 golang.org/x/telemetry/internal/crashmonitor_test.childPanic:\+2,.*
 golang.org/x/telemetry/internal/crashmonitor_test.TestMain.func3:\+1,.*
 runtime.goexit:--`)
@@ -217,7 +224,7 @@ runtime.goexit:--`)
 runtime.gopanic:--
 runtime.panicmem:--
 runtime.sigpanic:--
-golang.org/x/telemetry/internal/crashmonitor_test.grandchildTrap:=96,.*
+golang.org/x/telemetry/internal/crashmonitor_test.grandchildTrap:=103,.*
 golang.org/x/telemetry/internal/crashmonitor_test.childTrap:\+2,.*
 golang.org/x/telemetry/internal/crashmonitor_test.TestMain.func4:\+1,.*
 runtime.goexit:--`)
@@ -225,7 +232,38 @@ runtime.goexit:--`)
 			t.Errorf("got counter name <<%s>>, want match for <<%s>>", got, wantRE)
 		}
 	})
+
+	// Check the name of the incremented counter
+	// when the child process crashes on systemstack.
+	t.Run("systemstack", func(t *testing.T) {
+		if childSystemstackCrash == nil {
+			t.Skip("systemstack crash not supported on this platform") // unix only for now
+		}
+		// Gather a stack trace from executing the systemstack crash above.
+		telemetryFile, exitFile, _ := runSelf(t, "start.systemstack")
+		waitForExitFile(t, exitFile)
+		data, err := os.ReadFile(telemetryFile)
+		if err != nil {
+			t.Fatalf("failed to read file: %v", err)
+		}
+		got := sanitize(counter.DecodeStack(string(data)))
+		wantRE := regexp.MustCompile(`(?m)crash/crash
+runtime.*
+runtime.ReadMemStats.func.*:--
+runtime.systemstack:--
+runtime.ReadMemStats:--
+golang.org/x/telemetry/internal/crashmonitor_test.*
+golang.org/x/telemetry/internal/crashmonitor_test.TestMain.func5:\+1,.*
+runtime.goexit:--`)
+		if !wantRE.MatchString(got) {
+			t.Errorf("got counter name <<%s>>, want match for <<%s>>", got, wantRE)
+		}
+	})
 }
+
+// On supported platforms (e.g. unix) this var is set to function
+// that triggers a crash on the system stack.
+var childSystemstackCrash func()
 
 // runSelf fork+exec's this test executable using an alternate entry point.
 // It returns the child's stderr, the name of the file
