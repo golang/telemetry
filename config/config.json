@@ -1023,6 +1023,10 @@
 				{
 					"Name": "gopls/setting/staticcheck:{true,false}",
 					"Rate": 1
+				},
+				{
+					"Name": "gopls/interactive/command:{modify_tags,implement_interface}",
+					"Rate": 1
 				}
 			],
 			"Stacks": [
