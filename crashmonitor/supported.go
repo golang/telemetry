@@ -4,9 +4,7 @@
 
 package crashmonitor
 
-import ic "golang.org/x/telemetry/internal/crashmonitor"
-
-// Supported reports whether the runtime supports [runtime.SetCrashOutput].
+// Deprecated: Supported returns true.
 //
-// TODO(adonovan): eliminate once go1.23+ is assured.
-func Supported() bool { return ic.Supported() }
+//go:fix inline
+func Supported() bool { return true }

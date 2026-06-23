@@ -23,7 +23,10 @@ func TestRotateCounters(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
+
+	now := getnow()
+	CounterTime = func() time.Time { return now }
+
 	var f file
 	defer close(&f)
 	c := f.New("gophers")
@@ -68,10 +71,13 @@ func TestRotateCounters(t *testing.T) {
 	if v, err := Read(c); err != nil || v != 3 {
 		t.Errorf("Read gave %d, %v, expected 3, nil", v, err)
 	}
+
 	// move into the future and rotate the file, remapping it
-	now := getnow()
-	counterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
+	now = now.Add(7 * 24 * time.Hour)
 	f.rotate()
+	if got, want := f.timeBegin.Format(telemetry.DateOnly), now.Format(telemetry.DateOnly); got != want {
+		t.Errorf("f.timeBegin = %q, want %q", got, want)
+	}
 
 	// c has value 0 in the new file
 	// but c won't have a pointer until the next Inc()
@@ -101,8 +107,8 @@ func TestRotateCounters(t *testing.T) {
 
 	// simulate failure to remap
 	oldmap := memmap
-	counterTime = func() time.Time { return now.Add(14 * 24 * time.Hour) }
-	memmap = func(*os.File, *mmap.Data) (mmap.Data, error) { return mmap.Data{}, fmt.Errorf("too bad") }
+	now = now.Add(7 * 24 * time.Hour)
+	memmap = func(*os.File) (*mmap.Data, error) { return nil, fmt.Errorf("too bad") }
 	f.rotate()
 	memmap = oldmap
 
@@ -135,17 +141,17 @@ func TestRotateCounters(t *testing.T) {
 
 // return the current date according to counterTime()
 func getnow() time.Time {
-	year, month, day := counterTime().Date()
+	year, month, day := CounterTime().Date()
 	now := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 	return now
 }
+
 func TestRotate(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	now := getnow()
 	setup(t)
-	defer restore()
 	// pretend something was uploaded
 	os.WriteFile(filepath.Join(telemetry.Default.UploadDir(), "anything"), []byte{}, 0666)
 	var f file
@@ -161,8 +167,8 @@ func TestRotate(t *testing.T) {
 			t.Fatalf("err=%v, len(fi) = %d, want 2", err, len(fi))
 		}
 		x := fi[0].Name()
-		y := x[len(x)-len("2006-01-02")-len(".v1.count") : len(x)-len(".v1.count")]
-		us, err := time.ParseInLocation("2006-01-02", y, time.UTC)
+		y := x[len(x)-len(telemetry.DateOnly)-len(".v1.count") : len(x)-len(".v1.count")]
+		us, err := time.ParseInLocation(telemetry.DateOnly, y, time.UTC)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -187,7 +193,7 @@ func TestRotate(t *testing.T) {
 		}
 		fd.Close()
 	}
-	counterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
+	CounterTime = func() time.Time { return now.Add(7 * 24 * time.Hour) }
 	f.rotate()
 	fi, err := os.ReadDir(telemetry.Default.LocalDir())
 	if err != nil || len(fi) != 3 {

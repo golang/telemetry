@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (js && wasm) || wasip1 || plan9 || (solaris && !go1.20)
+//go:build (js && wasm) || wasip1 || plan9
 
 package mmap
 
@@ -12,14 +12,14 @@ import (
 )
 
 // mmapFile on other systems doesn't mmap the file. It just reads everything.
-func mmapFile(f *os.File, _ *Data) (Data, error) {
+func mmapFile(f *os.File) (*Data, error) {
 	b, err := io.ReadAll(f)
 	if err != nil {
-		return Data{}, err
+		return nil, err
 	}
-	return Data{f, b, nil}, nil
+	return &Data{f, b, nil}, nil
 }
 
-func munmapFile(d Data) error {
+func munmapFile(_ *Data) error {
 	return nil
 }

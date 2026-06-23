@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.23
-// +build go1.23
+package telemetry
 
-package crashmonitor
+import "golang.org/x/telemetry/internal/telemetry"
 
-import "runtime/debug"
-
-func init() {
-	setCrashOutput = debug.SetCrashOutput
+// Dir returns the telemetry directory.
+func Dir() string {
+	return telemetry.Default.Dir()
 }

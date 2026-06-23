@@ -59,6 +59,7 @@ func main() {
 			MinifyIdentifiers: true,
 			MinifySyntax:      true,
 			OutExtension:      map[string]string{".css": ".min.css", ".js": ".min.js"},
+			External:          []string{"*.svg"},
 			Outdir:            *outdir,
 			Sourcemap:         api.SourceMapLinked,
 			Write:             true,

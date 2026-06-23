@@ -35,7 +35,6 @@ func TestBasic(t *testing.T) {
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
 	var f file
 	defer close(&f)
 	c := f.New("gophers")
@@ -82,9 +81,9 @@ func TestParallel(t *testing.T) {
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
 	var f file
 	defer close(&f)
+
 	c := f.New("manygophers")
 
 	var wg sync.WaitGroup
@@ -122,8 +121,9 @@ func TestParallel(t *testing.T) {
 	}
 }
 
-// this is needed in Windows so that the generated testing.go file
-// can clean up the temporary test directory
+// close ensures that the given mapped file is closed. On Windows, this is
+// necessary prior to test cleanup.
+// TODO(rfindley): rename.
 func close(f *file) {
 	mf := f.current.Load()
 	if mf == nil {
@@ -137,7 +137,7 @@ func TestLarge(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
+
 	var f file
 	defer close(&f)
 	f.rotate()
@@ -179,12 +179,60 @@ func TestLarge(t *testing.T) {
 	}
 }
 
+func TestCorruption_Truncation(t *testing.T) {
+	testenv.SkipIfUnsupportedPlatform(t)
+
+	if runtime.GOOS == "windows" {
+		t.Skip("windows does not permit truncating a file that is mapped")
+	}
+
+	defer func(crash bool) {
+		CrashOnBugs = crash
+	}(CrashOnBugs)
+	CrashOnBugs = false // we're intentionally introducing corruption below
+
+	// In golang/go#68311, it appeared that telemetry became stuck in an infinite
+	// loop of re-mapping as a result of a corrupt counter file.
+	//
+	// While the specific conditions that led to corruption are not understood,
+	// the infinite loop was reproducible by truncating the counter file after
+	// extension.
+
+	setup(t)
+	var f file
+	defer close(&f)
+	f.rotate1()
+
+	// Populate enough data to extend the file beyond its minimum length.
+	const numCounters = 1000
+	for i := int64(0); i < numCounters; i++ {
+		f.New(fmt.Sprint("gophers", i)).Inc()
+	}
+
+	current := f.current.Load()
+	if current == nil {
+		t.Fatal("no mapped file")
+	}
+	if err := current.f.Truncate(minFileLen); err != nil {
+		t.Fatalf("truncating %q: %v", current.f.Name(), err)
+	}
+
+	// Increment the same counters that were created above. This should exercise
+	// the corruption, as counter heads will point to file locations that no
+	// longer exist.
+	var f2 file
+	defer close(&f2)
+	f2.rotate1()
+	for i := int64(0); i < numCounters; i++ {
+		f2.New(fmt.Sprint("gophers", i)).Inc()
+	}
+}
+
 func TestRepeatedNew(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
 	var f file
 	defer close(&f)
 	f.rotate()
@@ -224,8 +272,8 @@ func TestNewFile(t *testing.T) {
 
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
-	now := counterTime().UTC()
+
+	now := CounterTime().UTC()
 	year, month, day := now.Date()
 	// preserve time location as done in (*file).filename.
 	testStartTime := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
@@ -314,13 +362,13 @@ func TestWeekends(t *testing.T) {
 	setup(t)
 	// get all the 49 combinations of today and when the week ends
 	for i := 0; i < 7; i++ {
-		counterTime = future(i)
+		CounterTime = future(i)
 		for index := range "0123456" {
 			os.WriteFile(filepath.Join(telemetry.Default.LocalDir(), "weekends"), []byte{byte(index + '0')}, 0666)
 			var f file
 			c := f.New("gophers")
 			c.Add(7)
-			f.rotate()
+			f.rotate1()
 			fis, err := os.ReadDir(telemetry.Default.LocalDir())
 			if err != nil {
 				t.Fatal(err)
@@ -357,8 +405,9 @@ func TestWeekends(t *testing.T) {
 			if weekends != ends.Weekday() {
 				t.Errorf("weekends %s unexpecteledy not end day %s", weekends, ends.Weekday())
 			}
-			// needed for Windows
+			// On Windows, we must unmap f.current before removing files below.
 			close(&f)
+
 			// remove files for the next iteration of the loop
 			for _, f := range fis {
 				os.Remove(filepath.Join(telemetry.Default.LocalDir(), f.Name()))
@@ -377,7 +426,6 @@ func TestStack(t *testing.T) {
 	testenv.SkipIfUnsupportedPlatform(t)
 	t.Logf("GOOS %s GOARCH %s", runtime.GOOS, runtime.GOARCH)
 	setup(t)
-	defer restore()
 	var f file
 	defer close(&f)
 	f.rotate()
@@ -508,10 +556,9 @@ func setup(t *testing.T) {
 	telemetry.Default = telemetry.NewDir(t.TempDir()) // new dir for each test
 	os.MkdirAll(telemetry.Default.LocalDir(), 0777)
 	os.MkdirAll(telemetry.Default.UploadDir(), 0777)
-}
-
-func restore() {
-	counterTime = time.Now().UTC
+	t.Cleanup(func() {
+		CounterTime = func() time.Time { return time.Now().UTC() }
+	})
 }
 
 func (f *file) New(name string) *Counter {

@@ -9,25 +9,99 @@ the value of the data param and encodes each report as newline separated JSON in
 a merged report. It returns the number of reports merged and the location of the
 merged report.
 
-### `/chart/?date=<YYYY-MM-DD>`
+### `/chart`
 
-The chart endpoint reads the report from the merge bucket from the given date
-and generates chart data for that report. It returns the number of reports used
-in generated the report and the location of the chart data.
+The /chart endpoint reads the file named 'YYYY-MM-DD.json' containing reports
+from the given date from the merge bucket and generates chart data based on
+these reports. It returns the number of reports used to generate the chart and
+the location where the chart data is stored.
+
+#### `/chart/?date=<YYYY-MM-DD>`
+
+Use this endpoint to generate charts from a report on a specific date. The
+worker will retrieve the report for the provided date from the merge bucket.
+
+#### `/chart/?start=<YYYY-MM-DD>&end=<YYYY-MM-DD>`
+
+Use this endpoint to generate an aggregate chart file containing data from the
+provided date range (inclusive) from the merge bucket.
+
+### `/copy` (dev env only)
+
+This endpoint facilitates the copying of uploaded reports from the prod
+environment's "uploaded" bucket to the dev environment's "uploaded" bucket.
+
+Since we don't have clients regularly uploading data to dev, copying seeds the
+dev environment with data.
+
+Similar to the /chart endpoint, /copy also supports the following query
+parameters:
+
+- `/copy/?date=<YYYY-MM-DD>`: Copies reports for a specific date.
+- `/copy/?start=<YYYY-MM-DD>&end=<YYYY-MM-DD>`: Copies reports within a
+  specified date range.
+
+### `/queue-tasks`
+
+The queue-tasks endpoint is responsible for task distribution. When invoked, it
+triggers the following actions:
+
+- call merge endpoint to merge uploaded reports for the past 7 days.
+- call chart endpoint to generate daily charts for the 7 days preceding today.
+- call chart endpoint to generate weekly charts for the past 8 days.
 
 ## Local Development
 
-For local development, simply build and run. It serves on localhost:8082.
+The preferred method of local develoment is to simply build and run the worker
+binary. Use PORT= to customize the default hosting port.
 
     go run ./godev/cmd/worker
 
-By default, the server will use the filesystem for storage object I/O. Use the
--gcs flag to use the Cloud Storage API.
+By default, the server will use the filesystem for storage object I/O (see
+[`GO_TELEMETRY_LOCAL_STORAGE`](#environment-variables)). Unless you have also
+uploaded reports through a local instance of the telemetry frontend, this local
+storage will be empty. To copy uploads from GCS to the local environment, run:
+
+    go run ./godev/devtools/cmd/copyuploads -v
+
+Note that this command requires read permission to our GCS buckets.
+
+So, this is a complete end-to-end test of the merge endpoint:
+
+1. First, copy data with:
+
+   ```
+   go run ./godev/devtools/cmd/copyuploads -v
+   ```
+
+2. Then, run the worker:
+
+   ```
+   go run ./godev/cmd/worker
+   ```
+
+3. Finally, in a separate terminal, trigger the merge operation:
+
+   ```
+   curl http://localhost:8082/merge/?date=2024-09-26
+   ```
+
+After doing this, you should see the resulting merged reports in the
+`./localstorage/local-telemetry-merged` directory.
+
+Note: the `/queue-tasks/` endpoint does not currently work locally: by default
+it tries to enqueue tasks in the associated GCP project, which will fail unless
+you have escalated permissions on GCP.
+
+### Local development using GCS
+
+Alternatively, you can use the -gcs flag to use the Cloud Storage API:
 
     go run ./godev/cmd/worker --gcs
 
-Optionally, use the localstorage devtool the emulate the GCS server on your
-machine.
+However, the above command requires write permissions to our public GCS buckets,
+which one should in general not request. Instead, use the localstorage devtool
+the emulate the GCS server on your machine.
 
     ./godev/devtools/localstorage.sh
     STORAGE_EMULATOR_HOST=localhost:8081 go run ./godev/cmd/worker --gcs

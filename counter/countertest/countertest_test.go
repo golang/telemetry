@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.21
-
 package countertest
 
 import (
@@ -49,7 +47,7 @@ func TestReadStackCounter(t *testing.T) {
 	c := counter.NewStack("foobar", 8)
 
 	if got, err := ReadStackCounter(c); err != nil || len(got) != 0 {
-		t.Errorf("ReadStackCounter = (%q, %v), want (%v, nil)", got, err, 0)
+		t.Errorf("ReadStackCounter = (%#v, %v), want (map with zero elements, nil)", got, err)
 	}
 
 	var wg sync.WaitGroup

@@ -8,6 +8,7 @@ package countertest
 
 import (
 	"sync"
+	"testing"
 
 	"golang.org/x/telemetry/counter"
 	ic "golang.org/x/telemetry/internal/counter"
@@ -40,6 +41,9 @@ func Open(telemetryDir string) {
 	}
 	telemetry.Default = telemetry.NewDir(telemetryDir)
 
+	// TODO(rfindley): reinstate test coverage with counter rotation enabled.
+	// Before the [counter.Open] and [counter.OpenAndRotate] APIs were split,
+	// this called counter.Open (which rotated!).
 	counter.Open()
 	opened = true
 }
@@ -57,4 +61,11 @@ func ReadStackCounter(c *counter.StackCounter) (stackCounts map[string]uint64, _
 // ReadFile reads the counters and stack counters from the given file.
 func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) {
 	return ic.ReadFile(name)
+}
+
+func init() {
+	// Extra safety check.
+	if !testing.Testing() {
+		panic("use of this package is disallowed in non-testing code")
+	}
 }

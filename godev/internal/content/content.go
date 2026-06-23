@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"path"
 	"strconv"
@@ -150,13 +151,14 @@ func (c *contentServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Template executes a template response.
+// TODO(rfindley): this abstraction no longer holds its weight. Refactor.
 func Template(w http.ResponseWriter, fsys fs.FS, tmplPath string, data any, code int) error {
 	patterns, err := tmplPatterns(fsys, tmplPath)
 	if err != nil {
 		return err
 	}
 	patterns = append(patterns, tmplPath)
-	tmpl, err := template.ParseFS(fsys, patterns...)
+	tmpl, err := template.New("").Funcs(chartFuncs()).ParseFS(fsys, patterns...)
 	if err != nil {
 		return err
 	}
@@ -174,6 +176,22 @@ func Template(w http.ResponseWriter, fsys fs.FS, tmplPath string, data any, code
 		return err
 	}
 	return nil
+}
+
+// TODO(rfindley): refactor so that these funcs are only required by templates
+// that use them.
+func chartFuncs() template.FuncMap {
+	return template.FuncMap{
+		"chartName": func(name string) string {
+			name, _, _ = strings.Cut(name, ":")
+			return name
+		},
+		"programName": func(name string) string {
+			name = strings.TrimPrefix(name, "golang.org/")
+			name = strings.TrimPrefix(name, "github.com/")
+			return name
+		},
+	}
 }
 
 // JSON encodes data as JSON response with a status code.
@@ -210,6 +228,8 @@ func Text(w http.ResponseWriter, data any, code int) error {
 	return nil
 }
 
+// TODO(rfindley): this docstring is stale, and Status should be a pure
+// function.
 // Text renders an http status code as a text response.
 func Status(w http.ResponseWriter, code int) error {
 	if code < http.StatusBadRequest {
@@ -231,10 +251,20 @@ type contentError struct {
 func (e *contentError) Error() string { return e.err.Error() }
 
 // handleErr writes an error as an HTTP response with a status code.
+//
+// err must be non-nil when calling this function.
 func handleErr(w http.ResponseWriter, req *http.Request, err error, code int) {
 	if cerr, ok := err.(*contentError); ok {
 		code = cerr.Code
 	}
+	// Log the error, but only the first 80 characters.
+	// This prevents excessive logging related to broken payloads.
+	// The first line should give us a sense of the failure mode.
+	errs := []rune(err.Error())
+	if len(errs) > 80 {
+		errs = append(errs[:79], '…')
+	}
+	slog.WarnContext(req.Context(), fmt.Sprintf("request for %q failed with status %d: %s", req.URL.Path, code, string(errs)))
 	if code == http.StatusInternalServerError {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), code)
 	} else {

@@ -17,7 +17,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"strings"
 	"time"
 
@@ -47,9 +46,12 @@ func main() {
 
 	handler := newHandler(ctx, cfg)
 
-	fmt.Printf("server listening at http://localhost:%s\n", cfg.ServerPort)
+	fmt.Printf("server listening at http://:%s\n", cfg.ServerPort)
 	log.Fatal(http.ListenAndServe(":"+cfg.ServerPort, handler))
 }
+
+// renderer implements shared template rendering for handlers below.
+type renderer func(w http.ResponseWriter, tmpl string, page any) error
 
 func newHandler(ctx context.Context, cfg *config.Config) http.Handler {
 	buckets, err := storage.NewAPI(ctx, cfg)
@@ -63,11 +65,20 @@ func newHandler(ctx context.Context, cfg *config.Config) http.Handler {
 	fsys := fsys(cfg.DevMode)
 	mux := http.NewServeMux()
 
+	render := func(w http.ResponseWriter, tmpl string, page any) error {
+		return content.Template(w, fsys, tmpl, page, http.StatusOK)
+	}
+
 	logger := slog.Default()
-	mux.Handle("/", handleRoot(fsys, buckets))
-	mux.Handle("/config", handleConfig(fsys, ucfg))
-	mux.Handle("/upload/", handleUpload(ucfg, buckets, logger))
-	mux.Handle("/charts/", handleChart(fsys, buckets))
+	mux.Handle("GET /", handleRoot(render, fsys, buckets.Chart, logger))
+	mux.Handle("GET /config", handleConfig(fsys, ucfg))
+	// TODO(rfindley): why do we upload to a dated endpoint, when the handler
+	// doesn't read the path variables?
+	mux.Handle("POST /upload/", handleUpload(ucfg, buckets.Upload))
+	mux.Handle("GET /charts/{$}", handleChartList(render, buckets.Chart))
+	mux.Handle("GET /charts/{date}", handleChart(render, buckets.Chart))
+	mux.Handle("GET /data/{$}", handleDataList(render, buckets.Merge))
+	mux.Handle("GET /data/{date}", handleData(buckets.Merge))
 
 	mw := middleware.Chain(
 		middleware.Log(logger),
@@ -78,16 +89,25 @@ func newHandler(ctx context.Context, cfg *config.Config) http.Handler {
 	return mw(mux)
 }
 
-type link struct {
-	Text, URL string
+// breadcrumb holds a breadcrumb nav element.
+//
+// If Link is empty, breadcrumbs are rendered as plain text.
+type breadcrumb struct {
+	Link, Label string
 }
 
 type indexPage struct {
-	Charts  []*link
-	Reports []*link
+	ChartTitle string
+	Charts     map[string]any
+	ChartError string // if set, the error
 }
 
-func handleRoot(fsys fs.FS, buckets *storage.API) content.HandlerFunc {
+func (indexPage) Breadcrumbs() []breadcrumb {
+	return []breadcrumb{{Link: "/", Label: "Go Telemetry"}, {Label: "Home"}}
+}
+
+func handleRoot(render renderer, fsys fs.FS, chartBucket storage.BucketHandle, log *slog.Logger) content.HandlerFunc {
+	// TODO(rfindley): handle static serving with a different route.
 	cserv := content.Server(fsys)
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if r.URL.Path != "/" {
@@ -97,41 +117,159 @@ func handleRoot(fsys fs.FS, buckets *storage.API) content.HandlerFunc {
 		page := indexPage{}
 
 		ctx := r.Context()
-		it := buckets.Chart.Objects(ctx, "")
+		var (
+			chartDate string // end date of chart data
+			chartObj  string // object name of chart file
+		)
+		it := chartBucket.Objects(ctx, "")
 		for {
 			obj, err := it.Next()
 			if errors.Is(err, storage.ErrObjectIteratorDone) {
 				break
+			} else if err != nil {
+				return err
 			}
 			date := strings.TrimSuffix(obj, ".json")
-			page.Charts = append(page.Charts, &link{Text: date, URL: "/charts/" + date})
+			if date == obj {
+				// We have discussed eventually have nested subdirectories in the
+				// charts bucket. Defensively check for json files.
+				continue // not a chart object
+			}
+			// Chart objects may be for a single date (<date>.json), or for a date
+			// span (<start>_<end>.json).
+			_, end, aggregate := strings.Cut(date, "_")
+			if aggregate {
+				date = end
+			}
+			if date >= chartDate {
+				chartDate = date
+				// Prefer aggregate charts to daily charts, but consider the latest
+				// available date.
+				if aggregate || date > chartDate {
+					chartObj = obj
+				}
+			}
 		}
-		it = buckets.Merge.Objects(ctx, "")
+		if chartObj == "" {
+			page.ChartError = "No data."
+		} else {
+			page.ChartTitle = chartTitle(chartObj)
+			charts, err := loadCharts(ctx, chartObj, chartBucket)
+			if err != nil {
+				log.ErrorContext(ctx, fmt.Sprintf("error loading index charts: %v", err))
+				page.ChartError = "Error loading charts."
+			} else {
+				page.Charts = charts
+			}
+		}
+		return render(w, "index.html", page)
+	}
+}
+
+func chartTitle(objName string) string {
+	start, end, aggregate := strings.Cut(strings.TrimSuffix(objName, ".json"), "_")
+	if aggregate {
+		return fmt.Sprintf("Aggregate charts for %s to %s", start, end)
+	}
+	return fmt.Sprintf("Charts for %s", start)
+}
+
+type chartsPage []string
+
+func (chartsPage) Breadcrumbs() []breadcrumb {
+	return []breadcrumb{{Link: "/", Label: "Go Telemetry"}, {Label: "Charts"}}
+}
+
+func handleChartList(render renderer, chartBucket storage.BucketHandle) content.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		it := chartBucket.Objects(r.Context(), "")
+		var page chartsPage
 		for {
 			obj, err := it.Next()
 			if errors.Is(err, storage.ErrObjectIteratorDone) {
 				break
+			} else if err != nil {
+				return err
 			}
-			page.Reports = append(page.Reports, &link{
-				Text: strings.TrimSuffix(obj, ".json"),
-				URL:  buckets.Merge.URI() + "/" + obj,
-			})
+			date := strings.TrimSuffix(obj, ".json")
+			if date == obj {
+				continue // not a chart object
+			}
+			page = append(page, date)
 		}
-		return content.Template(w, fsys, "index.html", page, http.StatusOK)
+		return render(w, "allcharts.html", page)
 	}
 }
 
 type chartPage struct {
-	Charts map[string]any
+	Date       string
+	ChartTitle string
+	Charts     map[string]any
 }
 
-func handleChart(fsys fs.FS, buckets *storage.API) content.HandlerFunc {
+func (p chartPage) Breadcrumbs() []breadcrumb {
+	return []breadcrumb{
+		{Link: "/", Label: "Go Telemetry"},
+		{Link: "/charts/", Label: "Charts"},
+		{Label: p.Date},
+	}
+}
+
+func handleChart(render renderer, chartBucket storage.BucketHandle) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		ctx := r.Context()
-		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/charts/")
-		reader, err := buckets.Chart.Object(p + ".json").NewReader(ctx)
+		date := r.PathValue("date") // may be a range -- 2025-05-20_2025-05-27
+		page := chartPage{Date: date}
+		var err error
+		objName := date + ".json"
+		page.ChartTitle = chartTitle(objName)
+		page.Charts, err = loadCharts(r.Context(), objName, chartBucket)
 		if errors.Is(err, storage.ErrObjectNotExist) {
 			return content.Status(w, http.StatusNotFound)
+		} else if err != nil {
+			return err
+		}
+		return render(w, "charts.html", page)
+	}
+}
+
+type dataPage struct {
+	Dates []string
+}
+
+func (dataPage) Breadcrumbs() []breadcrumb {
+	return []breadcrumb{{Link: "/", Label: "Go Telemetry"}, {Label: "Data"}}
+}
+
+func handleDataList(render renderer, mergeBucket storage.BucketHandle) content.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		it := mergeBucket.Objects(r.Context(), "")
+		var page dataPage
+		for {
+			obj, err := it.Next()
+			if errors.Is(err, storage.ErrObjectIteratorDone) {
+				break
+			} else if err != nil {
+				return err
+			}
+			date := strings.TrimSuffix(obj, ".json")
+			if date == obj {
+				continue // not a data object
+			}
+			page.Dates = append(page.Dates, date)
+		}
+		return render(w, "data.html", page)
+	}
+}
+
+func handleData(mergeBucket storage.BucketHandle) content.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		date := r.PathValue("date")
+		if _, err := time.Parse(telemetry.DateOnly, date); err != nil {
+			return content.Error(fmt.Errorf("invalid YYYY-MM-DD date: %q", date), http.StatusBadRequest)
+		}
+		reader, err := mergeBucket.Object(date + ".json").NewReader(r.Context())
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			return content.Error(fmt.Errorf("data for %q not found", date), http.StatusNotFound)
 		} else if err != nil {
 			return err
 		}
@@ -140,63 +278,66 @@ func handleChart(fsys fs.FS, buckets *storage.API) content.HandlerFunc {
 		if err != nil {
 			return err
 		}
-		var charts map[string]any
-		if err := json.Unmarshal(data, &charts); err != nil {
-			return err
-		}
-		page := chartPage{
-			Charts: charts,
-		}
-		return content.Template(w, fsys, "charts.html", page, http.StatusOK)
+		// Despite the merged report having a .json extension, it's not actually
+		// valid JSON (it's newline-delimited JSON objects). Therefore, it
+		// doesn't actually work well with content-aware viewers if we give it
+		// the application/json content type. Furthermore, when this data was
+		// previously served directly out of GCS, it had the text/plain content
+		// type.
+		w.Header().Set("Content-Type", "text/plain")
+		_, err = w.Write(data)
+		return err
 	}
 }
 
-func handleUpload(ucfg *tconfig.Config, buckets *storage.API, log *slog.Logger) content.HandlerFunc {
+func loadCharts(ctx context.Context, chartObj string, bucket storage.BucketHandle) (map[string]any, error) {
+	reader, err := bucket.Object(chartObj).NewReader(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	var charts map[string]any
+	if err := json.Unmarshal(data, &charts); err != nil {
+		return nil, err
+	}
+	return charts, nil
+}
+
+func handleUpload(ucfg *tconfig.Config, uploadBucket storage.BucketHandle) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		if r.Method == "POST" {
-			ctx := r.Context()
-			// Log the error, but only the first 80 characters.
-			// This prevents excessive logging related to broken payloads.
-			// The first line should give us a sense of the failure mode.
-			warn := func(msg string, err error) {
-				errs := []rune(err.Error())
-				if len(errs) > 80 {
-					errs = append(errs[:79], '…')
-				}
-				log.WarnContext(ctx, msg+": "+string(errs))
-			}
-			var report telemetry.Report
-			if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
-				warn("invalid JSON payload", err)
-				return content.Error(err, http.StatusBadRequest)
-			}
-			if err := validate(&report, ucfg); err != nil {
-				warn("invalid report", err)
-				return content.Error(err, http.StatusBadRequest)
-			}
-			// TODO: capture metrics for collisions.
-			name := fmt.Sprintf("%s/%g.json", report.Week, report.X)
-			f, err := buckets.Upload.Object(name).NewWriter(ctx)
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-			if err := json.NewEncoder(f).Encode(report); err != nil {
-				return err
-			}
-			if err := f.Close(); err != nil {
-				return err
-			}
-			return content.Status(w, http.StatusOK)
+		ctx := r.Context()
+		var report telemetry.Report
+		if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
+			return content.Error(fmt.Errorf("invalid JSON payload: %v", err), http.StatusBadRequest)
 		}
-		return content.Status(w, http.StatusMethodNotAllowed)
+		if err := validate(&report, ucfg); err != nil {
+			return content.Error(fmt.Errorf("invalid report: %v", err), http.StatusBadRequest)
+		}
+		// TODO: capture metrics for collisions.
+		name := fmt.Sprintf("%s/%g.json", report.Week, report.X)
+		f, err := uploadBucket.Object(name).NewWriter(ctx)
+		if err != nil {
+			return err
+		}
+		if err := json.NewEncoder(f).Encode(report); err != nil {
+			_ = f.Close()
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
+		return content.Status(w, http.StatusOK)
 	}
 }
 
 // validate validates the telemetry report data against the latest config.
 func validate(r *telemetry.Report, cfg *tconfig.Config) error {
 	// TODO: reject/drop data arrived too early or too late.
-	if _, err := time.Parse("2006-01-02", r.Week); err != nil {
+	if _, err := time.Parse(telemetry.DateOnly, r.Week); err != nil {
 		return fmt.Errorf("invalid week %s", r.Week)
 	}
 	if !semver.IsValid(r.Config) {
@@ -243,6 +384,16 @@ func fsys(fromOS bool) fs.FS {
 	return f
 }
 
+type configPage struct {
+	Version      string
+	ChartConfig  string
+	UploadConfig string
+}
+
+func (configPage) Breadcrumbs() []breadcrumb {
+	return []breadcrumb{{Link: "/", Label: "Go Telemetry"}, {Label: "Upload Configuration"}}
+}
+
 func handleConfig(fsys fs.FS, ucfg *tconfig.Config) content.HandlerFunc {
 	ccfg := chartconfig.Raw()
 	cfg := ucfg.UploadConfig
@@ -253,15 +404,11 @@ func handleConfig(fsys fs.FS, ucfg *tconfig.Config) content.HandlerFunc {
 		if err != nil {
 			cfgJSON = []byte("unknown")
 		}
-		data := struct {
-			Version      string
-			ChartConfig  string
-			UploadConfig string
-		}{
+		page := configPage{
 			Version:      version,
 			ChartConfig:  string(ccfg),
 			UploadConfig: string(cfgJSON),
 		}
-		return content.Template(w, fsys, "config.html", data, http.StatusOK)
+		return content.Template(w, fsys, "config.html", page, http.StatusOK)
 	}
 }

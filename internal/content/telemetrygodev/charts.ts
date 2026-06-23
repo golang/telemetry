@@ -6,17 +6,17 @@
  */
 
 interface Page {
-  Charts: ChartData;
+  Charts: ChartData | null;
 }
 
 interface ChartData {
-  Programs: Program[];
+  Programs: Program[] | null;
 }
 
 interface Program {
   ID: string;
   Name: string;
-  Charts: Chart[];
+  Charts: Chart[] | null;
 }
 
 interface Chart {
@@ -35,9 +35,10 @@ declare const Page: Page;
 
 import * as d3 from "d3";
 import * as Plot from "@observablehq/plot";
+import { treeNavController } from "../shared/treenav";
 
-for (const program of Page.Charts.Programs) {
-  for (const counter of program.Charts) {
+for (const program of Page.Charts?.Programs || []) {
+  for (const counter of program?.Charts || []) {
     switch (counter.Type) {
       case "partition":
         document
@@ -58,12 +59,19 @@ for (const program of Page.Charts.Programs) {
   }
 }
 
+for (const el of document.querySelectorAll<HTMLElement>(".js-Tree")) {
+  treeNavController(el);
+}
+
 function partition({ Data, Name }: Chart) {
   Data ??= [];
+
+  const max = Data.map((d) => d.Value).reduce((a, b) => Math.max(a, b), 0);
+
   return Plot.plot({
     color: {
-      type: "ordinal",
-      scheme: "Spectral",
+      type: "categorical",
+      scheme: "set2",
     },
     nice: true,
     x: {
@@ -73,11 +81,18 @@ function partition({ Data, Name }: Chart) {
       domain: Data.map((d) => d.Key),
     },
     y: {
-      label: "Frequency",
-      domain: [0, 1],
+      label: "Reports", // currently, partition charts count the number of reports, not counter totals.
+      domain: [0, max + 1], // adjust domain to prevent rendering issues, especially with all-zero data.
     },
     width: 1024,
-    style: "overflow:visible;background:transparent;margin-bottom:3rem;",
+    style: {
+      overflow: "visible",
+      background: "transparent",
+      marginBottom: "3rem",
+      fontSize: "0.8rem",
+      marginTop: "1rem",
+    },
+    insetTop: 20, // leave enough space between the axis label and marks
     marks: [
       Plot.barY(Data, {
         tip: true,

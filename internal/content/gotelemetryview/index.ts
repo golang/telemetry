@@ -7,7 +7,7 @@
 
 import * as Plot from "@observablehq/plot";
 
-import "../shared/base";
+import { debounce } from "../shared/treenav";
 
 declare global {
   interface Page {
@@ -17,6 +17,7 @@ declare global {
   interface ChartData {
     Programs: Program[];
     DateRange: [string, string];
+    UploadDay: Plot.TimeIntervalName;
   }
 
   interface Program {
@@ -84,7 +85,7 @@ function drawCharts() {
         tip: true,
         x: (d: Datum) => new Date(d.Week),
         y: (d: Datum) => d.Value,
-        interval: "week",
+        interval: Page.Charts.UploadDay,
         fill: (d: Datum) => {
           const n = Number(d.Key);
           return isNaN(n) ? d.Key : n;
@@ -94,6 +95,7 @@ function drawCharts() {
       const chart = Plot.plot({
         nice: true,
         x: {
+          type: "utc",
           domain: Page.Charts.DateRange.map((d) => new Date(d)),
           label: "Week",
         },
@@ -177,17 +179,6 @@ function breadcrumbController() {
   for (const h of headings) {
     observer.observe(h);
   }
-}
-
-function debounce<T extends (...args: unknown[]) => unknown>(
-  callback: T,
-  wait: number
-) {
-  let timeout: number;
-  return (...args: unknown[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => callback(...args), wait);
-  };
 }
 
 export {};

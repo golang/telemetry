@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.21
-
 package main
 
 import (
@@ -31,13 +29,14 @@ description: measure editor distribution for gopls users.
 type: partition
 issue: https://go.dev/issue/61038
 program: golang.org/x/tools/gopls
+module: golang.org/x/tools/gopls
 version: v0.14.0
 `
 	gcfgs, err := chartconfig.Parse([]byte(raw))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := generate(gcfgs, padding{2, 1, 1, 2, 2})
+	got, err := generate(gcfgs, map[string]padding{"golang.org/x/tools/gopls": {2, 1, 1, 2, 2}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +44,7 @@ version: v0.14.0
 		GOOS:       goos(),
 		GOARCH:     goarch(),
 		SampleRate: SamplingRate,
-		GoVersion:  []string{"go1.20", "go1.21.0", "devel"},
+		GoVersion:  []string{"go1.20", "go1.21.0"},
 		Programs: []*telemetry.ProgramConfig{{
 			Name: "golang.org/x/tools/gopls",
 			Versions: []string{
@@ -70,7 +69,6 @@ version: v0.14.0
 				"v1.0.1-pre.1",
 				"v1.0.1-pre.2",
 				"v1.0.1",
-				"devel", // Added for go.dev/issues/62271,
 			},
 			Counters: []telemetry.CounterConfig{{
 				Name: "gopls/editor:{emacs,vim,vscode,other}",
@@ -132,7 +130,6 @@ func TestContains(t *testing.T) {
 					"v0.15.1-pre.1",
 					"v0.15.1-pre.2",
 					"v0.15.1",
-					"devel", // Added for go.dev/issues/62271,
 				},
 				Counters: []telemetry.CounterConfig{{
 					Name: "gopls/editor:{emacs,vim,vscode,other}",

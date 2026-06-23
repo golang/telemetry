@@ -9,6 +9,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -47,6 +48,37 @@ type ObjectIterator interface {
 type GCSBucket struct {
 	*storage.BucketHandle
 	url string
+}
+
+// Copy read the content from the source and write the content to the
+// destination.
+func Copy(ctx context.Context, dst, src ObjectHandle) error {
+	srcGCS, srcOk := src.(*GCSObject)
+	dstGCS, dstOk := dst.(*GCSObject)
+	if srcOk && dstOk {
+		if _, err := dstGCS.CopierFrom(srcGCS.ObjectHandle).Run(ctx); err != nil {
+			return fmt.Errorf("failed to use gcs copier to copy from %s to %s: %w", srcGCS.ObjectName(), dstGCS.ObjectName(), err)
+		}
+		return nil
+	}
+
+	reader, err := src.NewReader(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create reader for source: %w", err)
+	}
+	defer reader.Close()
+
+	writer, err := dst.NewWriter(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create writer for destination: %w", err)
+	}
+	defer writer.Close()
+
+	if _, err := io.Copy(writer, reader); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewGCSBucket(ctx context.Context, project, bucket string) (BucketHandle, error) {
@@ -135,6 +167,10 @@ type FSObject struct {
 func NewFSObject(b *FSBucket, name string) ObjectHandle {
 	filename := filepath.Join(b.dir, b.bucket, filepath.FromSlash(name))
 	return &FSObject{filename}
+}
+
+func (o *FSObject) Filename() string {
+	return o.filename
 }
 
 func (o *FSObject) NewReader(ctx context.Context) (io.ReadCloser, error) {
