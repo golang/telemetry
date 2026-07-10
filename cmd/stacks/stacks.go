@@ -41,10 +41,15 @@
 //     >       | expr && expr
 //     >       | expr || expr
 //
-//     Each string literal must match complete words on the stack;
-//     the other productions are boolean operations.
+//     Each string literal must match complete words in the text,
+//     which consists of stack followed by one or more configuration
+//     lines of the form
+//
+//     GOTOOLCHAIN=go1.23.0 GOOS=darwin GOARCH=arm64 golang.org/x/tools/gopls@v0.22.0
+//
 //     As an example of literal matching, "fu+12" matches "x:fu+12 "
-//     but not "fu:123" or "snafu+12".
+//     but not "fu:123" or "snafu+12"; it is not a regular expression.
+//     The other productions are boolean operations.
 //
 //     The stacks command gathers all such predicates out of the
 //     labelled issues and evaluates each one against each new stack.
@@ -582,8 +587,8 @@ func parsePredicate(s string) (func(string) bool, error) {
 //     is a little loose but base64 will rarely produce words
 //     that appear in the body by chance.
 //
-//  2. if the issue body contains a ```#!stacks``` predicate
-//     that matches the stack.
+//  2. if the issue body contains a ```#!stacks``` predicate that
+//     matches the text, consisting of stack and configuration lines.
 //
 // We log an error if two different issues attempt to claim
 // the same stack.
@@ -593,13 +598,23 @@ func claimStacks(issues []*Issue, stacks map[string]map[Info]int64) map[string]*
 	// This is O(new stacks x existing issues).
 	claimedBy := make(map[string]*Issue)
 	claimType := make(map[string]bool) // records whether claim was due to predicate (true) or ID (false) in issue body
-	for stack := range stacks {
+	for stack, counts := range stacks {
 		id := stackID(stack)
+
+		// Construct the stack + configuration text to be matched.
+		var buf strings.Builder
+		buf.WriteString(stack)
+		for info := range counts {
+			fmt.Fprintf(&buf, "\nGOTOOLCHAIN=%s GOOS=%s GOARCH=%s %s@%s",
+				info.GoVersion, info.GOOS, info.GOARCH, info.Program, info.ProgramVersion)
+		}
+		text := buf.String()
+
 		for _, issue := range issues {
 			byPredicate := false
 			if strings.Contains(issue.Body, id) {
 				// nop
-			} else if issue.matches != nil && issue.matches(stack) {
+			} else if issue.matches != nil && issue.matches(text) {
 				byPredicate = true
 				if false {
 					log.Printf("predicate %s matches stack %s", issue.predicate, id)

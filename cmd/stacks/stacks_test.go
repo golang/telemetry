@@ -8,6 +8,7 @@ package main
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -107,6 +108,11 @@ func TestParsePredicate(t *testing.T) {
 		{`"x" || "y"`, "x", true},
 		{`"x" || "y"`, "y", true},
 		{`"x" || "y"`, "z", false},
+		{`"GOOS=linux"`, "runtime.main\nGOOS=linux GOARCH=amd64", true},
+		{`"GOOS=darwin"`, "runtime.main\nGOOS=linux GOARCH=amd64", false},
+		{`"GOARCH=amd64"`, "runtime.main\nGOOS=linux GOARCH=amd64", true},
+		{`"GOARCH=arm64"`, "runtime.main\nGOOS=linux GOARCH=amd64", false},
+		{`"GOOS=linux" && "GOARCH=amd64"`, "runtime.main\nGOOS=linux GOARCH=amd64", true},
 	} {
 		eval, err := parsePredicate(tc.expr)
 		if err != nil {
@@ -345,5 +351,39 @@ func TestShouldReopen(t *testing.T) {
 				t.Errorf("got %t, want %t", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestClaimStacksOSARCH(t *testing.T) {
+	evalLinux, err := parsePredicate(`"GOOS=linux" && "runtime.main"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evalDarwin, err := parsePredicate(`"GOOS=darwin" && "runtime.main"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issues := []*Issue{
+		{Number: 1, predicate: `"GOOS=linux" && "runtime.main"`, matches: evalLinux},
+		{Number: 2, predicate: `"GOOS=darwin" && "runtime.main"`, matches: evalDarwin},
+	}
+	stack1 := "runtime.main\nmain.main"
+	stack2 := "runtime.main\nother.main"
+	stacks := map[string]map[Info]int64{
+		stack1: {Info{GOOS: "linux", GOARCH: "amd64"}: 1},
+		stack2: {Info{GOOS: "darwin", GOARCH: "arm64"}: 1},
+	}
+	claimed := claimStacks(issues, stacks)
+	if claimed[stackID(stack1)] != issues[0] {
+		t.Errorf("stack1 claimed by %v, want issue #1", claimed[stackID(stack1)])
+	}
+	if claimed[stackID(stack2)] != issues[1] {
+		t.Errorf("stack2 claimed by %v, want issue #2", claimed[stackID(stack2)])
+	}
+	if !slices.Equal(issues[0].newStacks, []string{stack1}) {
+		t.Errorf("issue #1 newStacks = %v, want [%q]", issues[0].newStacks, stack1)
+	}
+	if !slices.Equal(issues[1].newStacks, []string{stack2}) {
+		t.Errorf("issue #2 newStacks = %v, want [%q]", issues[1].newStacks, stack2)
 	}
 }
