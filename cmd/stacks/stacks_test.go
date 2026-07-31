@@ -387,3 +387,36 @@ func TestClaimStacksOSARCH(t *testing.T) {
 		t.Errorf("issue #2 newStacks = %v, want [%q]", issues[1].newStacks, stack2)
 	}
 }
+
+func TestClaimStacksMultipleConfigs(t *testing.T) {
+	const stack = "runtime.main"
+	stacks := map[string]map[Info]int64{
+		stack: {
+			{GOOS: "linux", GOARCH: "amd64"}:  1,
+			{GOOS: "darwin", GOARCH: "arm64"}: 1,
+		},
+	}
+
+	for _, test := range []struct {
+		name      string
+		predicate string
+		want      bool
+	}{
+		{"linux/amd64", `"GOOS=linux" && "GOARCH=amd64"`, true},
+		{"darwin/arm64", `"GOOS=darwin" && "GOARCH=arm64"`, true},
+		{"linux/arm64", `"GOOS=linux" && "GOARCH=arm64"`, false},
+		{"darwin/amd64", `"GOOS=darwin" && "GOARCH=amd64"`, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			match, err := parsePredicate(test.predicate)
+			if err != nil {
+				t.Fatal(err)
+			}
+			issue := &Issue{Number: 1, predicate: test.predicate, matches: match}
+			claimed := claimStacks([]*Issue{issue}, stacks)
+			if got := claimed[stackID(stack)] == issue; got != test.want {
+				t.Errorf("claimStacks with predicate %q claimed stack: %t, want %t", test.predicate, got, test.want)
+			}
+		})
+	}
+}

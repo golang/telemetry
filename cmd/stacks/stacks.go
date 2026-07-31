@@ -41,9 +41,9 @@
 //     >       | expr && expr
 //     >       | expr || expr
 //
-//     Each string literal must match complete words in the text,
-//     which consists of stack followed by one or more configuration
-//     lines of the form
+//     Each string literal must match complete words in the text.
+//     The predicate is evaluated separately for each configuration,
+//     against text consisting of the stack followed by one line of the form
 //
 //     GOTOOLCHAIN=go1.23.0 GOOS=darwin GOARCH=arm64 golang.org/x/tools/gopls@v0.22.0
 //
@@ -588,33 +588,24 @@ func parsePredicate(s string) (func(string) bool, error) {
 //     that appear in the body by chance.
 //
 //  2. if the issue body contains a ```#!stacks``` predicate that
-//     matches the text, consisting of stack and configuration lines.
+//     matches the stack together with at least one of its configurations.
 //
 // We log an error if two different issues attempt to claim
 // the same stack.
 func claimStacks(issues []*Issue, stacks map[string]map[Info]int64) map[string]*Issue {
 	log.Println("Processing claims...")
 
-	// This is O(new stacks x existing issues).
+	// This is O(new stacks x existing issues x stack configurations).
 	claimedBy := make(map[string]*Issue)
 	claimType := make(map[string]bool) // records whether claim was due to predicate (true) or ID (false) in issue body
 	for stack, counts := range stacks {
 		id := stackID(stack)
 
-		// Construct the stack + configuration text to be matched.
-		var buf strings.Builder
-		buf.WriteString(stack)
-		for info := range counts {
-			fmt.Fprintf(&buf, "\nGOTOOLCHAIN=%s GOOS=%s GOARCH=%s %s@%s",
-				info.GoVersion, info.GOOS, info.GOARCH, info.Program, info.ProgramVersion)
-		}
-		text := buf.String()
-
 		for _, issue := range issues {
 			byPredicate := false
 			if strings.Contains(issue.Body, id) {
 				// nop
-			} else if issue.matches != nil && issue.matches(text) {
+			} else if issue.matches != nil && matchesAnyConfig(issue.matches, stack, counts) {
 				byPredicate = true
 				if false {
 					log.Printf("predicate %s matches stack %s", issue.predicate, id)
@@ -647,6 +638,19 @@ func claimStacks(issues []*Issue, stacks map[string]map[Info]int64) map[string]*
 	}
 
 	return claimedBy
+}
+
+// matchesAnyConfig reports whether match accepts the stack in at least one of
+// the configurations in counts.
+func matchesAnyConfig(match func(string) bool, stack string, counts map[Info]int64) bool {
+	for info := range counts {
+		text := fmt.Sprintf("%s\nGOTOOLCHAIN=%s GOOS=%s GOARCH=%s %s@%s",
+			stack, info.GoVersion, info.GOOS, info.GOARCH, info.Program, info.ProgramVersion)
+		if match(text) {
+			return true
+		}
+	}
+	return false
 }
 
 // updateIssues updates existing issues that claimed new stacks by predicate.
