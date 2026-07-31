@@ -21,7 +21,7 @@ import (
 )
 
 func TestServer_ServeHTTP(t *testing.T) {
-	testenv.NeedsGo1Point(t, 23) // output of some http helpers changed in Go 1.23
+	testenv.NeedsGo1Point(t, 28) // output of some http helpers changed in Go 1.28
 	fsys := os.DirFS("testdata")
 
 	// Reset the default logger after this test.
