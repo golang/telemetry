@@ -271,6 +271,8 @@ module: golang.org/x/tools/gopls
 version: v0.18.0
 ---
 counter: vscode-go/command/trigger:{
+	impl-command_palette,
+	impl-context_menu,
 	gotests-command_palette,
 	gotests-context_menu,
 	gomodifytags-command_palette,
@@ -278,6 +280,9 @@ counter: vscode-go/command/trigger:{
 	gopls.add_test-command_palette,
 	gopls.add_test-context_menu,
 	gopls.add_test-code_action,
+	gopls.implement_interface-command_palette,
+	gopls.implement_interface-context_menu,
+	gopls.implement_interface-code_action,
 	gopls.modify_tags-command_palette,
 	gopls.modify_tags-context_menu,
 	gopls.modify_tags-code_action
