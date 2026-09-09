@@ -77,6 +77,13 @@ var minimumPaddings = map[string]padding{
 		patch:    2,
 		pre:      0,
 	},
+	"golang.org/x/pkgsite/cmd/internal/pkgsite-cli": {
+		releases: 2,
+		maj:      0,
+		majmin:   1,
+		patch:    2,
+		pre:      0,
+	},
 }
 
 // regularPaddings maps from program name to padding used to reserve enough
@@ -126,6 +133,13 @@ var regularPaddings = map[string]padding{
 		majmin:   6,
 		patch:    3,
 		pre:      4,
+	},
+	"golang.org/x/pkgsite/cmd/internal/pkgsite-cli": {
+		releases: 4,
+		maj:      0,
+		majmin:   2,
+		patch:    4,
+		pre:      0,
 	},
 }
 

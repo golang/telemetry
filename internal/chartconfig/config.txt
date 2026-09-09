@@ -485,3 +485,12 @@ issue: https://go.dev/issue/79837
 program: golang.org/x/tools/gopls
 module: golang.org/x/tools/gopls
 version: v0.22.1
+---
+counter: pkgsite-cli/command:{package,module,search}
+title: Pkgsite-cli Command Usage
+description: Number of invocations of each pkgsite-cli command
+type: partition
+issue: https://github.com/golang/go/issues/81409
+program: golang.org/x/pkgsite/cmd/internal/pkgsite-cli
+module: golang.org/x/pkgsite
+version: v0.1.0
