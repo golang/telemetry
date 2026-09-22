@@ -730,6 +730,33 @@
 			]
 		},
 		{
+			"Name": "golang.org/x/pkgsite/cmd/internal/pkgsite-cli",
+			"Versions": [
+				"v0.1.0",
+				"v0.2.0",
+				"v0.3.0",
+				"v0.4.0",
+				"v0.5.0",
+				"v0.5.1",
+				"v0.5.2",
+				"v0.5.3",
+				"v0.5.4",
+				"v0.6.0",
+				"v0.6.1",
+				"v0.6.2",
+				"v0.6.3",
+				"v0.7.0",
+				"v0.7.1",
+				"v0.7.2"
+			],
+			"Counters": [
+				{
+					"Name": "pkgsite-cli/command:{package,module,search}",
+					"Rate": 1
+				}
+			]
+		},
+		{
 			"Name": "golang.org/x/tools/gopls",
 			"Versions": [
 				"v0.13.0",
