@@ -160,4 +160,5 @@ const DisabledOnPlatform = false ||
 	runtime.GOOS == "js" || // #60971
 	runtime.GOOS == "wasip1" || // #60971
 	runtime.GOOS == "plan9" || // https://github.com/golang/go/issues/57540#issuecomment-1470766639
-	runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" // mips lacks cross-process 64-bit atomics
+	runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" || // mips lacks cross-process 64-bit atomics
+        runtime.GOOS == "zos" // zos is an unofficial port
