@@ -218,6 +218,9 @@ func (p chartPage) Breadcrumbs() []breadcrumb {
 func handleChart(render renderer, chartBucket storage.BucketHandle) content.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		date := r.PathValue("date") // may be a range -- 2025-05-20_2025-05-27
+		if !validChartDate(date) {
+			return content.Error(fmt.Errorf("invalid chart date: %q", date), http.StatusBadRequest)
+		}
 		page := chartPage{Date: date}
 		var err error
 		objName := date + ".json"
@@ -230,6 +233,19 @@ func handleChart(render renderer, chartBucket storage.BucketHandle) content.Hand
 		}
 		return render(w, "charts.html", page)
 	}
+}
+
+func validChartDate(date string) bool {
+	start, end, aggregate := strings.Cut(date, "_")
+	if _, err := time.Parse(telemetry.DateOnly, start); err != nil {
+		return false
+	}
+	if aggregate {
+		if _, err := time.Parse(telemetry.DateOnly, end); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 type dataPage struct {

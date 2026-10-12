@@ -109,6 +109,10 @@ func TestPaths(t *testing.T) {
 		{"GET", "/", "", 200, []string{"Go Telemetry"}},
 		{"GET", "/privacy", "", 200, []string{"Privacy Policy"}},
 		{"GET", "/config", "", 200, []string{"Chart Config"}},
+		{"GET", "/charts/2023-01-01", "", 404, nil},
+		{"GET", "/charts/2023-01-01_2023-01-07", "", 404, nil},
+		{"GET", "/charts/invalid", "", 400, nil},
+		{"GET", "/charts/..%2Fconfig", "", 400, nil},
 		{
 			"POST",
 			"/upload/2023-01-01/123.json",
