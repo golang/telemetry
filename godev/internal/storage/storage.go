@@ -111,7 +111,11 @@ func NewGCSObject(b *GCSBucket, name string) ObjectHandle {
 }
 
 func (o *GCSObject) NewReader(ctx context.Context) (io.ReadCloser, error) {
-	return o.ObjectHandle.NewReader(ctx)
+	r, err := o.ObjectHandle.NewReader(ctx)
+	if errors.Is(err, storage.ErrObjectNotExist) {
+		return nil, ErrObjectNotExist
+	}
+	return r, err
 }
 
 func (o *GCSObject) NewWriter(ctx context.Context) (io.WriteCloser, error) {
