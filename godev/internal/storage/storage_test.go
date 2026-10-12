@@ -32,6 +32,14 @@ func TestFSStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	runTest(t, ctx, s)
+	for _, invalid := range []string{"../escape", "a/../../escape", "/abs"} {
+		if err := write(ctx, s, invalid, writeData); err == nil {
+			t.Errorf("write(%q) succeeded, want error", invalid)
+		}
+		if _, err := read(ctx, s, invalid); err == nil {
+			t.Errorf("read(%q) succeeded, want error", invalid)
+		}
+	}
 }
 
 func runTest(t *testing.T, ctx context.Context, s BucketHandle) {

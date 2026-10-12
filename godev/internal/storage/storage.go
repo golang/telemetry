@@ -166,11 +166,16 @@ func (b *FSBucket) Object(name string) ObjectHandle {
 
 type FSObject struct {
 	filename string
+	err      error
 }
 
 func NewFSObject(b *FSBucket, name string) ObjectHandle {
-	filename := filepath.Join(b.dir, b.bucket, filepath.FromSlash(name))
-	return &FSObject{filename}
+	localName, err := filepath.Localize(name)
+	if err != nil {
+		return &FSObject{err: fmt.Errorf("invalid object name %q: %w", name, err)}
+	}
+	filename := filepath.Join(b.dir, b.bucket, localName)
+	return &FSObject{filename: filename}
 }
 
 func (o *FSObject) Filename() string {
@@ -178,6 +183,9 @@ func (o *FSObject) Filename() string {
 }
 
 func (o *FSObject) NewReader(ctx context.Context) (io.ReadCloser, error) {
+	if o.err != nil {
+		return nil, o.err
+	}
 	r, err := os.Open(o.filename)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, ErrObjectNotExist
@@ -186,6 +194,9 @@ func (o *FSObject) NewReader(ctx context.Context) (io.ReadCloser, error) {
 }
 
 func (o *FSObject) NewWriter(ctx context.Context) (io.WriteCloser, error) {
+	if o.err != nil {
+		return nil, o.err
+	}
 	if err := os.MkdirAll(filepath.Dir(o.filename), os.ModePerm); err != nil {
 		return nil, err
 	}
