@@ -1108,7 +1108,7 @@
 					"Rate": 1
 				},
 				{
-					"Name": "gopls/interactive/command:{modify_tags,implement_interface}",
+					"Name": "gopls/interactive/command:{modify_tags,implement_interface,dragon_slayer,move_declaration}",
 					"Rate": 1
 				}
 			],
