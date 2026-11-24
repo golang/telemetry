@@ -260,8 +260,8 @@ func main() {
 		existingIssues = make(map[string]int64)
 		newIssues      = make(map[string]int64)
 
-		allStacks, corruptStacks int64 // count of all stacks, and those labeled "memory-corruption"
-		corruptCauses            int64 // same, but counts issues not stacks
+		allStacks, corruptStacks int64                // count of all stacks, and those labeled "memory-corruption"
+		corruptIssues            = make(map[int]bool) // set of issues labeled "memory-corruption"
 	)
 	for stack, counts := range stacks {
 		id := stackID(stack)
@@ -290,7 +290,7 @@ func main() {
 				return strings.HasSuffix(label.Name, "/memory-corruption") // e.g. gopls/memory-corruption
 			}) {
 				corruptStacks += total
-				corruptCauses++
+				corruptIssues[issue.Number] = true
 			}
 
 		} else {
@@ -327,9 +327,12 @@ func main() {
 	print("\nExisting", existingIssues)
 	print("\nNew", newIssues)
 
+	// A cause is an existing issue, or a new (unclaimed) stack,
+	// which may or may not turn out to be a distinct cause.
+	causes := len(existingIssues) + len(newIssues)
 	fmt.Printf("\nMemory corruption: %d/%d (%.2g%%) of reports, %d/%d (%.2g%%) of causes\n",
 		corruptStacks, allStacks, float64(corruptStacks)*100/float64(allStacks),
-		corruptCauses, len(stacks), float64(corruptCauses)*100/float64(len(stacks)))
+		len(corruptIssues), causes, float64(len(corruptIssues))*100/float64(causes))
 }
 
 // Info is used as a key for de-duping and aggregating.
